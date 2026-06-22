@@ -1,0 +1,172 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ms8-gateway
+
+  # ============================================
+  # Redis — Rate Limiting
+  # ============================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # ============================================
+  # Spring Cloud Gateway
+  # ============================================
+  cloud:
+    gateway:
+
+      # ============================================
+      # Global CORS Configuration
+      # ============================================
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: false
+
+      # ============================================
+      # HTTP Debug
+      # ============================================
+      httpclient:
+        wiretap: false
+      httpserver:
+        wiretap: false
+
+      # ============================================
+      # Default Filters
+      # ============================================
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 20
+            redis-rate-limiter.burstCapacity: 40
+            redis-rate-limiter.requestedTokens: 1
+            key-resolver: "#{@ipKeyResolver}"
+
+      # ============================================
+      # Routes
+      # ============================================
+      routes:
+
+        # MS7 — AuthService (PUBLIC)
+        - id: ms7-auth-public
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/auth/register, /api/auth/login
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
+
+        # MS7 — AuthService (PROTÉGÉ)
+        - id: ms7-auth-protected
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms1-bus
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/bus/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms2-eleves
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/eleves/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms3-localisation
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/gps/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms4-notifications
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms5-planification
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/planification/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms6-clustering
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/clustering/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms9-llm
+          uri: http://localhost:8089
+          predicates:
+            - Path=/api/llm/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms10-incidents
+          uri: http://localhost:8090
+          predicates:
+            - Path=/api/incidents/**
+          filters:
+            - JwtAuthFilter
+
+        - id: ms11-analytique
+          uri: http://localhost:8091
+          predicates:
+            - Path=/api/analytique/**
+          filters:
+            - JwtAuthFilter
+
+# ============================================
+# Actuator
+# ============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway
+  endpoint:
+    health:
+      show-details: always
+
+# ============================================
+# JWT
+# ============================================
+jwt:
+  secret: ${JWT_SECRET:transport_scolaire_secret_key_2026_super_long}
+
+# ============================================
+# Logging
+# ============================================
+logging:
+  level:
+    ma.transport.ms8gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN

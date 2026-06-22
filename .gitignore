@@ -1,0 +1,60 @@
+# ====================================================================
+# Fichier .gitignore - Projet PFE Smart Transport Scolaire (Master SDIA)
+# ====================================================================
+
+# 1. Dossiers de build et compilation (Java / Maven)
+# ====================================================================
+**/target/
+*.class
+*.mars
+*.vm
+*.log
+
+# Ignorer le wrapper Maven si vous préférez utiliser votre Maven local
+# .mvn/
+# mvnw
+# mvnw.cmd
+
+# 2. Données cartographiques lourdes (OSRM) - À NE JAMAIS POUSSER
+# ====================================================================
+/osrm-data/
+
+# 3. Sécurité et Secrets (Critique)
+# ====================================================================
+**/firebase-service-account.json
+*.env
+.env.*
+
+# 4. Environnements virtuels et cache (Python / IA)
+# ====================================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.history/
+
+# 5. Fichiers temporaires, logs de test et dumps textuels du workspace
+# ====================================================================
+/project_dump.txt
+/important_project_dump.txt
+/New Text Document.txt
+/test_results_2.txt
+**/postman/test_results*.txt
+
+# 6. Configuration des IDEs (VS Code, IntelliJ, Eclipse)
+# ====================================================================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
