@@ -7,11 +7,13 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms2eleves.dto.EleveRequest;
 import ma.transport.ms2eleves.dto.EleveResponse;
 import ma.transport.ms2eleves.entity.Eleve;
 import ma.transport.ms2eleves.repository.EleveRepository;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EleveService {
@@ -27,16 +29,14 @@ public class EleveService {
                 .latitude(req.getLatitude())
                 .longitude(req.getLongitude())
                 .parentId(req.getParentId())
+                .busId(req.getBusId())
+                .groupeId(req.getGroupeId())
                 .build();
 
         Eleve saved = repo.save(eleve);
 
-        // Publier événement RabbitMQ → MS6 clustering
-        rabbitTemplate.convertAndSend(
-            "transport.exchange",
-            "eleve.created",
-            "eleveId:" + saved.getId()
-        );
+        rabbitTemplate.convertAndSend("transport.exchange", "eleve.created", "eleveId:" + saved.getId());
+        log.info("[MS2] Élève créé — id={} nom={} {}", saved.getId(), saved.getNom(), saved.getPrenom());
 
         return toResponse(saved);
     }
@@ -62,7 +62,7 @@ public class EleveService {
                 .collect(Collectors.toList());
     }
 
-    // ── Élèves sans groupe (pour clustering) ─────────────────────────
+    // ── Élèves sans groupe (point de départ clustering MS6) ──────────
     public List<EleveResponse> sanGroupe() {
         return repo.findByGroupeIdIsNull().stream()
                 .map(this::toResponse)
@@ -72,13 +72,12 @@ public class EleveService {
     // ── Obtenir un élève ─────────────────────────────────────────────
     public EleveResponse getById(Long id) {
         return toResponse(repo.findById(id)
-                .orElseThrow(() ->
-                    new RuntimeException("Élève non trouvé : " + id)));
+                .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id)));
     }
 
     /**
-     * Liste des parentId (dédupliquée, sans null) des élèves assignés à un bus.
-     * Appelée directement par MS4 (route interne, sans JWT) pour les notifications.
+     * Route INTERNE — appelée par MS4 (sans JWT) pour récupérer les parents
+     * des élèves d'un bus, afin d'envoyer des notifications FCM.
      */
     public List<Long> getParentIdsParBus(Long busId) {
         return repo.findByBusId(busId).stream()
@@ -88,11 +87,10 @@ public class EleveService {
                 .collect(Collectors.toList());
     }
 
-    // ── Modifier un élève ────────────────────────────────────────────
+    // ── Modifier un élève (PUT complet) ──────────────────────────────
     public EleveResponse modifier(Long id, EleveRequest req) {
         Eleve eleve = repo.findById(id)
-                .orElseThrow(() ->
-                    new RuntimeException("Élève non trouvé : " + id));
+                .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id));
 
         boolean gpsModifie =
             !eleve.getLatitude().equals(req.getLatitude()) ||
@@ -104,16 +102,46 @@ public class EleveService {
         eleve.setLongitude(req.getLongitude());
         eleve.setParentId(req.getParentId());
 
+        // Mise à jour optionnelle de busId / groupeId si fournis dans la requête
+        if (req.getBusId() != null)    eleve.setBusId(req.getBusId());
+        if (req.getGroupeId() != null) eleve.setGroupeId(req.getGroupeId());
+
         Eleve saved = repo.save(eleve);
 
-        // Si GPS modifié → événement RabbitMQ → recalcul clustering
         if (gpsModifie) {
-            rabbitTemplate.convertAndSend(
-                "transport.exchange",
-                "eleve.gps.updated",
-                "eleveId:" + saved.getId()
-            );
+            rabbitTemplate.convertAndSend("transport.exchange", "eleve.gps.updated", "eleveId:" + saved.getId());
         }
+
+        return toResponse(saved);
+    }
+
+    /**
+     * Assigner un bus à un élève — appelé via PATCH /api/eleves/{id}/bus
+     * Utilisé après le clustering MS6 ou par l'admin directement.
+     */
+    public EleveResponse assignerBus(Long id, Long busId) {
+        Eleve eleve = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id));
+
+        eleve.setBusId(busId);
+        Eleve saved = repo.save(eleve);
+        log.info("[MS2] Bus assigné — élève={} bus={}", id, busId);
+
+        return toResponse(saved);
+    }
+
+    /**
+     * Assigner un groupe à un élève — appelé via PATCH /api/eleves/{id}/groupe
+     * Appelé par MS6 ClusteringService après K-Means / DBSCAN.
+     * Route interne : pas de JWT requis (voir SecurityConfig).
+     */
+    public EleveResponse assignerGroupe(Long id, Long groupeId) {
+        Eleve eleve = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id));
+
+        eleve.setGroupeId(groupeId);
+        Eleve saved = repo.save(eleve);
+        log.info("[MS2] Groupe assigné — élève={} groupe={}", id, groupeId);
 
         return toResponse(saved);
     }
@@ -121,8 +149,7 @@ public class EleveService {
     // ── Mettre à jour présence ───────────────────────────────────────
     public void mettreAJourPresence(Long id, Boolean present) {
         Eleve eleve = repo.findById(id)
-                .orElseThrow(() ->
-                    new RuntimeException("Élève non trouvé : " + id));
+                .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id));
         eleve.setStatutPresence(present);
         repo.save(eleve);
     }
@@ -133,13 +160,8 @@ public class EleveService {
             throw new RuntimeException("Élève non trouvé : " + id);
         }
         repo.deleteById(id);
-
-        // Événement RabbitMQ → recalcul clustering
-        rabbitTemplate.convertAndSend(
-            "transport.exchange",
-            "eleve.deleted",
-            "eleveId:" + id
-        );
+        rabbitTemplate.convertAndSend("transport.exchange", "eleve.deleted", "eleveId:" + id);
+        log.info("[MS2] Élève {} supprimé", id);
     }
 
     // ── Mapper entité → DTO ──────────────────────────────────────────

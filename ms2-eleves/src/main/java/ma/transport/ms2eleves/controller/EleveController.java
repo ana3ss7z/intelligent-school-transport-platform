@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import ma.transport.ms2eleves.dto.EleveRequest;
 import ma.transport.ms2eleves.dto.EleveResponse;
 import ma.transport.ms2eleves.service.EleveService;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/eleves")
@@ -31,6 +31,7 @@ public class EleveController {
 
     private final EleveService service;
 
+    // ── POST /api/eleves ─────────────────────────────────────────────
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EleveResponse> creer(
@@ -39,45 +40,49 @@ public class EleveController {
                 .body(service.creer(req));
     }
 
+    // ── GET /api/eleves ──────────────────────────────────────────────
     @GetMapping
     public ResponseEntity<List<EleveResponse>> listerTous() {
         return ResponseEntity.ok(service.listerTous());
     }
 
+    // ── GET /api/eleves/{id} ─────────────────────────────────────────
     @GetMapping("/{id}")
-    public ResponseEntity<EleveResponse> getById(
-            @PathVariable Long id) {
+    public ResponseEntity<EleveResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
+    // ── GET /api/eleves/parent/{parentId} ────────────────────────────
     @GetMapping("/parent/{parentId}")
     public ResponseEntity<List<EleveResponse>> parParent(
             @PathVariable Long parentId) {
         return ResponseEntity.ok(service.parParent(parentId));
     }
 
+    // ── GET /api/eleves/groupe/{groupeId} ────────────────────────────
     @GetMapping("/groupe/{groupeId}")
     public ResponseEntity<List<EleveResponse>> parGroupe(
             @PathVariable Long groupeId) {
         return ResponseEntity.ok(service.parGroupe(groupeId));
     }
 
+    // ── GET /api/eleves/sans-groupe ──────────────────────────────────
     @GetMapping("/sans-groupe")
     public ResponseEntity<List<EleveResponse>> sansGroupe() {
         return ResponseEntity.ok(service.sanGroupe());
     }
 
     /**
-     * Route INTERNE — appelée directement par MS4 (port 8082, sans passer par Gateway).
-     * Pas de JWT requis : voir SecurityConfig (permitAll sur "/api/eleves/bus/*").
-     * Retourne la liste des parentId (dédupliquée) des élèves assignés à un bus.
+     * GET /api/eleves/bus/{busId}/parents
+     * Route INTERNE (sans JWT) — appelée par MS4 pour les notifications FCM.
+     * Retourne la liste dédupliquée des parentId des élèves d'un bus.
      */
     @GetMapping("/bus/{busId}/parents")
-    public ResponseEntity<List<Long>> parentsParBus(
-            @PathVariable Long busId) {
+    public ResponseEntity<List<Long>> parentsParBus(@PathVariable Long busId) {
         return ResponseEntity.ok(service.getParentIdsParBus(busId));
     }
 
+    // ── PUT /api/eleves/{id} ─────────────────────────────────────────
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EleveResponse> modifier(
@@ -86,6 +91,31 @@ public class EleveController {
         return ResponseEntity.ok(service.modifier(id, req));
     }
 
+    /**
+     * PATCH /api/eleves/{id}/bus?busId=X
+     * Assigner un bus à un élève (ADMIN ou résultat clustering MS6).
+     */
+    @PatchMapping("/{id}/bus")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EleveResponse> assignerBus(
+            @PathVariable Long id,
+            @RequestParam Long busId) {
+        return ResponseEntity.ok(service.assignerBus(id, busId));
+    }
+
+    /**
+     * PATCH /api/eleves/{id}/groupe?groupeId=X
+     * Assigner un groupe géographique (appelé par MS6 ClusteringService).
+     * Route interne — pas de JWT requis (voir SecurityConfig).
+     */
+    @PatchMapping("/{id}/groupe")
+    public ResponseEntity<EleveResponse> assignerGroupe(
+            @PathVariable Long id,
+            @RequestParam Long groupeId) {
+        return ResponseEntity.ok(service.assignerGroupe(id, groupeId));
+    }
+
+    // ── PATCH /api/eleves/{id}/presence ──────────────────────────────
     @PatchMapping("/{id}/presence")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR')")
     public ResponseEntity<Void> presence(
@@ -95,6 +125,7 @@ public class EleveController {
         return ResponseEntity.ok().build();
     }
 
+    // ── DELETE /api/eleves/{id} ──────────────────────────────────────
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> supprimer(@PathVariable Long id) {

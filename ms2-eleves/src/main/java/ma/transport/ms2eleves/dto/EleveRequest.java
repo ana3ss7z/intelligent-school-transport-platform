@@ -24,4 +24,10 @@ public class EleveRequest {
     private Double longitude;
 
     private Long parentId;
+
+    /** Assignation directe d'un bus (ex: résultat clustering MS6) */
+    private Long busId;
+
+    /** Groupe géographique (résultat K-Means MS6) */
+    private Long groupeId;
 }
