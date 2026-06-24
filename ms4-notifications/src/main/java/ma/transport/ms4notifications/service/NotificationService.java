@@ -5,13 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms4notifications.dto.DeviceTokenRequest;
 import ma.transport.ms4notifications.dto.NotificationResponse;
 import ma.transport.ms4notifications.entity.DeviceToken;
-import ma.transport.ms4notifications.entity.Notification;
+import ma.transport.ms4notifications.entity.Notification.StatutEnvoi;
+import ma.transport.ms4notifications.entity.Notification.TypeNotification;
 import ma.transport.ms4notifications.repository.DeviceTokenRepository;
 import ma.transport.ms4notifications.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -20,55 +23,69 @@ public class NotificationService {
 
     private final NotificationRepository notifRepo;
     private final DeviceTokenRepository  deviceTokenRepo;
+    private final FcmService             fcmService;
 
-    // ─── Historique notifications ─────────────────────────────────────────────
+    // ── Device token ─────────────────────────────────────────────────
 
-    public List<NotificationResponse> getMesNotifications(Long parentId) {
-        return notifRepo.findByParentIdOrderByDateEnvoiDesc(parentId)
-                .stream().map(NotificationResponse::from).toList();
-    }
-
-    public List<NotificationResponse> getToutesNotifications() {
-        return notifRepo.findAll().stream()
-                .map(NotificationResponse::from).toList();
-    }
-
-    // ─── Device tokens FCM ───────────────────────────────────────────────────
-
+    @Transactional
     public void enregistrerToken(Long parentId, DeviceTokenRequest req) {
-        if (deviceTokenRepo.existsByFcmToken(req.getFcmToken())) {
-            log.debug("[MS4] Token déjà enregistré pour parent {}", parentId);
-            return;
-        }
+        deviceTokenRepo.findByFcmToken(req.getFcmToken()).ifPresent(existing -> {
+            existing.setActif(false);
+            deviceTokenRepo.save(existing);
+        });
 
         DeviceToken token = DeviceToken.builder()
                 .parentId(parentId)
                 .fcmToken(req.getFcmToken())
-                .plateforme(req.getPlateforme() != null ? req.getPlateforme() : "ANDROID")
+                .plateforme(req.getPlateforme())
+                .actif(true)
                 .build();
 
         deviceTokenRepo.save(token);
-        log.info("[MS4] Token FCM enregistré pour parent {}", parentId);
+        log.info("[MS4] Token FCM enregistré — parentId={}", parentId);
     }
 
+    @Transactional
     public void supprimerToken(String fcmToken) {
-        deviceTokenRepo.findByFcmToken(fcmToken).ifPresent(t -> {
-            t.setActif(false);
-            deviceTokenRepo.save(t);
-            log.info("[MS4] Token FCM désactivé");
+        deviceTokenRepo.findByFcmToken(fcmToken).ifPresent(device -> {
+            device.setActif(false);
+            deviceTokenRepo.save(device);
+            log.info("[MS4] Token FCM désactivé : {}...", fcmToken.substring(0, Math.min(20, fcmToken.length())));
         });
     }
 
-    // ─── Stats ───────────────────────────────────────────────────────────────
+    // ── Notifications ─────────────────────────────────────────────────
+
+    public List<NotificationResponse> getMesNotifications(Long parentId) {
+        return notifRepo.findByParentIdOrderByDateEnvoiDesc(parentId)
+                .stream()
+                .map(NotificationResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    public List<NotificationResponse> getToutesNotifications() {
+        return notifRepo.findAll()
+                .stream()
+                .map(NotificationResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    // ── Stats (bugfix echecs=0) ───────────────────────────────────────
 
     public Map<String, Long> getStats() {
         return Map.of(
-            "total",         notifRepo.count(),
-            "envoyees",      notifRepo.countByParentIdAndStatutEnvoi(null,
-                             Notification.StatutEnvoi.ENVOYE),
-            "echecs",        notifRepo.countByParentIdAndStatutEnvoi(null,
-                             Notification.StatutEnvoi.ECHEC),
-            "devices_actifs", deviceTokenRepo.count()
+            "total",   notifRepo.count(),
+            "envoyes", notifRepo.countByStatutEnvoi(StatutEnvoi.ENVOYE),
+            "echecs",  notifRepo.countByStatutEnvoi(StatutEnvoi.ECHEC),
+            "attente", notifRepo.countByStatutEnvoi(StatutEnvoi.EN_ATTENTE)
         );
+    }
+
+    // ── Envoi (appelé par les consumers RabbitMQ) ─────────────────────
+
+    public void envoyerAuParent(Long parentId, TypeNotification type,
+                                 String titre, String message,
+                                 Long sourceId, String sourceType) {
+        fcmService.envoyerAuParent(parentId, type, titre, message, sourceId, sourceType);
     }
 }
