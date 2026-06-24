@@ -1,6 +1,7 @@
 package ma.transport.ms2eleves.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -132,4 +133,19 @@ public class EleveController {
         service.supprimer(id);
         return ResponseEntity.noContent().build();
     }
+
+    // ── Ajouter dans EleveController.java ────────────────────────────────
+
+/**
+ * PUT /api/eleves/groupes/bulk
+ * Mise à jour en masse des groupeId après clustering MS6.
+ * Une seule requête HTTP au lieu de 300 PATCH simultanés.
+ * Route interne — pas de JWT requis (voir SecurityConfig).
+ */
+@PutMapping("/groupes/bulk")
+public ResponseEntity<Map<String, Integer>> assignerGroupesBulk(
+        @RequestBody Map<Long, Long> eleveGroupeMap) {
+    int updated = service.assignerGroupesBulk(eleveGroupeMap);
+    return ResponseEntity.ok(Map.of("updated", updated));
+}
 }

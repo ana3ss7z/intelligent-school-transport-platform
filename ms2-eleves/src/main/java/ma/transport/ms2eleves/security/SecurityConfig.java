@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/eleves/*/groupe").permitAll()
                 // MS6 → MS2 : lister les élèves sans groupe (point de départ)
                 .requestMatchers(HttpMethod.GET,  "/api/eleves/sans-groupe").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/eleves/groupes/bulk").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/eleves").permitAll() // 👈 AJOUTE CETTE LIGNE
 
                 // ── Toutes les autres routes nécessitent un JWT ───────────
                 .anyRequest().authenticated()

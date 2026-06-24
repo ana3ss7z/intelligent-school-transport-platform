@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────────────────
+# À AJOUTER dans ms8-gateway/src/main/resources/application.yml
+# sous la section : spring.cloud.gateway.server.webflux.routes
+# (ou spring.cloud.gateway.routes si tu n'as pas encore migré)
+# ─────────────────────────────────────────────────────────────────────
+
+        - id: ms6-clustering
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/clustering/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@userKeyResolver}"

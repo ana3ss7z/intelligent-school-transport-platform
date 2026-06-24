@@ -1,11 +1,13 @@
 package ma.transport.ms2eleves.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms2eleves.dto.EleveRequest;
@@ -178,4 +180,28 @@ public class EleveService {
                 .statutPresence(e.getStatutPresence())
                 .build();
     }
+
+    // ── Ajouter dans EleveService.java ───────────────────────────────────
+
+/**
+ * Mise à jour en masse des groupeId — appelé par MS6 après clustering.
+ * Une seule transaction pour les N élèves au lieu de N requêtes HTTP.
+ */
+@Transactional
+public int assignerGroupesBulk(Map<Long, Long> eleveGroupeMap) {
+    List<Eleve> eleves = repo.findAllById(eleveGroupeMap.keySet());
+
+    for (Eleve eleve : eleves) {
+        Long groupeId = eleveGroupeMap.get(eleve.getId());
+        if (groupeId != null && groupeId > 0) {
+            eleve.setGroupeId(groupeId);
+        } else {
+            eleve.setGroupeId(null); // groupeId=0 → reset
+        }
+    }
+
+    repo.saveAll(eleves);
+    log.info("[MS2] Bulk update groupeId — {} élèves mis à jour", eleves.size());
+    return eleves.size();
+}
 }
