@@ -179,6 +179,36 @@ cd ms6-clustering ; uvicorn main:app --port 8086 --reload
 
 ---
 
+---
+
+## 🕒 Bonus S8 — Prédiction ETA (MS12)
+
+> Même démarche data-science que le clustering, appliquée à la **prédiction du temps d'arrivée**.
+
+**Ce qu'il faut dire :**
+> « J'ai construit un service de prédiction ETA (MS12, port 8088). Le dataset est **semi-réel** : les durées
+> de base viennent des **vraies routes OSRM de Meknès**, enrichies de facteurs trafic/météo/Ramadan issus
+> de la littérature. J'ai **comparé 10 régresseurs** (linéaires, forêts, XGBoost, LightGBM…) sur un
+> **split temporel honnête** — le meilleur (elasticnet) atteint **R² 0.82 / MAE 0.86 min** sur les trajets
+> normaux, soit **+52.7 % vs la durée OSRM brute**. »
+
+**Honnêteté scientifique (à assumer) :**
+> « Sur *tous* les trajets le R² tombe à 0.16 : c'est **voulu**. J'injecte des **incidents** (pannes,
+> accidents…) imprévisibles à l'heure de départ — ce sont des **anomalies non prédictibles**, que je garde
+> comme label pour la **détection d'anomalies du sprint S12**. Le modèle est excellent sur le prévisible,
+> honnête sur l'imprévisible. »
+
+**Démo live :**
+1. Notebooks `ms12-prediction/notebooks/` : **01** (EDA) → **02** (comparaison des modèles, le gagnant se
+   *constate* sur les barres MAE/R²) → **03** (SHAP + gel du modèle).
+2. Console → onglet 🕒 **ETA** → **model-info** (métriques + importances), puis **/predict** :
+   montre que passer `trafic: fluide → embouteillage` + `pluie` **augmente l'ETA** (ex. 3.8 → 8.4 min).
+
+**Phrase clé :** *« Le notebook 02 constate le meilleur modèle ; FastAPI sert exactement ce modèle gelé —
+aucune divergence, car les deux appellent le même code. »*
+
+---
+
 ### 📂 Artefacts à avoir ouverts pendant la démo
 - `ms6-clustering/notebooks/clustering_study.ipynb` (démarche)
 - `ms6-clustering/notebooks/02_model_comparison.ipynb` (benchmark)

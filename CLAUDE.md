@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État complet au 28 juin 2026 — S7 + refonte data-science MS6 (v3 routier)
+## État au 1er juillet 2026 — S7 (MS6 clustering v3) + S8 en cours (MS12 prédiction ETA)
 
 ---
 
@@ -346,6 +346,71 @@ uvicorn main:app --host 0.0.0.0 --port 8086 --reload
 
 ---
 
+### MS12 — PredictionService ETA (port 8088) ✅ NOUVEAU S8
+
+**Technologie :** Python 3.11 / FastAPI. Prédiction du **temps d'arrivée (ETA)** d'un tronçon de trajet bus.
+Démarche data-science identique à MS6 : **benchmark multi-modèles** → choix du meilleur → gel de l'artefact.
+
+**Modèle de production :** choisi par benchmark honnête (**elasticnet** gagnant sur le run actuel).
+Le service charge l'artefact gelé de façon **agnostique** (n'importe quel régresseur sklearn/xgboost/lightgbm).
+
+**Stratégie de données (B) — semi-réel ancré OSRM :** durée de base de chaque tronçon = **vraie route OSRM
+de Meknès** ; facteurs trafic/météo/Ramadan/souk/travaux issus de la littérature transport ; **incidents**
+(panne, accident, route bloquée, absence chauffeur, retard admin) en queue lourde (~5 %/trajet).
+`incident_type` = **label** (imprévisible → pas une feature) réutilisable en S12 (anomalies).
+
+**Résultats gelés (`data/eta_config.json`, run OSRM réel) :**
+`gagnant elasticnet · R² normaux 0.82 · MAE normaux 0.86 min · gain +52.7 % vs baseline OSRM ·
+R² tous 0.16 (incidents irréductibles, assumé)`.
+
+**Fichiers :**
+```
+ms12-prediction/
+├── main.py           ← FastAPI + JWT (ADMIN/CHAUFFEUR) : health / model-info / predict
+├── config.py         ← pydantic-settings (port 8088, jwt_secret, osrm_url, chemins artefacts)
+├── features.py       ← feature engineering (heure cyclique, one-hot météo/trafic, binaires) — partagé
+├── dataset.py        ← générateur ~180 jours d'école, ancré OSRM, facteurs + incidents (seed=42)
+├── osrm_client.py    ← durée/distance point-à-point (async service + sync dataset, repli haversine)
+├── algorithms.py     ← catalogue des régresseurs candidats (baselines→linéaires→forêts→boosting)
+├── train.py          ← split TEMPOREL → benchmark → choix gagnant → gel (model/config/benchmark)
+├── model.py          ← chargement/prédiction agnostique du gagnant
+├── data/             ← eta_dataset.csv, eta_model.pkl, eta_config.json, benchmark_summary.json
+├── notebooks/        ← 01_eta_data_study, 02_model_comparison, 03_production_strategy (+ figures/)
+├── requirements.txt  ← Python 3.11 : numpy 1.26.4, pandas, scikit-learn 1.5.2, xgboost 2.1.1, lightgbm 4.5.0
+├── Dockerfile        ← EXPOSE 8088
+└── .env
+```
+
+**Endpoints :**
+| Route | Auth | Description |
+|-------|------|-------------|
+| GET `/api/eta/health` | Public | Health + modèle chargé |
+| GET `/api/eta/model-info` | Public | Métriques (tous/normaux), gain vs baseline, importances |
+| POST `/api/eta/predict` | **JWT ADMIN/CHAUFFEUR** | ETA d'un trajet (coords→OSRM ou distance/durée fournies) |
+
+**Features (dispo à l'heure de départ) :** temporel (heure sin/cos, jour, mois, moment), conditions
+(météo, trafic), route (distance/durée OSRM, nb_feux, traverse_oued), dwell (montées/descentes,
+taux_occupation), contexte marocain (ramadan, jour_souk), travaux planifiés, **historique/lag**
+(duree_moyenne_historique sans fuite, retard_cumule).
+
+**Protocole d'évaluation :** split **temporel** (30 derniers jours = test), métriques MAE/RMSE/R²/MAPE,
+**double vue** (tous trajets vs trajets normaux), baseline métier = durée OSRM brute.
+
+**Sécurité JWT :** `verify_token` (même `jwt_secret` que MS7). **CORS :** aucun (géré par la Gateway).
+
+**Démarrage :**
+```bash
+cd ms12-prediction
+pip install -r requirements.txt      # env conda "nlp" (Python 3.11)
+python dataset.py                    # génère data/eta_dataset.csv (OSRM requis, sinon repli)
+python train.py                      # benchmark + gel du meilleur modèle
+uvicorn main:app --host 0.0.0.0 --port 8088
+```
+
+> **MS9 ≠ MS12 :** MS9 (port 8089) est réservé au **chatbot LLM** (S9) ; la prédiction ETA est **MS12** (8088).
+
+---
+
 ## 🔁 RabbitMQ — Exchange et queues
 
 **Exchange :** `transport.exchange` (TopicExchange, durable)
@@ -412,8 +477,9 @@ cd ms10-incidents && mvn spring-boot:run  # 8090
 cd ms4-notifications && mvn spring-boot:run # 8084
 cd ms8-gateway   && mvn spring-boot:run   # 8080 (en dernier)
 
-# 3. Python MS6
-cd ms6-clustering && uvicorn main:app --port 8086 --reload
+# 3. Python — MS6 clustering + MS12 prédiction ETA
+cd ms6-clustering  && uvicorn main:app --port 8086 --reload
+cd ms12-prediction && uvicorn main:app --port 8088 --reload   # env conda "nlp" (Python 3.11)
 ```
 
 ---
@@ -429,7 +495,7 @@ cd ms6-clustering && uvicorn main:app --port 8086 --reload
 | S5 | 10-16/06 | ✅ | MS3-Localisation, WebSocket GPS, Seeding 300 élèves |
 | S6 | 17-23/06 | ✅ | OSRM, Simulateur bus, MS10-Incidents, MS4-Notifications FCM |
 | **S7** | **24-30/06** | **✅** | **MS6 Clustering refonte expert v3 (UTM, k-médoïdes capacitaire routier OSRM, Pareto, 3 notebooks CRISP-DM), données v2, console de test unifiée + cartes, fix CORS** |
-| S8 | 01-07/07 | ⏳ | Dataset ETA 180 jours, XGBoost, triggers clustering évolutifs |
+| **S8** | **01-07/07** | **🔄** | **Prédiction ETA ✅ (MS12 : dataset 180j ancré OSRM, benchmark multi-modèles → elasticnet, 3 notebooks CRISP-DM, service :8088). Reste : 5 déclencheurs clustering évolutifs** |
 | S9 | 08-14/07 | ⏳ | Chatbot LLM Mistral/Groq LangChain, FastAPI endpoints ETA |
 | S10 | 15-21/07 | ⏳ | VRP OR-Tools, Flutter parent v1, context injection LLM |
 | S11 | 22-28/07 | ⏳ | Dashboard admin, Flutter notifications, VRP benchmark |

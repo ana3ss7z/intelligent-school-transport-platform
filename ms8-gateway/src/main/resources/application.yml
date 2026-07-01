@@ -130,6 +130,13 @@ spring:
           filters:
             - JwtAuthFilter
 
+        - id: ms12-prediction
+          uri: http://localhost:8088
+          predicates:
+            - Path=/api/eta/**
+          filters:
+            - JwtAuthFilter
+
         - id: ms10-incidents
           uri: http://localhost:8090
           predicates:

@@ -91,6 +91,7 @@
           <div><label>notif</label><input id="p_notifications" class="sm" value="8084"></div>
           <div><label>clustering</label><input id="p_clustering" class="sm" value="8086"></div>
           <div><label>incidents</label><input id="p_incidents" class="sm" value="8090"></div>
+          <div><label>eta</label><input id="p_eta" class="sm" value="8088"></div>
         </div>
       </details>
 
@@ -307,6 +308,35 @@
         <p class="muted">Astuce : connecte-toi avec un compte PARENT pour ces routes.</p>
       </div>
     </div>
+
+    <!-- ETA -->
+    <div class="sec" data-sec="eta">
+      <div class="card"><h2>🕒 MS12 — Prédiction ETA</h2>
+        <button onclick="api('GET','/api/eta/health',{auth:false})">health</button>
+        <button onclick="api('GET','/api/eta/model-info',{auth:false})">model-info (modèle + métriques)</button>
+        <h3>Prédire une durée de trajet (ADMIN/CHAUFFEUR)</h3>
+        <div class="row">
+          <div><label>bus lat</label><input id="eta_blat" class="sm" value="33.8935"></div>
+          <div><label>bus lng</label><input id="eta_blng" class="sm" value="-5.5547"></div>
+          <div><label>dest lat (école)</label><input id="eta_dlat" class="sm" value="33.893"></div>
+          <div><label>dest lng (école)</label><input id="eta_dlng" class="sm" value="-5.5455"></div>
+        </div>
+        <div class="row">
+          <div><label>moment</label><select id="eta_moment"><option>matin</option><option>soir</option></select></div>
+          <div><label>trafic</label><select id="eta_trafic"><option>fluide</option><option>modere</option><option>dense</option><option>embouteillage</option></select></div>
+          <div><label>météo</label><select id="eta_meteo"><option>ensoleille</option><option>nuageux</option><option>pluie</option><option>brouillard</option></select></div>
+          <div><label>arrêts restants</label><input id="eta_arrets" class="sm" value="3"></div>
+          <div><label>montées</label><input id="eta_montees" class="sm" value="4"></div>
+        </div>
+        <div class="row">
+          <div><label>ramadan</label><select id="eta_ramadan"><option value="0">0</option><option value="1">1</option></select></div>
+          <div><label>jour souk</label><select id="eta_souk"><option value="0">0</option><option value="1">1</option></select></div>
+          <div><label>travaux</label><select id="eta_travaux"><option value="0">0</option><option value="1">1</option></select></div>
+          <button class="g" onclick="api('POST','/api/eta/predict',{body:etaBody()})">POST /predict</button>
+        </div>
+        <p class="muted">Le service calcule la distance/durée OSRM depuis les coordonnées, puis prédit l'ETA (min) avec le meilleur modèle du benchmark.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ============ RIGHT : output ============ -->
@@ -325,7 +355,7 @@
 <script>
 /* ---------- config & token ---------- */
 let TOKEN = localStorage.getItem('tsc_token') || null;
-const PORT_OF = {auth:'p_auth',bus:'p_bus',eleves:'p_eleves',gps:'p_gps',notifications:'p_notifications',clustering:'p_clustering',incidents:'p_incidents'};
+const PORT_OF = {auth:'p_auth',bus:'p_bus',eleves:'p_eleves',gps:'p_gps',notifications:'p_notifications',clustering:'p_clustering',incidents:'p_incidents',eta:'p_eta'};
 function v(id){return document.getElementById(id).value.trim();}
 function saveCfg(){localStorage.setItem('tsc_mode',v('mode'));}
 function svcOf(path){
@@ -336,6 +366,7 @@ function svcOf(path){
   if(path.startsWith('/api/notifications'))return 'notifications';
   if(path.startsWith('/api/clustering'))return 'clustering';
   if(path.startsWith('/api/incidents'))return 'incidents';
+  if(path.startsWith('/api/eta'))return 'eta';
   return 'gateway';
 }
 function baseFor(path){
@@ -405,6 +436,7 @@ function busBody(){return {matricule:v('bus_mat'),capacite:+v('bus_cap'),statut:
 function eleveBody(){return {nom:v('el_nom'),prenom:v('el_pre'),latitude:+v('el_lat'),longitude:+v('el_lng'),parentId:v('el_pid')?+v('el_pid'):null,busId:v('el_bus')?+v('el_bus'):null};}
 function gpsBody(){return {cibleType:v('gps_type'),cibleId:+v('gps_cid'),latitude:+v('gps_lat'),longitude:+v('gps_lng'),vitesse:+v('gps_v'),cap:+v('gps_cap')};}
 function incidentBody(){return {type:v('in_type'),busId:+v('in_cbus'),description:v('in_desc')};}
+function etaBody(){return {bus_lat:+v('eta_blat'),bus_lng:+v('eta_blng'),dest_lat:+v('eta_dlat'),dest_lng:+v('eta_dlng'),moment:v('eta_moment'),trafic:v('eta_trafic'),meteo:v('eta_meteo'),nb_arrets_restants:+v('eta_arrets'),nb_montees:+v('eta_montees'),ramadan:+v('eta_ramadan'),jour_souk:+v('eta_souk'),travaux_prevus:+v('eta_travaux')};}
 
 /* ---------- clustering helpers ---------- */
 async function clustering(kind){
@@ -422,6 +454,7 @@ async function smoke(){
   const tests=[
     ['MS6 clustering','GET','/api/clustering/health',false],
     ['MS6 diagnostics','GET','/api/clustering/diagnostics',false],
+    ['MS12 ETA','GET','/api/eta/health',false],
     ['MS1 bus','GET','/api/bus',true],
     ['MS2 élèves','GET','/api/eleves',true],
     ['MS3 gps/bus/tous','GET','/api/gps/bus/tous',true],
@@ -563,7 +596,7 @@ function onTabShow(id){
 }
 
 /* ---------- tabs ---------- */
-const SECTIONS=[['health','🩺 Santé'],['bus','🚍 Bus'],['eleves','🎒 Élèves'],['gps','📍 GPS'],['clustering','🧩 Clustering'],['incidents','⚠️ Incidents'],['notifications','🔔 Notifications']];
+const SECTIONS=[['health','🩺 Santé'],['bus','🚍 Bus'],['eleves','🎒 Élèves'],['gps','📍 GPS'],['clustering','🧩 Clustering'],['eta','🕒 ETA'],['incidents','⚠️ Incidents'],['notifications','🔔 Notifications']];
 function buildTabs(){
   const t=document.getElementById('tabs');
   SECTIONS.forEach(([id,label],i)=>{

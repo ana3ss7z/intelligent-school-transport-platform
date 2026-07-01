@@ -1,0 +1,88 @@
+{
+  "version": "ms12-prediction-v1",
+  "algorithme": "elasticnet",
+  "params": {
+    "memory": "None",
+    "steps": "[('standardscaler', StandardScaler()), ('elasticnet', ElasticNet(alpha=0.1, random_state=42))]",
+    "verbose": "False"
+  },
+  "feature_columns": [
+    "distance_routiere_m",
+    "duree_base_s",
+    "duree_moyenne_historique_s",
+    "heure_cos",
+    "heure_sin",
+    "is_soir",
+    "jour_semaine",
+    "jour_souk",
+    "meteo_brouillard",
+    "meteo_ensoleille",
+    "meteo_nuageux",
+    "meteo_pluie",
+    "mois",
+    "nb_arrets_restants",
+    "nb_descentes",
+    "nb_feux",
+    "nb_montees",
+    "ramadan",
+    "retard_cumule_s",
+    "taux_occupation",
+    "trafic_dense",
+    "trafic_embouteillage",
+    "trafic_fluide",
+    "trafic_modere",
+    "travaux_prevus",
+    "traverse_oued"
+  ],
+  "cible": "duree_reelle_min",
+  "metrics_test": {
+    "tous": {
+      "MAE": 1.3219,
+      "RMSE": 5.6964,
+      "R2": 0.164,
+      "MAPE_%": 15.94
+    },
+    "normaux": {
+      "MAE": 0.859,
+      "RMSE": 1.0791,
+      "R2": 0.8195,
+      "MAPE_%": 15.26
+    }
+  },
+  "baseline_osrm_test": {
+    "tous": {
+      "MAE": 2.7957,
+      "RMSE": 6.4665,
+      "R2": -0.0774,
+      "MAPE_%": 35.38
+    },
+    "normaux": {
+      "MAE": 2.3241,
+      "RMSE": 2.8425,
+      "R2": -0.2521,
+      "MAPE_%": 34.84
+    }
+  },
+  "gain_vs_baseline_%": 52.7,
+  "mae_minutes": 1.3219,
+  "n_lignes": 4320,
+  "n_features": 26,
+  "importances": {
+    "duree_base_s": 1.504,
+    "trafic_embouteillage": 0.8435,
+    "travaux_prevus": 0.5141,
+    "trafic_fluide": 0.4999,
+    "meteo_pluie": 0.3642,
+    "distance_routiere_m": 0.3486,
+    "duree_moyenne_historique_s": 0.3333,
+    "ramadan": 0.2803,
+    "trafic_modere": 0.2769,
+    "nb_arrets_restants": 0.196,
+    "meteo_ensoleille": 0.1236,
+    "jour_souk": 0.1035,
+    "meteo_brouillard": 0.1002,
+    "jour_semaine": 0.0608,
+    "heure_cos": 0.0
+  },
+  "dateCalcul": "2026-07-01T22:37:21.791273+00:00"
+}
