@@ -1,0 +1,301 @@
+id,nom,prenom,latitude,longitude,quartier,zone,secteur,niveau,ecole_nom,ecole_lat,ecole_lng,distance_ecole_m
+1,Bennouna,Youssef,33.890502,-5.551733,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,638.8
+2,Benomar,Bilal,33.897403,-5.564345,Medina,Medina-Ouest,Médina Nord,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1806.9
+3,Kasmi,Ahmed,33.88927,-5.570806,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2372.4
+4,Benbrahim,Othmane,33.894175,-5.56688,Medina,Medina-Ouest,Médina Sud,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1977.7
+5,Berrada,Nora,33.876687,-5.526447,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2526.6
+6,Rhazi,Anas,33.890773,-5.543394,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,314.8
+7,Ziani,Youssef,33.871134,-5.5556,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2604.0
+8,Filali,Ibrahim,33.869304,-5.538795,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2706.5
+9,Rhazi,Sara,33.876742,-5.526712,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2505.2
+10,Sebbata,Imane,33.90757,-5.546805,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1624.6
+11,Benhaddou,Aisha,33.885993,-5.560142,Ismailia,Sud-HaySalam,Ismailia,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1560.1
+12,Sqalli,Ilyas,33.877891,-5.525802,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2475.6
+13,Benabdallah,Bilal,33.869693,-5.53727,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2700.6
+14,Benabdallah,Tarik,33.894235,-5.568301,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2109.0
+15,Benbrahim,Khalid,33.904692,-5.551416,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1410.1
+16,Ghali,Ahmed,33.898297,-5.563416,Medina,Medina-Ouest,Médina Nord,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1755.4
+17,Rifai,Layla,33.894811,-5.542279,Hamria,Hamria-Centre,Hamria Gare,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,359.1
+18,Fassi,Tarik,33.893062,-5.563535,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1664.7
+19,Kasmi,Hamza,33.886172,-5.55664,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1278.2
+20,Benjelloun,Yasmine,33.880022,-5.525801,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2321.4
+21,Chaoui,Nabil,33.877752,-5.526732,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2424.1
+22,Rhazi,Kawtar,33.904985,-5.550684,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1415.9
+23,Ouazzani,Maryam,33.889959,-5.560727,Mellah,Medina-Ouest,Mellah,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1445.6
+24,Benkirane,Abdellah,33.884035,-5.538704,Riad,Sud-Marjane,Riad,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1177.8
+25,Lahlou,Ilyas,33.867707,-5.545731,Hay Salam,Sud-HaySalam,Hay Salam,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2812.6
+26,Idrissi,Hajar,33.873017,-5.532376,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2530.8
+27,Kettani,Aisha,33.906481,-5.544825,Wislane,Nord-Wislane,Wislane Est,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1500.3
+28,Drissi,Imane,33.870475,-5.537034,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2623.8
+29,Benomar,Samira,33.901093,-5.560268,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1633.2
+30,Mernissi,Meriem,33.891527,-5.561412,Mellah,Medina-Ouest,Mellah,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1477.8
+31,Bouazza,Omar,33.877389,-5.525932,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2505.2
+32,Amrani,Ibrahim,33.883772,-5.560993,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1760.1
+33,Kettani,Imane,33.900949,-5.544424,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,889.5
+34,Naciri,Ayoub,33.871438,-5.531991,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2702.5
+35,Bennouna,Layla,33.891995,-5.565297,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1830.7
+36,Benbrahim,Khadija,33.869875,-5.546249,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2572.3
+37,Benabdallah,Youssef,33.899699,-5.545752,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,745.3
+38,Amrani,Houda,33.901829,-5.545362,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,981.8
+39,Lahlou,Sara,33.905443,-5.550968,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1472.8
+40,Benkirane,Youssef,33.879911,-5.529456,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2076.4
+41,Benjelloun,Rania,33.871093,-5.553882,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2555.9
+42,Benabdallah,Meriem,33.876715,-5.525946,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2556.8
+43,Ouazzani,Layla,33.888973,-5.55075,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,659.8
+44,Sqalli,Khalid,33.882234,-5.527689,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2033.8
+45,Tahiri,Othmane,33.875686,-5.538539,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2029.6
+46,Ouazzani,Bilal,33.878486,-5.527558,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2312.5
+47,Idrissi,Kawtar,33.901396,-5.562231,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1804.5
+48,Benkirane,Rania,33.877738,-5.526433,Marjane,Sud-Marjane,Marjane 2,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2445.0
+49,Tazi,Kawtar,33.869635,-5.536772,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2720.1
+50,Alaoui,Zakaria,33.871645,-5.532069,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2678.8
+51,Ghali,Rania,33.882791,-5.529919,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1832.3
+52,Chraibi,Loubna,33.869911,-5.547974,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2577.5
+53,Tahiri,Youssef,33.890758,-5.550323,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,510.2
+54,Bouazza,Zineb,33.870585,-5.547482,Hay Salam,Sud-HaySalam,Hay Salam,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2499.1
+55,Benbrahim,Hind,33.906183,-5.544348,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1469.7
+56,Bennouna,Nora,33.902064,-5.560802,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1735.1
+57,Ouazzani,Othmane,33.878337,-5.523886,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2576.6
+58,Senhaji,Salma,33.898681,-5.550135,Hamria,Hamria-Centre,Hamria Centre,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,763.0
+59,Rifai,Ibrahim,33.880708,-5.529084,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2040.7
+60,Lamrani,Hassan,33.905092,-5.551704,Wislane,Nord-Wislane,Wislane Ouest,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1461.4
+61,Ouazzani,Ayoub,33.883338,-5.536722,Riad,Sud-Marjane,Riad,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1345.7
+62,Kettani,Sara,33.884993,-5.556769,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1369.2
+63,Benkirane,Adil,33.892929,-5.566795,Medina,Medina-Ouest,Médina Sud,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1965.5
+64,Bennouna,Nabil,33.869912,-5.535825,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2718.2
+65,Benali,Youssef,33.869704,-5.545459,Hay Salam,Sud-HaySalam,Hay Salam,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2590.4
+66,Alaoui,Houda,33.894897,-5.527773,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1649.8
+67,Fassi,Loubna,33.876363,-5.526417,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2554.5
+68,Rhazi,Hind,33.895128,-5.542255,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,381.7
+69,Benabdeljalil,Tarik,33.87555,-5.524895,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2717.2
+70,Bennouna,Ibrahim,33.884242,-5.560108,Ismailia,Sud-HaySalam,Ismailia,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1663.3
+71,Kettani,Khadija,33.88083,-5.531302,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1883.9
+72,Mernissi,Khalid,33.890041,-5.561303,Mellah,Medina-Ouest,Mellah,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1495.3
+73,Bennouna,Ayoub,33.901368,-5.54425,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,937.6
+74,Tahiri,Othmane,33.868343,-5.546731,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2744.1
+75,Mernissi,Mohamed,33.906895,-5.551781,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1650.3
+76,Ghali,Nadia,33.900389,-5.543601,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,840.1
+77,Berrada,Imane,33.875077,-5.525835,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2695.8
+78,Berrada,Sara,33.904534,-5.551653,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1402.6
+79,Ouazzani,Layla,33.884677,-5.535258,Riad,Sud-Marjane,Riad,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1323.0
+80,Chaoui,Omar,33.875083,-5.538111,Al Manzeh,Sud-Marjane,Al Manzeh,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2105.8
+81,Amrani,Samir,33.872099,-5.533748,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2564.8
+82,Idrissi,Salma,33.892383,-5.566601,Medina,Medina-Ouest,Médina Sud,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1948.9
+83,Benbrahim,Loubna,33.879146,-5.524698,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2461.8
+84,Sebbata,Mehdi,33.90773,-5.545558,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1637.9
+85,Chraibi,Ibrahim,33.891032,-5.55182,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,623.0
+86,Tazi,Anas,33.870147,-5.535855,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2692.6
+87,Filali,Abdelkarim,33.904719,-5.55383,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1513.0
+88,Tahiri,Youssef,33.889749,-5.549529,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,518.6
+89,Hassani,Khadija,33.871471,-5.531498,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2720.6
+90,Belkadi,Nadia,33.907527,-5.544609,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1617.4
+91,Lahlou,Soufiane,33.901725,-5.546634,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,975.8
+92,Benmoussa,Ayoub,33.881899,-5.530688,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1842.0
+93,Benmoussa,Yasmine,33.895058,-5.544377,Hamria,Hamria-Centre,Hamria Gare,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,251.2
+94,Tazi,Othmane,33.883782,-5.560192,Ismailia,Sud-HaySalam,Ismailia,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1699.9
+95,Benabdeljalil,Anas,33.894484,-5.543996,Hamria,Hamria-Centre,Hamria Gare,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,215.6
+96,Bennouna,Mohamed,33.877985,-5.526729,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2406.2
+97,Berrada,Othmane,33.899629,-5.545415,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,737.1
+98,Sebbata,Aisha,33.869325,-5.538437,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2712.1
+99,Ziani,Rachid,33.884704,-5.561,Ismailia,Sud-HaySalam,Ismailia,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1702.3
+100,Kettani,Layla,33.869712,-5.538424,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2670.6
+101,Hassani,Nora,33.876641,-5.538361,Al Manzeh,Sud-Marjane,Al Manzeh,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1934.7
+102,Benhaddou,Adil,33.904501,-5.553533,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1478.3
+103,Kasmi,Rania,33.884151,-5.53538,Riad,Sud-Marjane,Riad,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1356.8
+104,Benmoussa,Aisha,33.891075,-5.560963,Mellah,Medina-Ouest,Mellah,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1443.2
+105,Idrissi,Ilyas,33.892153,-5.56679,Medina,Medina-Ouest,Médina Sud,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1967.3
+106,Kasmi,Ibrahim,33.894107,-5.566514,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1943.5
+107,Rifai,Nabil,33.908694,-5.544046,Wislane,Nord-Wislane,Wislane Est,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1750.3
+108,Benmoussa,Aisha,33.895001,-5.544604,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,237.4
+109,Lamrani,Karim,33.906242,-5.545654,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1472.5
+110,Naciri,Ilyas,33.897912,-5.547154,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,567.2
+111,Mernissi,Hamza,33.870595,-5.554512,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2626.5
+112,Benjelloun,Rania,33.892445,-5.567245,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2008.1
+113,Benjelloun,Rania,33.889902,-5.571515,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2425.9
+114,Benjelloun,Khalid,33.90239,-5.562734,Zitoune,Medina-Ouest,Zitoune,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1902.7
+115,Tazi,Youssef,33.871281,-5.553545,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2526.7
+116,Naciri,Abdellah,33.880661,-5.531529,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1883.0
+117,Bennouna,Soukaina,33.899164,-5.562608,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1721.4
+118,Hassani,Samir,33.876497,-5.528453,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2417.4
+119,Benmoussa,Tarik,33.896662,-5.563198,Medina,Medina-Ouest,Médina Nord,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1683.5
+120,Senhaji,Samira,33.890495,-5.562193,Mellah,Medina-Ouest,Mellah,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1565.8
+121,Ouazzani,Othmane,33.871097,-5.555378,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2600.6
+122,Filali,Karim,33.876072,-5.539253,Al Manzeh,Sud-Marjane,Al Manzeh,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1968.7
+123,Benmoussa,Dounia,33.887176,-5.535657,Riad,Sud-Marjane,Riad,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1115.7
+124,Benmoussa,Khadija,33.876852,-5.52562,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2567.4
+125,Benkirane,Bilal,33.87746,-5.525907,Marjane,Sud-Marjane,Marjane 2,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2501.4
+126,Ghali,Hajar,33.8772,-5.538761,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1863.8
+127,Benali,Ibrahim,33.908081,-5.547808,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1690.4
+128,Lamrani,Houda,33.896491,-5.546921,Hamria,Hamria-Centre,Hamria Centre,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,409.7
+129,Amrani,Oumaima,33.869843,-5.549534,Hay Salam,Sud-HaySalam,Hay Salam,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2601.7
+130,Ghali,Khalid,33.901201,-5.561175,Zitoune,Medina-Ouest,Zitoune,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1710.2
+131,Sebbata,Khalid,33.896715,-5.56466,Medina,Medina-Ouest,Médina Nord,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1816.1
+132,Tahiri,Mehdi,33.877041,-5.525941,Nouzhat,SudEst-AinKarma,Nouzhat,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2531.5
+133,Rhazi,Houda,33.904497,-5.55186,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1406.7
+134,Fassi,Salma,33.876008,-5.538682,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1991.5
+135,Ouazzani,Nadia,33.88453,-5.534996,Riad,Sud-Marjane,Riad,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1351.8
+136,Rifai,Adil,33.908075,-5.549461,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1715.7
+137,Tahiri,Aisha,33.890967,-5.550443,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,509.2
+138,Hassani,Chaimae,33.868651,-5.546481,Hay Salam,Sud-HaySalam,Hay Salam,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2709.0
+139,Benhaddou,Layla,33.889929,-5.55196,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,687.2
+140,Benabdallah,Chaimae,33.88049,-5.530427,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1967.5
+141,Rifai,Soukaina,33.906324,-5.544719,Wislane,Nord-Wislane,Wislane Est,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1483.4
+142,Kasmi,Meriem,33.880328,-5.529175,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2063.1
+143,Benabdeljalil,Khalid,33.907573,-5.547999,Wislane,Nord-Wislane,Wislane Est,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1636.7
+144,Ouazzani,Hamza,33.892442,-5.524379,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1950.4
+145,Amrani,Khalid,33.88066,-5.530734,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1934.0
+146,Drissi,Adil,33.900875,-5.545165,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,876.2
+147,Chaoui,Nabil,33.872603,-5.535189,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2459.7
+148,Ghali,Mohamed,33.897334,-5.566007,Medina,Medina-Ouest,Médina Nord,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1953.2
+149,Benomar,Tarik,33.899479,-5.56245,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1722.4
+150,Benbrahim,Abdellah,33.894876,-5.544016,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,249.6
+151,Sebbata,Kawtar,33.874034,-5.532566,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2423.5
+152,Idrissi,Omar,33.89388,-5.543611,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,200.0
+153,Senhaji,Samira,33.872207,-5.54946,Dispersé,Périurbain,Dispersé,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2340.8
+154,Ouazzani,Omar,33.871983,-5.533893,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2570.9
+155,Berrada,Tarik,33.869855,-5.554808,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2713.3
+156,Benomar,Dounia,33.878883,-5.526497,Marjane,Sud-Marjane,Marjane 2,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2354.0
+157,Chaoui,Nabil,33.88921,-5.534018,Dispersé,Périurbain,Dispersé,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1140.6
+158,Benhaddou,Meriem,33.890468,-5.561633,Mellah,Medina-Ouest,Mellah,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1515.5
+159,Benhaddou,Soufiane,33.902649,-5.553751,Wislane,Nord-Wislane,Wislane Ouest,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1315.7
+160,Idrissi,Aisha,33.87578,-5.524803,Nouzhat,SudEst-AinKarma,Nouzhat,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2704.9
+161,Benabdeljalil,Abdelkarim,33.905443,-5.55178,Wislane,Nord-Wislane,Wislane Ouest,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1500.1
+162,Rhazi,Chaimae,33.897636,-5.550152,Hamria,Hamria-Centre,Hamria Centre,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,670.9
+163,Mernissi,Meriem,33.90022,-5.543858,Sidi Said,Hamria-Centre,Sidi Said,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,817.0
+164,Senhaji,Soufiane,33.89766,-5.549198,Hamria,Hamria-Centre,Hamria Centre,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,620.5
+165,Drissi,Soukaina,33.880407,-5.529445,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2038.9
+166,Kasmi,Hamza,33.878028,-5.526755,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2401.2
+167,Ziani,Abdelkarim,33.899415,-5.544143,Sidi Said,Hamria-Centre,Sidi Said,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,724.2
+168,Sqalli,Aisha,33.869994,-5.53925,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2622.4
+169,Kasmi,Samira,33.875628,-5.525047,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2701.1
+170,Idrissi,Youssef,33.868772,-5.547987,Hay Salam,Sud-HaySalam,Hay Salam,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2703.8
+171,Benbrahim,Abdelkarim,33.890671,-5.562714,Mellah,Medina-Ouest,Mellah,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1609.9
+172,Ouazzani,Yasmine,33.891133,-5.561228,Mellah,Medina-Ouest,Mellah,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1466.5
+173,Mansouri,Layla,33.89672,-5.565647,Medina,Medina-Ouest,Médina Nord,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1905.0
+174,Drissi,Meriem,33.87888,-5.523813,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2544.1
+175,Ziani,Ilyas,33.868621,-5.523728,Dispersé,Périurbain,Dispersé,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,3374.6
+176,Bennouna,Yasmine,33.876395,-5.525776,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2593.1
+177,Chaoui,Ilyas,33.870523,-5.533485,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2734.4
+178,Berrada,Maryam,33.88454,-5.556844,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1407.6
+179,Chraibi,Zineb,33.868165,-5.546958,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2764.8
+180,Benmoussa,Zineb,33.881053,-5.532154,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1811.8
+181,Senhaji,Zakaria,33.88879,-5.550125,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,633.5
+182,Kettani,Oumaima,33.872705,-5.530096,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2667.4
+183,Benkirane,Fatima,33.900058,-5.561526,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1674.4
+184,Ghali,Sara,33.877502,-5.524551,Nouzhat,SudEst-AinKarma,Nouzhat,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2590.2
+185,Benomar,Abdelkarim,33.876403,-5.540121,Al Manzeh,Sud-Marjane,Al Manzeh,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1911.1
+186,Benomar,Chaimae,33.878792,-5.527179,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2314.3
+187,Benhaddou,Maryam,33.900826,-5.560251,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1615.8
+188,Fassi,Soukaina,33.884376,-5.556821,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1418.3
+189,Berrada,Oumaima,33.875876,-5.549587,Dispersé,Périurbain,Dispersé,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1941.2
+190,Benabdallah,Dounia,33.870421,-5.554221,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2636.6
+191,Hassani,Youssef,33.869941,-5.538326,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2648.2
+192,Ziani,Nora,33.899566,-5.546192,Sidi Said,Hamria-Centre,Sidi Said,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,732.9
+193,Benabdallah,Yasmine,33.868999,-5.537789,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2762.1
+194,Chraibi,Samira,33.871562,-5.536089,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2537.2
+195,Benali,Nora,33.890341,-5.562483,Mellah,Medina-Ouest,Mellah,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1595.2
+196,Lahlou,Ahmed,33.900896,-5.560533,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1641.9
+197,Benhaddou,Loubna,33.874835,-5.539156,Al Manzeh,Sud-Marjane,Al Manzeh,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2103.0
+198,Lahlou,Hamza,33.872951,-5.534127,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2464.1
+199,Naciri,Salma,33.872557,-5.532192,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2583.9
+200,Bouazza,Chaimae,33.877649,-5.523576,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2647.5
+201,Senhaji,Dounia,33.867905,-5.547207,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2794.8
+202,Bensouda,Ayoub,33.889849,-5.550674,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,592.3
+203,Tazi,Aisha,33.878182,-5.525084,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2503.3
+204,Tahiri,Meriem,33.869849,-5.531074,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2898.4
+205,Sqalli,Rania,33.876077,-5.539032,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1974.2
+206,Bensouda,Imane,33.878031,-5.525475,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2487.5
+207,Sebbata,Bilal,33.869962,-5.537356,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2669.7
+208,Ziani,Ali,33.894894,-5.54306,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,308.3
+209,Benali,Soufiane,33.906342,-5.547387,Wislane,Nord-Wislane,Wislane Est,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1493.7
+210,Hassani,Soufiane,33.90599,-5.551418,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1544.2
+211,Mansouri,Anas,33.872924,-5.555681,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2422.1
+212,Benali,Ayoub,33.881168,-5.528407,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2054.4
+213,Benmoussa,Rachid,33.901468,-5.561021,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1714.3
+214,Kasmi,Ibrahim,33.870534,-5.554756,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2640.2
+215,Benkirane,Nora,33.871766,-5.561128,Dispersé,Périurbain,Dispersé,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2767.0
+216,Lahlou,Meriem,33.896957,-5.551818,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,730.5
+217,Sqalli,Kawtar,33.902027,-5.543418,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1021.9
+218,Berrada,Soufiane,33.90718,-5.553495,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1740.9
+219,Idrissi,Loubna,33.897199,-5.564833,Medina,Medina-Ouest,Médina Nord,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1844.4
+220,Kettani,Karim,33.875369,-5.540088,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2023.1
+221,Senhaji,Yasmine,33.876139,-5.539501,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1954.9
+222,Benabdallah,Rachid,33.870102,-5.553646,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2654.8
+223,Mernissi,Ahmed,33.900061,-5.544568,Sidi Said,Hamria-Centre,Sidi Said,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,789.9
+224,Lahlou,Omar,33.876025,-5.53834,Al Manzeh,Sud-Marjane,Al Manzeh,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1999.9
+225,Chaoui,Youssef,33.886555,-5.560618,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1568.8
+226,Benhaddou,Karim,33.886276,-5.556207,Ismailia,Sud-HaySalam,Ismailia,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1239.2
+227,Benomar,Othmane,33.884283,-5.555933,Ismailia,Sud-HaySalam,Ismailia,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1366.3
+228,Fassi,Fatima,33.892683,-5.54294,Hamria,Hamria-Centre,Hamria Gare,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,238.9
+229,Belkadi,Othmane,33.883716,-5.534743,Riad,Sud-Marjane,Riad,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1432.3
+230,Rifai,Omar,33.883721,-5.555515,Ismailia,Sud-HaySalam,Ismailia,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1385.3
+231,Benmoussa,Layla,33.8762,-5.527906,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2475.4
+232,Amrani,Abdellah,33.891264,-5.561205,Mellah,Medina-Ouest,Mellah,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1462.4
+233,Lamrani,Samir,33.880684,-5.530585,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1941.9
+234,Sebbata,Abdelkarim,33.890049,-5.563121,Mellah,Medina-Ouest,Mellah,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1659.2
+235,Tazi,Hajar,33.869918,-5.530943,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2897.2
+236,Idrissi,Ayoub,33.871746,-5.531892,Ain Karma,SudEst-AinKarma,Ain Karma Haut,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2676.5
+237,Benbrahim,Fatima,33.884869,-5.556886,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1386.4
+238,Senhaji,Loubna,33.898203,-5.565487,Medina,Medina-Ouest,Médina Nord,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1933.4
+239,Amrani,Kawtar,33.878432,-5.526536,Marjane,Sud-Marjane,Marjane 2,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2385.0
+240,Alaoui,Ibrahim,33.898375,-5.547949,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,639.0
+241,Sebbata,Tarik,33.901384,-5.562745,Zitoune,Medina-Ouest,Zitoune,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1844.6
+242,Idrissi,Karim,33.896985,-5.549651,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,585.7
+243,Belkadi,Soukaina,33.905899,-5.545791,Wislane,Nord-Wislane,Wislane Est,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1434.6
+244,Bouazza,Ghita,33.901778,-5.561856,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1797.7
+245,Benabdeljalil,Oumaima,33.875634,-5.537276,Al Manzeh,Sud-Marjane,Al Manzeh,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2074.9
+246,Tahiri,Khalid,33.889926,-5.550551,Sidi Baba,Hamria-Centre,Sidi Baba,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,578.1
+247,Mernissi,Anas,33.86765,-5.546172,Hay Salam,Sud-HaySalam,Hay Salam,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2819.5
+248,Mansouri,Omar,33.895357,-5.538925,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,661.1
+249,Alaoui,Sara,33.896268,-5.564625,Medina,Medina-Ouest,Médina Nord,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1802.2
+250,Benbrahim,Salma,33.868679,-5.541245,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2732.7
+251,Mernissi,Mohamed,33.900192,-5.560511,Zitoune,Medina-Ouest,Zitoune,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1599.8
+252,Kettani,Rania,33.889444,-5.549606,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,547.7
+253,Benjelloun,Ghita,33.902098,-5.56242,Zitoune,Medina-Ouest,Zitoune,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1860.7
+254,Tazi,Abdelkarim,33.869563,-5.535637,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2760.6
+255,Mansouri,Soukaina,33.907431,-5.544183,Wislane,Nord-Wislane,Wislane Est,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1609.3
+256,Naciri,Abdelkarim,33.868238,-5.548314,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2765.6
+257,Chaoui,Imane,33.884115,-5.536362,Riad,Sud-Marjane,Riad,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1299.1
+258,Naciri,Houda,33.896809,-5.551068,Hamria,Hamria-Centre,Hamria Centre,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,666.0
+259,Belkadi,Ali,33.899244,-5.545663,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,694.4
+260,Rifai,Oumaima,33.876602,-5.539065,Al Manzeh,Sud-Marjane,Al Manzeh,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1917.6
+261,Drissi,Kawtar,33.868284,-5.535605,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2896.1
+262,Mernissi,Rachid,33.897624,-5.548741,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,594.9
+263,Ghali,Mohamed,33.877598,-5.5276,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2379.8
+264,Tazi,Khadija,33.889633,-5.551251,Sidi Baba,Hamria-Centre,Sidi Baba,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,649.6
+265,Ziani,Tarik,33.871786,-5.555141,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2521.1
+266,Belkadi,Imane,33.875237,-5.527331,Nouzhat,SudEst-AinKarma,Nouzhat,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2591.2
+267,Amrani,Nabil,33.905992,-5.547034,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1451.6
+268,Bensouda,Ibrahim,33.87157,-5.540445,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2428.1
+269,Berrada,Khalid,33.906083,-5.544073,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1460.7
+270,Mernissi,Abdellah,33.891514,-5.564833,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1792.1
+271,Tazi,Dounia,33.898121,-5.549894,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,699.1
+272,Tahiri,Zakaria,33.867625,-5.545898,Hay Salam,Sud-HaySalam,Hay Salam,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2821.8
+273,Bensouda,Dounia,33.890631,-5.562687,Mellah,Medina-Ouest,Mellah,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1608.1
+274,Benabdeljalil,Zineb,33.905017,-5.551754,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1455.6
+275,Tazi,Hajar,33.900746,-5.56033,Zitoune,Medina-Ouest,Zitoune,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1617.2
+276,Naciri,Dounia,33.869255,-5.537909,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2731.7
+277,Bensouda,Mehdi,33.881061,-5.527704,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2112.1
+278,Benabdallah,Yasmine,33.903785,-5.553239,Wislane,Nord-Wislane,Wislane Ouest,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1395.8
+279,Idrissi,Sara,33.897825,-5.548645,Hamria,Hamria-Centre,Hamria Centre,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,610.1
+280,Bensouda,Youssef,33.877246,-5.526001,Marjane,Sud-Marjane,Marjane 2,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2511.7
+281,Sqalli,Mohamed,33.889102,-5.545971,Dispersé,Périurbain,Dispersé,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,435.6
+282,Ziani,Soufiane,33.890106,-5.549791,Sidi Baba,Hamria-Centre,Sidi Baba,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,510.3
+283,Sebbata,Yasmine,33.883902,-5.566091,Dispersé,Périurbain,Dispersé,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2153.2
+284,Ziani,Zakaria,33.88544,-5.560344,Ismailia,Sud-HaySalam,Ismailia,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1607.5
+285,Benjelloun,Bilal,33.906603,-5.542657,Wislane,Nord-Wislane,Wislane Est,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1535.2
+286,Rifai,Omar,33.880682,-5.530888,Marjane,Sud-Marjane,Marjane 1,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1922.3
+287,Benomar,Chaimae,33.897168,-5.548802,Hamria,Hamria-Centre,Hamria Centre,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,554.7
+288,Mernissi,Khadija,33.88253,-5.530225,Marjane,Sud-Marjane,Marjane 1,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1828.5
+289,Benbrahim,Rachid,33.869738,-5.549437,Hay Salam,Sud-HaySalam,Hay Salam,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2612.0
+290,Benbrahim,Nabil,33.878966,-5.526196,Marjane,Sud-Marjane,Marjane 2,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2368.6
+291,Senhaji,Rachid,33.873739,-5.566822,Dispersé,Périurbain,Dispersé,Lycée,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2908.8
+292,Filali,Youssef,33.900353,-5.544694,Sidi Said,Hamria-Centre,Sidi Said,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,821.0
+293,Ouazzani,Zakaria,33.870042,-5.537739,Ain Karma,SudEst-AinKarma,Ain Karma Bas,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2651.4
+294,Naciri,Anas,33.891925,-5.563993,Medina,Medina-Ouest,Médina Sud,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1711.1
+295,Tazi,Rania,33.884532,-5.535905,Riad,Sud-Marjane,Riad,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1292.7
+296,Sebbata,Layla,33.872107,-5.555772,Borj Moulay Omar,Sud-HaySalam,Borj M.O.,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2509.2
+297,Lamrani,Nadia,33.893839,-5.566892,Medina,Medina-Ouest,Médina Sud,Collège,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1976.7
+298,Fassi,Imane,33.897294,-5.565035,Medina,Medina-Ouest,Médina Nord,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1865.2
+299,Ouazzani,Fatima,33.88292,-5.526967,Marjane,Sud-Marjane,Marjane 1,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,2045.2
+300,Bensouda,Hind,33.876255,-5.538936,Al Manzeh,Sud-Marjane,Al Manzeh,Primaire,Groupe Scolaire Al Massira — Meknès,33.893,-5.5455,1958.1

@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +22,6 @@ import ma.transport.ms3localisation.service.GpsService;
 @RestController
 @RequestMapping("/api/gps")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class GpsController {
 
     private final GpsService service;

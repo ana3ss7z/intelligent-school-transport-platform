@@ -1,0 +1,9 @@
+# Dépendances supplémentaires pour le notebook d'étude (notebooks/clustering_study.ipynb)
+# Non requises par le service MS6 en production.
+-r requirements.txt
+pandas==2.2.2
+matplotlib==3.9.0
+seaborn==0.13.2
+folium==0.16.0
+jupyter==1.0.0
+nbconvert==7.16.4

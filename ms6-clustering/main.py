@@ -9,10 +9,10 @@ from contextlib import asynccontextmanager
 
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from clustering import comparer, run_dbscan, run_kmeans
+from clustering import (comparer, run_dbscan, run_kmeans,
+                        production_clustering, pareto_flotte, diagnostics)
 from config import settings
 from ms2_client import assigner_groupes_bulk, get_all_eleves, get_eleves_sans_groupe
 from rabbitmq import start_consumer
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MS6 — ClusteringService", version="1.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS géré uniquement par la Gateway (MS8) — pas de CORS ici (évite les en-têtes en double)
 
 
 # ── Routes publiques (pas de JWT) ────────────────────────────────────
@@ -77,6 +77,16 @@ async def eleves_sans_groupe():
     try:
         eleves = await get_eleves_sans_groupe()
         return {"total": len(eleves), "eleves": eleves}
+    except Exception as e:
+        raise HTTPException(502, f"MS2 inaccessible : {e}")
+
+
+@app.get("/api/clustering/diagnostics")
+async def clustering_diagnostics():
+    """Stats EDA rapides + nombre de bus recommandé. Lecture seule."""
+    try:
+        eleves = await get_all_eleves()
+        return diagnostics(eleves)
     except Exception as e:
         raise HTTPException(502, f"MS2 inaccessible : {e}")
 
@@ -123,10 +133,49 @@ async def clustering_dbscan(appliquer: bool = False):
 
 @app.post("/api/clustering/comparer", dependencies=[Depends(verify_token)])
 async def comparer_algorithmes():
-    """Compare K-Means vs DBSCAN Haversine. JWT ADMIN requis."""
+    """Compare K-Means vs DBSCAN (espace métrique projeté). JWT ADMIN requis."""
     try:
         eleves = await get_all_eleves()
         return comparer(eleves)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/clustering/production", dependencies=[Depends(verify_token)])
+async def clustering_production(appliquer: bool = True,
+                                capacity: int | None = None,
+                                road: bool | None = None):
+    """
+    Stratégie de production : k-médoïdes capacitaire sur distance routière OSRM (repli euclidien),
+    détection des dispersés, choix du nombre de bus par Pareto. JWT ADMIN requis.
+    """
+    try:
+        eleves = await get_all_eleves()
+        result = await production_clustering(eleves, capacity=capacity, use_road=road)
+        updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
+        return {
+            "methode": result.methode,
+            "k": result.k,
+            "silhouette": result.silhouette,
+            "nb_eleves": len(result.labels),
+            "groupes_appliques": updated,
+            "distance": result.extra["distance"],
+            "n_disperses": result.extra["n_disperses"],
+            "disperses_ids": result.extra["disperses_ids"],
+            "metrics": result.metrics,
+            "pareto": result.extra["pareto"],
+            "distribution": _distribution(result.labels),
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/clustering/pareto", dependencies=[Depends(verify_token)])
+async def clustering_pareto(capacity: int | None = None, road: bool | None = None):
+    """Courbe de Pareto qualité/compacité vs nombre de bus (sans appliquer). JWT ADMIN requis."""
+    try:
+        eleves = await get_all_eleves()
+        return await pareto_flotte(eleves, capacity=capacity, use_road=road)
     except Exception as e:
         raise HTTPException(500, str(e))
 

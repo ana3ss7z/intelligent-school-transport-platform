@@ -1,0 +1,29 @@
+{
+  "version": "ms6-clustering-v2",
+  "algorithme": "KMeans capacitaire",
+  "k": 6,
+  "capacite_bus": 50,
+  "projection": "UTM 30N (EPSG:32630, pyproj)",
+  "dbscan_eps_m": 219.9,
+  "min_samples": 5,
+  "metrics": {
+    "n_clusters": 6.0,
+    "n_bruit": 0.0,
+    "silhouette": 0.3754,
+    "davies_bouldin": 0.9076,
+    "calinski_harabasz": 427.3284,
+    "intra_moy_m": 550.892,
+    "intra_max_m": 2115.4592,
+    "taille_min": 50.0,
+    "taille_max": 50.0,
+    "cv_tailles": 0.0,
+    "faisabilite_capacite_%": 100.0,
+    "ARI_vs_quartier": 0.4384,
+    "AMI_vs_quartier": 0.6404
+  },
+  "silhouette_gate": 0.5,
+  "passe_seuil_silhouette": false,
+  "production_ready": true,
+  "dateCalcul": null,
+  "gagnant_score_composite": "DBSCAN"
+}

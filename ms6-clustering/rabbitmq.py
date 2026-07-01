@@ -6,7 +6,7 @@ import asyncio
 import logging
 import aio_pika
 from config import settings
-from clustering import run_kmeans
+from clustering import production_clustering
 from ms2_client import assigner_groupes_bulk, get_all_eleves
 
 logger = logging.getLogger(__name__)
@@ -22,8 +22,10 @@ async def _recalculer_et_ecrire():
                 logger.warning("[MS6] Pas assez d'élèves (%d) — annulé", len(eleves))
                 return
 
-            result = run_kmeans(eleves)
-            logger.info("[MS6] K-Means k=%d silhouette=%.4f", result.k, result.silhouette)
+            # Recalcul auto : stratégie de production (distance routière optionnelle via .env)
+            result = await production_clustering(eleves, use_road=settings.use_road_for_auto)
+            logger.info("[MS6] Recalcul k=%d silhouette=%s (%s)",
+                        result.k, result.silhouette, result.extra.get("distance"))
 
             # 1 seule requête HTTP bulk au lieu de N PATCH simultanés
             updated = await assigner_groupes_bulk(result.labels)

@@ -58,3 +58,10 @@ pip-delete-this-directory.txt
 .classpath
 .project
 .factorypath
+
+
+.claude/
+graphify-out/
+.graphifyignore
+*.png
+

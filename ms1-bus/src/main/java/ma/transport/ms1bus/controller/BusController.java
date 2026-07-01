@@ -13,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/bus")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class BusController {
 
     private final BusService service;

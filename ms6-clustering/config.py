@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     ms2_url: str = "http://localhost:8082"
+    ms1_url: str = "http://localhost:8081"
+    osrm_url: str = "http://localhost:5000"
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
     exchange_name: str = "transport.exchange"
     port: int = 8086
@@ -10,12 +12,19 @@ class Settings(BaseSettings):
     # JWT — doit correspondre exactement à app.jwt.secret dans MS7
     jwt_secret: str = "changeme"
 
-    # K-Means
+    # ── Stratégie de production (clustering capacitaire routier) ──────────
+    bus_capacity: int = 50          # capacité d'un bus (paramètre métier extensible)
+    use_road_distance: bool = True  # OSRM (vrai réseau) ; repli euclidien si indisponible
+    use_road_for_auto: bool = False # recalcul auto (RabbitMQ) : euclidien par défaut (rapide)
+    epsg_metric: int = 32630        # UTM 30N (Meknès) — projection planaire en mètres
+    min_silhouette: float = 0.50    # garde-fou qualité (CDC) pour la piste exploratoire
+    k_margin: int = 3               # marge de bus explorée au-delà de ⌈N/capacité⌉ (Pareto)
+    kmedoids_iters: int = 6
+
+    # ── Hyperparamètres legacy (K-Means / DBSCAN exploratoires) ──────────
     k_min: int = 3
     k_max: int = 5
-
-    # DBSCAN Haversine — eps en km
-    dbscan_eps: float = 1.5
+    dbscan_eps: float = 1.5         # km (Haversine) — endpoint /dbscan legacy
     dbscan_min_samples: int = 5
 
     class Config:
