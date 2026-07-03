@@ -411,6 +411,44 @@ uvicorn main:app --host 0.0.0.0 --port 8088
 
 ---
 
+### MS11 — AnalytiqueService / Détection d'anomalies (port 8091) ✅ NOUVEAU (S12 anticipé)
+
+**Technologie :** Python 3.11 / FastAPI. **Détection d'anomalies non supervisée** (Isolation Forest) sur les
+trajets de bus, **évaluée** contre le label `incident_type` généré par MS12 (labels = évaluation seulement).
+Route Gateway `ms11-analytique` (8091, `/api/analytique/**`) **déjà présente**.
+
+**Données :** `eta_dataset.csv` de MS12 (trajets + `duree_reelle_min` + `duree_base_s` + `incident_type`).
+**Signal clé** : `ratio = durée réelle / durée de base` (auto-suffisant, ne dépend pas du modèle ETA).
+
+**Benchmark de détecteurs (split temporel, budget d'alerte fixe) — résultat gelé :**
+| Détecteur | PR-AUC | ROC-AUC | F1 | P | R |
+|---|---|---|---|---|---|
+| iforest_contexte (sans résultat) | 0.008 | 0.36 | 0.00 | — | — |
+| iforest_ratio | 0.37 | 0.98 | 0.35 | 0.30 | 0.43 |
+| **seuil_ratio 🏆** | **1.00** | **1.00** | **0.82** | 0.70 | **1.00** |
+
+> **Constat honnête (même thème que MS12) :** le signal d'anomalie est **unidimensionnel** → un seuil sur le
+> ratio suffit (rappel 100 %). Isolation Forest confirme (ROC-AUC 0.98) mais n'ajoute pas de gain multivarié
+> ici (parcimonie) ; il reste le détecteur **général** pour des anomalies plus subtiles. **Scan full dataset :
+> précision 0.88 · rappel 0.93.**
+
+**Fichiers :** `main.py`, `config.py`, `features.py` (ratio + one-hot), `anomaly.py` (wrapper IsolationForest
++ seuil, persistance joblib), `train_anomaly.py` (benchmark + gel), `osrm_client.py`, `data/` (anomaly_model.pkl,
+anomaly_config.json, anomaly_benchmark.json), `notebooks/04_anomaly_detection.ipynb`, Dockerfile, `.env`.
+
+**Endpoints :**
+| Route | Auth | Description |
+|-------|------|-------------|
+| GET `/api/analytique/health` | Public | Health + détecteur chargé |
+| GET `/api/analytique/model-info` | Public | Métriques (PR-AUC/ROC/F1), seuil, contamination |
+| POST `/api/analytique/anomalies` | **JWT ADMIN** | Un trajet observé (durée réelle + base/coords + contexte) → `{is_anomaly, anomaly_score, ratio, niveau}` |
+| GET `/api/analytique/anomalies/scan?limit=` | **JWT ADMIN** | Scanne le dataset → top anomalies + précision/rappel vs incidents réels |
+
+**Sécurité JWT :** `verify_token` ADMIN (même `jwt_secret` que MS7). **CORS :** aucun (Gateway).
+**Démarrage :** `cd ms11-analytique && python train_anomaly.py && uvicorn main:app --port 8091` (env `nlp`).
+
+---
+
 ## 🔁 RabbitMQ — Exchange et queues
 
 **Exchange :** `transport.exchange` (TopicExchange, durable)
@@ -480,6 +518,8 @@ cd ms8-gateway   && mvn spring-boot:run   # 8080 (en dernier)
 # 3. Python — MS6 clustering + MS12 prédiction ETA
 cd ms6-clustering  && uvicorn main:app --port 8086 --reload
 cd ms12-prediction && uvicorn main:app --port 8088 --reload   # env conda "nlp" (Python 3.11)
+cd ms11-analytique && uvicorn main:app --port 8091 --reload   # anomalies (env "nlp")
+# (raccourci : start-all-ms.bat lance tout, chaque MS dans son terminal)
 ```
 
 ---
@@ -499,7 +539,7 @@ cd ms12-prediction && uvicorn main:app --port 8088 --reload   # env conda "nlp" 
 | S9 | 08-14/07 | ⏳ | Chatbot LLM Mistral/Groq LangChain, FastAPI endpoints ETA |
 | S10 | 15-21/07 | ⏳ | VRP OR-Tools, Flutter parent v1, context injection LLM |
 | S11 | 22-28/07 | ⏳ | Dashboard admin, Flutter notifications, VRP benchmark |
-| S12 | 29/07-04/08 | ⏳ | Anomalies GPS Isolation Forest, KPIs dashboard, Flutter chatbot |
+| S12 | 29/07-04/08 | 🔄 | **Détection d'anomalies ✅ anticipée (MS11 : Isolation Forest + seuil-ratio, notebook 04, service :8091, précision 0.88/rappel 0.93). Reste : KPIs dashboard, Flutter chatbot** |
 | S13 | 05-11/08 | ⏳ | Tests e2e, Déploiement, Documentation |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 

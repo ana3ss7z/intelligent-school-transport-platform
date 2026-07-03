@@ -1,0 +1,56 @@
+[
+  {
+    "detecteur": "seuil_ratio",
+    "ROC_AUC": 1.0,
+    "PR_AUC": 1.0,
+    "precision": 0.7,
+    "rappel": 1.0,
+    "F1": 0.8235,
+    "confusion": [
+      [
+        710,
+        3
+      ],
+      [
+        0,
+        7
+      ]
+    ]
+  },
+  {
+    "detecteur": "iforest_ratio",
+    "ROC_AUC": 0.976,
+    "PR_AUC": 0.3656,
+    "precision": 0.3,
+    "rappel": 0.4286,
+    "F1": 0.3529,
+    "confusion": [
+      [
+        706,
+        7
+      ],
+      [
+        4,
+        3
+      ]
+    ]
+  },
+  {
+    "detecteur": "iforest_contexte",
+    "ROC_AUC": 0.3571,
+    "PR_AUC": 0.0081,
+    "precision": 0.0,
+    "rappel": 0.0,
+    "F1": 0.0,
+    "confusion": [
+      [
+        703,
+        10
+      ],
+      [
+        7,
+        0
+      ]
+    ]
+  }
+]

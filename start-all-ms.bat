@@ -36,6 +36,7 @@ REM ---------- 3) Microservices Python (FastAPI, env nlp) ----------
 echo [3/4] Services Python (clustering + prediction ETA)...
 start "MS6 - Clustering (8086)"       cmd /k "cd /d %ROOT%ms6-clustering && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8086 --reload"
 start "MS12 - Prediction ETA (8088)"  cmd /k "cd /d %ROOT%ms12-prediction && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8088 --reload"
+start "MS11 - Analytique/Anomalies (8091)" cmd /k "cd /d %ROOT%ms11-analytique && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8091 --reload"
 echo.
 
 REM ---------- 4) API Gateway (en DERNIER) ----------
