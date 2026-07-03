@@ -173,6 +173,59 @@ Le token JWT est le même que MS7 (secret partagé).
 
 ---
 
+## 5bis. Provenance des features EN PRODUCTION (d'où vient chaque variable lors d'un vrai trajet)
+
+Question clé : *quand un vrai bus démarre, d'où arrivent météo, trafic, occupation… ?* Le service les
+**approvisionne automatiquement** (`auto_context=true`, activé par défaut) via le package
+`ms12-prediction/context/`. Chaque feature non fournie dans la requête est calculée depuis sa **source
+réelle**, et la réponse renvoie un bloc **`sources`** indiquant la provenance de chaque valeur.
+
+### Table de provenance
+
+| Feature | Source réelle en production | Module | Repli si indisponible |
+|---|---|---|---|
+| `distance_routiere_m`, `duree_base_s` | **OSRM** (réseau réel, coordonnées bus→dest) | `osrm_client.py` | vol d'oiseau × 1.4 |
+| `meteo` | **Open-Meteo** (API **gratuite, sans clé**), code WMO → catégorie | `context/weather.py` | climatologie saisonnière |
+| `trafic` | **heuristique horaire** (pointe 7-9h/17-19h) ; option TomTom si clé | `context/traffic.py` | — (déterministe) |
+| `ramadan`, `jour_souk` | **calendrier marocain** calculé depuis la date | `context/calendar_ma.py` | 0 |
+| `nb_feux`, `traverse_oued`, `nb_arrets_restants` | **table statique des circuits** (config) | `context/circuits.py` | 8 / 0 / 0 |
+| `nb_montees`, `nb_descentes`, `taux_occupation` | **roster MS2** (élèves affectés au bus) → estimation | `context/roster_ms2.py` | 0 (défaut) |
+| `duree_moyenne_historique_s` | **historique des trajets réels** (bootstrap = dataset au démarrage) | `context/history.py` | durée OSRM (cold-start) |
+| `retard_cumule_s` | **MS3 GPS live** (réel − prévu) au fil du trajet | requête (live) | 0 au départ |
+| `heure_depart`, `jour_semaine`, `mois`, `moment` | horloge + planning du trajet | requête | date du jour |
+| `travaux_prevus` | saisie admin / calendrier travaux | requête | 0 |
+
+### Comment ça marche à l'appel
+1. `POST /api/eta/predict` reçoit le **contexte du trajet** (coords, `moment`, `date`, `circuit_id`,
+   `leg_id`, `bus_id`) — pas besoin d'envoyer météo/trafic.
+2. Pour chaque feature manquante, le service interroge la source correspondante (OSRM, Open-Meteo,
+   calendrier, table circuits, MS2, historique).
+3. La réponse contient `facteurs` (valeurs retenues) **et** `sources` (d'où vient chacune).
+
+**Exemple réel (trajet du 2026-03-04, 8h) :** le service détecte tout seul `ramadan=1` + `jour_souk=1`
+(mercredi de Ramadan, via calendrier), `trafic=dense` (heuristique 8h), `meteo=ensoleille` (Open-Meteo
+live), feux/oued (table circuits) → ETA 6.74 min. Le bloc `sources` liste chaque provenance.
+
+### Flags de configuration (`.env`)
+```env
+WEATHER_PROVIDER=open-meteo     # open-meteo (gratuit, sans clé) | off (→ climatologie)
+WEATHER_URL=https://api.open-meteo.com/v1/forecast
+TRAFFIC_PROVIDER=heuristic      # heuristic | tomtom (nécessite TOMTOM_KEY)
+TOMTOM_KEY=
+MS2_URL=http://localhost:8082   # roster (occupation)
+HISTORY_PATH=data/eta_history.csv   # historique réel (bootstrap sur le dataset)
+```
+
+### Robustesse
+- **Aucune dépendance bloquante** : chaque provider a un repli → le service prédit même si OSRM,
+  Open-Meteo ou MS2 sont hors-ligne (avec des valeurs par défaut clairement tracées dans `sources`).
+- **Compatibilité modèle** : les providers renvoient **exactement les mêmes catégories** (météo/trafic)
+  et unités que le dataset d'entraînement → **aucun réentraînement** nécessaire.
+- **Cold-start historique** : au lancement, `duree_moyenne_historique` = durée OSRM ; l'historique réel
+  se constitue ensuite (`history.enregistrer_trajet`) et prend le relais.
+
+---
+
 ## 6. Les modèles testés (benchmark) et le choix du gagnant
 
 Fichiers : `algorithms.py` (catalogue) + `train.py` (benchmark).

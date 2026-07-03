@@ -7,6 +7,14 @@ class Settings(BaseSettings):
     port: int = 8088
     osrm_url: str = "http://localhost:5000"
     ms3_url: str = "http://localhost:8083"
+    ms2_url: str = "http://localhost:8082"
+
+    # ── Fournisseurs de contexte (features en production) ────────────
+    weather_provider: str = "open-meteo"                         # open-meteo | off
+    weather_url: str = "https://api.open-meteo.com/v1/forecast"  # gratuit, sans clé
+    traffic_provider: str = "heuristic"                          # heuristic | tomtom
+    tomtom_key: str = ""                                         # optionnel (free-tier)
+    history_path: str = "data/eta_history.csv"                   # historique réel (bootstrap = dataset)
 
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"

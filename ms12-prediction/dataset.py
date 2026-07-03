@@ -15,37 +15,15 @@ Usage : `python dataset.py`  → écrit data/eta_dataset.csv
 """
 from __future__ import annotations
 import json
-from datetime import date, timedelta
+from datetime import date
 
 import numpy as np
 import pandas as pd
 
 from config import settings
 from osrm_client import route_sync
-
-# ── Référentiel géographique (arrêts Meknès, cohérent avec html_tests/map-gps.html) ──
-ECOLE = {"nom": "Al Massira", "lat": 33.893, "lng": -5.5455}
-
-CIRCUITS = {
-    1: {"nom": "Médina → École", "traverse_oued": 1, "nb_feux": 9, "arrets": [
-        {"nom": "Médina",  "lat": 33.8935, "lng": -5.5547},
-        {"nom": "Hamria",  "lat": 33.8978, "lng": -5.5489},
-        {"nom": "Zitoune", "lat": 33.9012, "lng": -5.5523},
-        {"nom": "Wislane", "lat": 33.9067, "lng": -5.5456},
-    ]},
-    2: {"nom": "Ismailia → École", "traverse_oued": 0, "nb_feux": 6, "arrets": [
-        {"nom": "Ismailia",  "lat": 33.8876, "lng": -5.5612},
-        {"nom": "Mellah",    "lat": 33.8901, "lng": -5.5598},
-        {"nom": "Sidi Baba", "lat": 33.8845, "lng": -5.5534},
-        {"nom": "Ain Karma", "lat": 33.8712, "lng": -5.5312},
-    ]},
-    3: {"nom": "Al Manzeh → École", "traverse_oued": 1, "nb_feux": 11, "arrets": [
-        {"nom": "Al Manzeh", "lat": 33.8756, "lng": -5.5401},
-        {"nom": "Riad",      "lat": 33.8834, "lng": -5.5378},
-        {"nom": "Sidi Said", "lat": 33.8956, "lng": -5.5445},
-        {"nom": "Borj",      "lat": 33.8923, "lng": -5.5689},
-    ]},
-}
+from context.circuits import CIRCUITS, routes_circuit           # table circuits partagée (DRY)
+from context.calendar_ma import jours_ecole, est_ramadan, jour_souk  # calendrier partagé
 
 # ── Facteurs métier (sourcés — cf. notebook) ──
 F_METEO = {"ensoleille": 1.00, "nuageux": 1.03, "pluie": 1.20, "brouillard": 1.15}
@@ -56,41 +34,13 @@ INCIDENTS = {          # (min_retard_min, max_retard_min)
 }
 CAPACITE_BUS = 50
 
-# Ramadan 2026 (approx.) et vacances scolaires / fériés à exclure
-RAMADAN = (date(2026, 2, 18), date(2026, 3, 19))
-VACANCES = [(date(2025, 12, 20), date(2026, 1, 4)), (date(2026, 4, 5), date(2026, 4, 19))]
-FERIES = {date(2025, 11, 6), date(2025, 11, 18), date(2026, 1, 1),
-          date(2026, 1, 11), date(2026, 5, 1)}
-
-
-def _in_ranges(d: date, ranges) -> bool:
-    return any(a <= d <= b for a, b in ranges)
-
-
-def jours_ecole(debut: date, n: int) -> list[date]:
-    """n premiers jours d'école (lun–ven, hors vacances et fériés) à partir de `debut`."""
-    jours, d = [], debut
-    while len(jours) < n:
-        if d.weekday() < 5 and not _in_ranges(d, VACANCES) and d not in FERIES:
-            jours.append(d)
-        d += timedelta(days=1)
-    return jours
-
-
-def _routes_circuit(circuit: dict, moment: str) -> list[dict]:
-    """Ordonne les arrêts selon le sens (matin: quartiers→école, soir: école→quartiers)."""
-    arrets = circuit["arrets"]
-    if moment == "matin":
-        return arrets + [ECOLE]
-    return [ECOLE] + list(reversed(arrets))
-
 
 def _cache_tronçons() -> dict:
     """Durée/distance OSRM par tronçon (calculées une seule fois, réutilisées sur 180 j)."""
     cache = {}
     for cid, circuit in CIRCUITS.items():
         for moment in ("matin", "soir"):
-            pts = _routes_circuit(circuit, moment)
+            pts = routes_circuit(circuit, moment)
             for i in range(len(pts) - 1):
                 o, dst = pts[i], pts[i + 1]
                 dur, dist = route_sync(o["lat"], o["lng"], dst["lat"], dst["lng"])
@@ -126,15 +76,15 @@ def generer(seed: int | None = None) -> pd.DataFrame:
 
     lignes = []
     for jour in jours:
-        est_ramadan = int(RAMADAN[0] <= jour <= RAMADAN[1])
-        est_souk = int(jour.weekday() == 2)        # souk hebdomadaire (mercredi)
+        j_ramadan = est_ramadan(jour)
+        j_souk = jour_souk(jour)                    # souk hebdomadaire (mercredi)
         for moment in ("matin", "soir"):
             heure0 = (7.5 if moment == "matin" else 17.5) + float(rng.normal(0, 0.25))
             meteo = _meteo(rng, jour.month)
             trafic = _trafic(rng, heure0)
             f_meteo, f_trafic = F_METEO[meteo], F_TRAFIC[trafic]
-            f_ramadan = (1.25 if moment == "soir" else 1.05) if est_ramadan else 1.0
-            f_souk = 1.12 if est_souk else 1.0
+            f_ramadan = (1.25 if moment == "soir" else 1.05) if j_ramadan else 1.0
+            f_souk = 1.12 if j_souk else 1.0
 
             for cid, circuit in CIRCUITS.items():
                 n_legs = cache[(cid, moment, 0)]["n_legs"]
@@ -185,8 +135,8 @@ def generer(seed: int | None = None) -> pd.DataFrame:
                         "heure_depart": round(heure0 + i * 0.05, 3),
                         "meteo": meteo,
                         "trafic": trafic,
-                        "ramadan": est_ramadan,
-                        "jour_souk": est_souk,
+                        "ramadan": j_ramadan,
+                        "jour_souk": j_souk,
                         "travaux_prevus": travaux,
                         "circuit_id": cid,
                         "leg_id": i,
