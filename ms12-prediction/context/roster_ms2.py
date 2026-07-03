@@ -36,7 +36,7 @@ async def get_occupation(bus_id: int, moment: str, leg_id: int, n_arrets: int) -
     """
     effectif = await get_effectif_bus(bus_id)
     if effectif <= 0:
-        return {"nb_montees": 0, "nb_descentes": 0, "taux_occupation": 0.0}, "défaut (MS2 indispo)"
+        return {"nb_montees": 0, "nb_descentes": 0, "taux_occupation": 0.0}, "defaut (MS2 hors-ligne)"
 
     par_arret = max(1, round(effectif / max(1, n_arrets)))
     if moment == "matin":

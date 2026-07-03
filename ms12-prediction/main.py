@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
+def _hhmm(heure_decimale: float) -> str:
+    """Heure décimale (ex. 7.5) → 'HH:MM' (ex. '07:30'). Gère le report des minutes."""
+    total = int(round(heure_decimale * 60)) % (24 * 60)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Vérifie le JWT émis par MS7 (même secret). ADMIN ou CHAUFFEUR autorisés."""
     try:
@@ -218,13 +224,12 @@ async def predict(req: PredictRequest):
     eta_min = float(eta_model.predict_df(pd.DataFrame([row]))[0])
     mae = float(eta_model.config.get("mae_minutes", 0.0))
 
-    arr = heure + eta_min / 60.0
-    hh, mm = int(arr) % 24, int(round((arr - int(arr)) * 60)) % 60
     return {
         "eta_minutes": round(eta_min, 2),
         "intervalle_min": [round(max(0, eta_min - mae), 2), round(eta_min + mae, 2)],
-        "heure_depart": round(heure, 2),
-        "heure_arrivee_estimee": f"{hh:02d}:{mm:02d}",
+        "heure_depart": _hhmm(heure),
+        "heure_depart_dec": round(heure, 2),
+        "heure_arrivee_estimee": _hhmm(heure + eta_min / 60.0),
         "date": date_obj.isoformat(),
         "distance_routiere_m": round(dist, 1),
         "duree_base_min": round(dur / 60.0, 2),

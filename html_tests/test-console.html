@@ -314,7 +314,7 @@
       <div class="card"><h2>🕒 MS12 — Prédiction ETA</h2>
         <button onclick="api('GET','/api/eta/health',{auth:false})">health</button>
         <button onclick="api('GET','/api/eta/model-info',{auth:false})">model-info (modèle + métriques)</button>
-        <h3>Prédire une durée de trajet (ADMIN/CHAUFFEUR)</h3>
+        <h3>Contexte du trajet (OSRM calcule distance/durée)</h3>
         <div class="row">
           <div><label>bus lat</label><input id="eta_blat" class="sm" value="33.8935"></div>
           <div><label>bus lng</label><input id="eta_blng" class="sm" value="-5.5547"></div>
@@ -323,18 +323,27 @@
         </div>
         <div class="row">
           <div><label>moment</label><select id="eta_moment"><option>matin</option><option>soir</option></select></div>
-          <div><label>trafic</label><select id="eta_trafic"><option>fluide</option><option>modere</option><option>dense</option><option>embouteillage</option></select></div>
-          <div><label>météo</label><select id="eta_meteo"><option>ensoleille</option><option>nuageux</option><option>pluie</option><option>brouillard</option></select></div>
-          <div><label>arrêts restants</label><input id="eta_arrets" class="sm" value="3"></div>
-          <div><label>montées</label><input id="eta_montees" class="sm" value="4"></div>
+          <div><label>heure (déc, vide=auto)</label><input id="eta_heure" class="sm" placeholder="7.5"></div>
+          <div><label>date (vide=aujourd'hui)</label><input id="eta_date" class="md" placeholder="2026-03-04"></div>
+          <div><label>circuit_id</label><select id="eta_circuit"><option value="">(aucun)</option><option>1</option><option>2</option><option>3</option></select></div>
+          <div><label>leg_id</label><input id="eta_leg" class="sm" placeholder="0"></div>
+          <div><label>bus_id</label><input id="eta_bus" class="sm" placeholder="1"></div>
+        </div>
+        <h3>Features — laisser « auto » = approvisionné par le service (source réelle)</h3>
+        <div class="row">
+          <div><label>météo</label><select id="eta_meteo"><option value="">(auto Open-Meteo)</option><option>ensoleille</option><option>nuageux</option><option>pluie</option><option>brouillard</option></select></div>
+          <div><label>trafic</label><select id="eta_trafic"><option value="">(auto heuristique)</option><option>fluide</option><option>modere</option><option>dense</option><option>embouteillage</option></select></div>
+          <div><label>ramadan</label><select id="eta_ramadan"><option value="">(auto calendrier)</option><option value="0">0</option><option value="1">1</option></select></div>
+          <div><label>jour souk</label><select id="eta_souk"><option value="">(auto calendrier)</option><option value="0">0</option><option value="1">1</option></select></div>
+          <div><label>travaux</label><select id="eta_travaux"><option value="">(auto)</option><option value="0">0</option><option value="1">1</option></select></div>
         </div>
         <div class="row">
-          <div><label>ramadan</label><select id="eta_ramadan"><option value="0">0</option><option value="1">1</option></select></div>
-          <div><label>jour souk</label><select id="eta_souk"><option value="0">0</option><option value="1">1</option></select></div>
-          <div><label>travaux</label><select id="eta_travaux"><option value="0">0</option><option value="1">1</option></select></div>
+          <div><label>arrêts restants</label><input id="eta_arrets" class="sm" placeholder="auto"></div>
+          <div><label>montées</label><input id="eta_montees" class="sm" placeholder="auto"></div>
+          <label style="display:flex;align-items:center;gap:5px;color:var(--tx);font-size:12px"><input type="checkbox" id="eta_auto" checked style="width:auto;accent-color:var(--acc)"> auto_context</label>
           <button class="g" onclick="api('POST','/api/eta/predict',{body:etaBody()})">POST /predict</button>
         </div>
-        <p class="muted">Le service calcule la distance/durée OSRM depuis les coordonnées, puis prédit l'ETA (min) avec le meilleur modèle du benchmark.</p>
+        <p class="muted">💡 Démo provenance : laisse météo/trafic/ramadan/souk sur <b>auto</b> et renseigne <b>circuit_id + leg_id + bus_id + date</b> → le bloc <b>sources</b> de la réponse (panneau de droite) montre la vraie origine (open-meteo, heuristique, calendrier, roster MS2, historique). Ex. date <b>2026-03-04</b> = mercredi de Ramadan.</p>
       </div>
     </div>
   </div>
@@ -436,7 +445,19 @@ function busBody(){return {matricule:v('bus_mat'),capacite:+v('bus_cap'),statut:
 function eleveBody(){return {nom:v('el_nom'),prenom:v('el_pre'),latitude:+v('el_lat'),longitude:+v('el_lng'),parentId:v('el_pid')?+v('el_pid'):null,busId:v('el_bus')?+v('el_bus'):null};}
 function gpsBody(){return {cibleType:v('gps_type'),cibleId:+v('gps_cid'),latitude:+v('gps_lat'),longitude:+v('gps_lng'),vitesse:+v('gps_v'),cap:+v('gps_cap')};}
 function incidentBody(){return {type:v('in_type'),busId:+v('in_cbus'),description:v('in_desc')};}
-function etaBody(){return {bus_lat:+v('eta_blat'),bus_lng:+v('eta_blng'),dest_lat:+v('eta_dlat'),dest_lng:+v('eta_dlng'),moment:v('eta_moment'),trafic:v('eta_trafic'),meteo:v('eta_meteo'),nb_arrets_restants:+v('eta_arrets'),nb_montees:+v('eta_montees'),ramadan:+v('eta_ramadan'),jour_souk:+v('eta_souk'),travaux_prevus:+v('eta_travaux')};}
+function etaBody(){
+  // N'envoie que les champs renseignés : un champ vide = omis → le service l'auto-approvisionne.
+  const b={auto_context:document.getElementById('eta_auto').checked};
+  const num=(id,k)=>{const x=v(id); if(x!=='')b[k]=+x;};
+  const str=(id,k)=>{const x=v(id); if(x!=='')b[k]=x;};
+  num('eta_blat','bus_lat');num('eta_blng','bus_lng');num('eta_dlat','dest_lat');num('eta_dlng','dest_lng');
+  str('eta_moment','moment');num('eta_heure','heure_depart');str('eta_date','date');
+  num('eta_circuit','circuit_id');num('eta_leg','leg_id');num('eta_bus','bus_id');
+  str('eta_meteo','meteo');str('eta_trafic','trafic');
+  num('eta_ramadan','ramadan');num('eta_souk','jour_souk');num('eta_travaux','travaux_prevus');
+  num('eta_arrets','nb_arrets_restants');num('eta_montees','nb_montees');
+  return b;
+}
 
 /* ---------- clustering helpers ---------- */
 async function clustering(kind){
