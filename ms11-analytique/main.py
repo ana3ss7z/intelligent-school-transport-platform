@@ -104,8 +104,8 @@ async def model_info():
         raise HTTPException(503, "Modèle non entraîné — lancer train_anomaly.py")
     c = _state["config"]
     return {k: c.get(k) for k in
-            ("version", "detecteur", "approach", "with_outcome", "threshold", "contamination",
-             "metrics_test", "n_trajets", "taux_incidents_%", "dateCalcul")}
+            ("version", "detecteur", "kind", "feature_cols", "threshold_col", "threshold",
+             "contamination", "metrics_test", "n_trajets", "taux_incidents_%", "dateCalcul")}
 
 
 @app.post("/api/analytique/anomalies", dependencies=[Depends(verify_token)])
@@ -148,10 +148,10 @@ async def detecter(req: AnomalyRequest):
 async def scan(limit: int = 20):
     if not _loaded():
         raise HTTPException(503, "Modèle non entraîné — lancer train_anomaly.py")
-    if not os.path.exists(settings.eta_dataset_path):
-        raise HTTPException(502, "Dataset ETA introuvable")
+    if not os.path.exists(settings.dataset_path):
+        raise HTTPException(502, "Dataset d'anomalies introuvable — lancer train_anomaly.py")
 
-    df = pd.read_csv(settings.eta_dataset_path)
+    df = pd.read_csv(settings.dataset_path)
     det = _state["detector"]
     scores = det.scores(df)
     preds = scores >= det.threshold

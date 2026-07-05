@@ -1,31 +1,36 @@
 {
   "version": "ms11-analytique-v1",
-  "detecteur": "seuil_ratio",
-  "approach": "ratio",
-  "with_outcome": true,
-  "feature_columns": [
-    "ratio"
+  "detecteur": "iforest_curated",
+  "kind": "iforest",
+  "feature_cols": [
+    "surprise",
+    "ratio",
+    "dwell",
+    "nb_montees",
+    "nb_descentes",
+    "taux_occupation"
   ],
-  "threshold": 3.527462816096674,
+  "threshold_col": null,
+  "threshold": 0.6145276552899578,
   "contamination": 0.012777777777777779,
   "metrics_test": {
-    "ROC_AUC": 1.0,
-    "PR_AUC": 1.0,
+    "ROC_AUC": 0.9988,
+    "PR_AUC": 0.9127,
     "precision": 0.7,
-    "rappel": 1.0,
-    "F1": 0.8235,
+    "rappel": 0.875,
+    "F1": 0.7778,
     "confusion": [
       [
-        710,
+        709,
         3
       ],
       [
-        0,
+        1,
         7
       ]
     ]
   },
   "n_trajets": 4320,
-  "taux_incidents_%": 1.227,
-  "dateCalcul": "2026-07-03T03:34:50.115568+00:00"
+  "taux_incidents_%": 1.25,
+  "dateCalcul": "2026-07-05T18:50:07.580392+00:00"
 }

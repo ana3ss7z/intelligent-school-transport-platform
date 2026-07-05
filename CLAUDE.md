@@ -417,24 +417,28 @@ uvicorn main:app --host 0.0.0.0 --port 8088
 trajets de bus, **évaluée** contre le label `incident_type` généré par MS12 (labels = évaluation seulement).
 Route Gateway `ms11-analytique` (8091, `/api/analytique/**`) **déjà présente**.
 
-**Données :** `eta_dataset.csv` de MS12 (trajets + `duree_reelle_min` + `duree_base_s` + `incident_type`).
-**Signal clé** : `ratio = durée réelle / durée de base` (auto-suffisant, ne dépend pas du modèle ETA).
+**Données :** **dataset PROPRE à MS11** (`data/anomaly_dataset.csv`, généré par `dataset_anomaly.py`,
+indépendant de MS12) avec **anomalies hétérogènes et contextuelles** (~1,25 %) : *franc* (panne/accident,
+ratio énorme), *contextuel* (ratio modéré mais conditions légères), *surcharge* (montées anormales).
+**Signaux** : `ratio` (franc), **`surprise` = ratio ajusté au contexte** (contextuel), `dwell`/`nb_montees` (surcharge).
 
-**Benchmark de détecteurs (split temporel, budget d'alerte fixe) — résultat gelé :**
+**Benchmark de 4 détecteurs (split temporel, budget d'alerte fixe) — résultat gelé :**
 | Détecteur | PR-AUC | ROC-AUC | F1 | P | R |
 |---|---|---|---|---|---|
-| iforest_contexte (sans résultat) | 0.008 | 0.36 | 0.00 | — | — |
-| iforest_ratio | 0.37 | 0.98 | 0.35 | 0.30 | 0.43 |
-| **seuil_ratio 🏆** | **1.00** | **1.00** | **0.82** | 0.70 | **1.00** |
+| **iforest_curated 🏆** | **0.91** | **1.00** | **0.78** | 0.70 | **0.88** |
+| seuil_surprise | 0.80 | 0.99 | 0.63 | 0.55 | 0.75 |
+| seuil_ratio | 0.79 | 0.94 | 0.67 | 0.60 | 0.75 |
+| iforest_all (dilué) | 0.48 | 0.98 | 0.44 | 0.40 | 0.50 |
 
-> **Constat honnête (même thème que MS12) :** le signal d'anomalie est **unidimensionnel** → un seuil sur le
-> ratio suffit (rappel 100 %). Isolation Forest confirme (ROC-AUC 0.98) mais n'ajoute pas de gain multivarié
-> ici (parcimonie) ; il reste le détecteur **général** pour des anomalies plus subtiles. **Scan full dataset :
-> précision 0.88 · rappel 0.93.**
+> **Triple leçon DS (honnête) :** (1) le **feature engineering** prime (`surprise` contextuelle > ratio brut) ;
+> (2) la **curation** prime (`iforest_curated` ≫ `iforest_all` dilué) ; (3) le **multivarié gagne** car les
+> anomalies sont hétérogènes (franc+contextuel+surcharge) — aucun seuil univarié ne les capte toutes.
+> Contraste avec MS12 (modèle simple gagnant) : ici le problème est **réellement multivarié**. **Scan full : précision 0.70 · rappel 0.72.**
 
-**Fichiers :** `main.py`, `config.py`, `features.py` (ratio + one-hot), `anomaly.py` (wrapper IsolationForest
-+ seuil, persistance joblib), `train_anomaly.py` (benchmark + gel), `osrm_client.py`, `data/` (anomaly_model.pkl,
-anomaly_config.json, anomaly_benchmark.json), `notebooks/04_anomaly_detection.ipynb`, Dockerfile, `.env`.
+**Fichiers :** `main.py`, `config.py`, `dataset_anomaly.py` (dataset propre), `features.py` (ratio + **surprise**
+contextuelle + dwell), `anomaly.py` (seuil | IsolationForest curé, joblib), `train_anomaly.py` (benchmark 4
+détecteurs + gel), `osrm_client.py`, `data/` (anomaly_dataset.csv, anomaly_model.pkl, anomaly_config.json,
+anomaly_benchmark.json), `notebooks/04_anomaly_detection.ipynb`, Dockerfile, `.env`.
 
 **Endpoints :**
 | Route | Auth | Description |
@@ -539,7 +543,7 @@ cd ms11-analytique && uvicorn main:app --port 8091 --reload   # anomalies (env "
 | S9 | 08-14/07 | ⏳ | Chatbot LLM Mistral/Groq LangChain, FastAPI endpoints ETA |
 | S10 | 15-21/07 | ⏳ | VRP OR-Tools, Flutter parent v1, context injection LLM |
 | S11 | 22-28/07 | ⏳ | Dashboard admin, Flutter notifications, VRP benchmark |
-| S12 | 29/07-04/08 | 🔄 | **Détection d'anomalies ✅ anticipée (MS11 : Isolation Forest + seuil-ratio, notebook 04, service :8091, précision 0.88/rappel 0.93). Reste : KPIs dashboard, Flutter chatbot** |
+| S12 | 29/07-04/08 | 🔄 | **Détection d'anomalies ✅ anticipée (MS11 : dataset propre anomalies contextuelles, Isolation Forest curé gagnant PR-AUC 0.91/rappel 0.88, notebook 04, service :8091). Reste : KPIs dashboard, Flutter chatbot** |
 | S13 | 05-11/08 | ⏳ | Tests e2e, Déploiement, Documentation |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 

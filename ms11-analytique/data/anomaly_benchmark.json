@@ -1,55 +1,73 @@
 [
   {
-    "detecteur": "seuil_ratio",
-    "ROC_AUC": 1.0,
-    "PR_AUC": 1.0,
+    "detecteur": "iforest_curated",
+    "ROC_AUC": 0.9988,
+    "PR_AUC": 0.9127,
     "precision": 0.7,
-    "rappel": 1.0,
-    "F1": 0.8235,
+    "rappel": 0.875,
+    "F1": 0.7778,
     "confusion": [
       [
-        710,
+        709,
         3
       ],
       [
-        0,
+        1,
         7
       ]
     ]
   },
   {
-    "detecteur": "iforest_ratio",
-    "ROC_AUC": 0.976,
-    "PR_AUC": 0.3656,
-    "precision": 0.3,
-    "rappel": 0.4286,
-    "F1": 0.3529,
+    "detecteur": "seuil_surprise",
+    "ROC_AUC": 0.9867,
+    "PR_AUC": 0.8043,
+    "precision": 0.5455,
+    "rappel": 0.75,
+    "F1": 0.6316,
+    "confusion": [
+      [
+        707,
+        5
+      ],
+      [
+        2,
+        6
+      ]
+    ]
+  },
+  {
+    "detecteur": "seuil_ratio",
+    "ROC_AUC": 0.9407,
+    "PR_AUC": 0.7934,
+    "precision": 0.6,
+    "rappel": 0.75,
+    "F1": 0.6667,
+    "confusion": [
+      [
+        708,
+        4
+      ],
+      [
+        2,
+        6
+      ]
+    ]
+  },
+  {
+    "detecteur": "iforest_all",
+    "ROC_AUC": 0.9754,
+    "PR_AUC": 0.4818,
+    "precision": 0.4,
+    "rappel": 0.5,
+    "F1": 0.4444,
     "confusion": [
       [
         706,
-        7
+        6
       ],
       [
         4,
-        3
-      ]
-    ]
-  },
-  {
-    "detecteur": "iforest_contexte",
-    "ROC_AUC": 0.3571,
-    "PR_AUC": 0.0081,
-    "precision": 0.0,
-    "rappel": 0.0,
-    "F1": 0.0,
-    "confusion": [
-      [
-        703,
-        10
-      ],
-      [
-        7,
-        0
+        4
       ]
     ]
   }

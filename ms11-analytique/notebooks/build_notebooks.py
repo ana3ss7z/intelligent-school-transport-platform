@@ -8,7 +8,6 @@ import os
 import nbformat as nbf
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = "notebooks/figures"
 
 SETUP = r'''
 import os, sys, json, warnings
@@ -36,40 +35,45 @@ def notebook_04():
     c.append(md(r'''
 # MS11 — Détection d'anomalies · Notebook 04 (CRISP-DM)
 
-**Objectif métier.** Détecter automatiquement les **trajets anormaux** (pannes, accidents, routes bloquées…)
-à partir des données de trajet, afin d'alerter l'administration.
+**Objectif métier.** Repérer automatiquement les **trajets anormaux** (incidents) pour alerter l'administration.
 
-**Idée clé.** MS12 a généré un label `incident_type` (incidents **imprévisibles** au départ, donc exclus des
-features ETA). Ici on fait l'inverse : sur des trajets **déjà observés**, on **détecte** ces incidents avec un
-modèle **non supervisé** (Isolation Forest). Le label sert **uniquement à évaluer** (jamais à entraîner).
+**Dataset propre à MS11** (`data/anomaly_dataset.csv`) avec des **anomalies hétérogènes et contextuelles** :
+- **franc** (panne/accident) : durée énorme → ratio très élevé (facile) ;
+- **contextuel** : ratio modéré MAIS par conditions légères (fluide) → anormal *vu le contexte* ;
+- **surcharge** : durée quasi normale mais montées/descentes anormales.
 
-**Démarche honnête.** Split temporel, benchmark de détecteurs, évaluation à budget d'alerte fixe
-(PR-AUC/ROC-AUC/F1), puis on garde le meilleur — même logique que MS6/MS12.
+**Thèse du notebook.** Aucune variable seule ne capte les 3 natures → il faut **du feature engineering**
+(`surprise` = ratio ajusté au contexte) **et** un détecteur **multivarié curé** (Isolation Forest).
+Modèle **non supervisé** ; le label `incident_type` sert **uniquement à évaluer**.
 '''))
     c.append(md("**Étape 0 — Environnement.**"))
     c.append(code(SETUP))
 
-    c.append(md("**Étape 1 — Chargement.** On lit le dataset ETA de MS12 (contient `duree_reelle_min`, `duree_base_s`, contexte et le label `incident_type`)."))
+    c.append(md("**Étape 1 — Données.** On génère le dataset d'anomalies s'il n'existe pas, puis on le charge."))
     c.append(code(r'''
-from features import label_binaire, build
-df = pd.read_csv(settings.eta_dataset_path)
+from features import label_binaire, build, CURATED, colonnes_all
+if not os.path.exists(settings.dataset_path):
+    import dataset_anomaly
+    dataset_anomaly.generer().to_csv(settings.dataset_path, index=False)
+df = pd.read_csv(settings.dataset_path)
 y = label_binaire(df)
 print("Trajets :", len(df), "| incidents :", int(y.sum()), f"({100*y.mean():.2f}%)")
 print(df["incident_type"].value_counts())
 '''))
 
-    c.append(md("**Étape 2 — EDA : le signal `ratio = durée réelle / durée de base`.** Les incidents allongent fortement le trajet → le ratio explose. On visualise sa distribution (échelle log) selon normal vs incident."))
+    c.append(md("**Étape 2 — EDA : `ratio` vs `surprise`.** Le `ratio` brut ne sépare pas les anomalies **contextuelles** (elles ressemblent à un trajet de trafic dense). La `surprise` (= ratio ajusté au contexte) les fait ressortir."))
     c.append(code(r'''
-ratio = (df["duree_reelle_min"] * 60) / df["duree_base_s"].clip(lower=1)
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.hist(ratio[y == 0], bins=60, alpha=.7, label="normal", color="#55a868")
-ax.hist(ratio[y == 1], bins=60, alpha=.7, label="incident", color="#c44e52")
-ax.set_yscale("log"); ax.set_xlabel("ratio durée réelle / base"); ax.set_title("Séparation par le ratio")
-ax.legend(); plt.tight_layout(); plt.savefig(f"{FIG}/04_ratio_distribution.png", dpi=110, bbox_inches="tight"); plt.show()
-print("ratio normal (méd) =", round(float(ratio[y==0].median()),2), "| incident (méd) =", round(float(ratio[y==1].median()),2))
-'''.replace("{FIG}", FIG)))
+F = build(df)
+fig, ax = plt.subplots(1, 2, figsize=(13, 4))
+for lab, col, name in [(0, "#55a868", "normal"), (1, "#c44e52", "incident")]:
+    ax[0].hist(F["ratio"][y == lab], bins=60, alpha=.6, label=name, color=col)
+    ax[1].hist(F["surprise"][y == lab], bins=60, alpha=.6, label=name, color=col)
+ax[0].set_yscale("log"); ax[0].set_title("ratio brut"); ax[0].set_xlabel("ratio"); ax[0].legend()
+ax[1].set_yscale("log"); ax[1].set_title("surprise (ratio ajusté au contexte)"); ax[1].set_xlabel("surprise"); ax[1].legend()
+plt.tight_layout(); plt.savefig(f"{FIG}/04_ratio_vs_surprise.png", dpi=110, bbox_inches="tight"); plt.show()
+'''))
 
-    c.append(md("**Étape 3 — Benchmark de 3 détecteurs.** (a) Isolation Forest sur le **contexte seul** (aveugle au résultat), (b) IF sur **contexte + ratio**, (c) **seuil simple sur le ratio**. Split temporel, évaluation à budget d'alerte fixe."))
+    c.append(md("**Étape 3 — Benchmark de 4 détecteurs.** 2 seuils univariés (ratio, surprise) vs 2 Isolation Forest (toutes features = *dilué*, features *curées*). Split temporel, évaluation à budget d'alerte fixe."))
     c.append(code(r'''
 from train_anomaly import _split_temporel, _evaluer
 from anomaly import AnomalyDetector
@@ -77,18 +81,18 @@ from anomaly import AnomalyDetector
 train, test = _split_temporel(df)
 ytr, yte = label_binaire(train), label_binaire(test)
 contam = float(min(0.2, max(0.01, ytr.mean())))
+cols_all = colonnes_all(df)
 
 detecteurs = {
-    "iforest_contexte": AnomalyDetector("iforest", contam, settings.seed, with_outcome=False),
-    "iforest_ratio":    AnomalyDetector("iforest", contam, settings.seed, with_outcome=True),
-    "seuil_ratio":      AnomalyDetector("ratio", contam, settings.seed),
+    "seuil_ratio":     AnomalyDetector("seuil_ratio", "threshold", contam, threshold_col="ratio"),
+    "seuil_surprise":  AnomalyDetector("seuil_surprise", "threshold", contam, threshold_col="surprise"),
+    "iforest_all":     AnomalyDetector("iforest_all", "iforest", contam, settings.seed, feature_cols=cols_all),
+    "iforest_curated": AnomalyDetector("iforest_curated", "iforest", contam, settings.seed, feature_cols=CURATED),
 }
-scores_test = {}
-rows = []
+scores_test, rows = {}, []
 for nom, det in detecteurs.items():
-    det.fit(train)
-    s = det.scores(test); scores_test[nom] = s
-    thr = float(np.quantile(s, 1 - contam)); pred = s >= thr
+    det.fit(train); s = det.scores(test); scores_test[nom] = s
+    pred = s >= np.quantile(s, 1 - contam)
     m = _evaluer(yte.to_numpy(), s, pred)
     rows.append({"detecteur": nom, "PR_AUC": m["PR_AUC"], "ROC_AUC": m["ROC_AUC"],
                  "F1": m["F1"], "precision": m["precision"], "rappel": m["rappel"]})
@@ -96,7 +100,7 @@ res = pd.DataFrame(rows).sort_values("PR_AUC", ascending=False).reset_index(drop
 res
 '''))
 
-    c.append(md("**Étape 4 — Courbes ROC & Précision-Rappel.** On visualise le pouvoir de séparation de chaque détecteur (indépendant du seuil)."))
+    c.append(md("**Étape 4 — Courbes ROC & Précision-Rappel.**"))
     c.append(code(r'''
 from sklearn.metrics import roc_curve, precision_recall_curve
 fig, ax = plt.subplots(1, 2, figsize=(13, 5))
@@ -106,13 +110,13 @@ for nom, s in scores_test.items():
 ax[0].plot([0, 1], [0, 1], "k--", lw=1); ax[0].set_title("ROC"); ax[0].set_xlabel("FPR"); ax[0].set_ylabel("TPR"); ax[0].legend()
 ax[1].set_title("Précision-Rappel"); ax[1].set_xlabel("Rappel"); ax[1].set_ylabel("Précision"); ax[1].legend()
 plt.tight_layout(); plt.savefig(f"{FIG}/04_courbes_roc_pr.png", dpi=110, bbox_inches="tight"); plt.show()
-'''.replace("{FIG}", FIG)))
+'''))
 
-    c.append(md("**Étape 5 — Matrice de confusion du gagnant.** À budget d'alerte fixe (top contamination%)."))
+    c.append(md("**Étape 5 — Matrice de confusion du gagnant** (budget d'alerte fixe)."))
     c.append(code(r'''
 from sklearn.metrics import confusion_matrix
-best = res.iloc[0]["detecteur"]
-s = scores_test[best]; pred = s >= np.quantile(s, 1 - contam)
+best = res.iloc[0]["detecteur"]; s = scores_test[best]
+pred = s >= np.quantile(s, 1 - contam)
 cm = confusion_matrix(yte, pred)
 fig, ax = plt.subplots(figsize=(4.5, 4))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False,
@@ -123,26 +127,26 @@ print("Gagnant :", best)
 '''))
 
     c.append(md(r'''
-**Étape 6 — Interprétation (honnête).**
-- Le **ratio réel/base** est un signal quasi-unidimensionnel très fort → un **seuil simple** attrape
-  ~100 % des incidents.
-- **Isolation Forest** confirme (ROC-AUC élevé) mais n'apporte pas de gain multivarié **ici**, car le signal
-  est de faible dimension — un résultat de **parcimonie** (le modèle simple suffit), comme XGBoost vs
-  elasticnet dans MS12. IF reste le **détecteur général** pour des anomalies plus subtiles/multivariées.
+**Étape 6 — Interprétation (honnête, triple leçon).**
+1. **Le feature engineering prime** : `surprise` (contextuel) sépare mieux que le `ratio` brut.
+2. **La curation prime** : `iforest_curated` ≫ `iforest_all` — trop de features **diluent** le signal (Isolation
+   Forest traite toutes les dimensions à égalité).
+3. **Le multivarié gagne ICI** parce que les anomalies sont **hétérogènes** (franc + contextuel + surcharge) :
+   aucun seuil univarié ne les capte toutes ; le détecteur curé les combine.
 '''))
-    c.append(md("**Étape 7 — Gel du modèle de production.** On lance le pipeline complet : benchmark, choix du gagnant, réentraînement sur toutes les données, sauvegarde des artefacts consommés par le service MS11."))
+    c.append(md("**Étape 7 — Gel du modèle de production** (benchmark → gagnant → réentraînement sur tout → artefacts)."))
     c.append(code(r'''
 import train_anomaly
 train_anomaly.main()
 cfg = json.load(open(settings.config_path, encoding="utf-8"))
-print(json.dumps({k: cfg[k] for k in ["detecteur","approach","threshold","contamination","metrics_test","taux_incidents_%"]},
+print(json.dumps({k: cfg[k] for k in ["detecteur","kind","feature_cols","threshold","contamination","metrics_test","taux_incidents_%"]},
                  indent=2, ensure_ascii=False))
 '''))
     c.append(md(r'''
 ### Conclusion
 - Détecteur gelé (`anomaly_model.pkl`) servi par **MS11** (`POST /api/analytique/anomalies`, `GET .../scan`).
-- Boucle DS complète : les incidents que l'**ETA (MS12)** ne peut pas prédire sont ceux que la
-  **détection d'anomalies (MS11)** isole — les deux services partagent le même dataset.
+- Boucle DS : les incidents que l'**ETA (MS12)** ne peut pas prédire sont ceux que la **détection
+  d'anomalies (MS11)** isole — grâce au feature engineering contextuel et à un modèle multivarié curé.
 '''))
     nb.cells = c
     return nb

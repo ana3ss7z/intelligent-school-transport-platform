@@ -20,7 +20,7 @@ from sklearn.metrics import (roc_auc_score, average_precision_score, precision_s
                              recall_score, f1_score, confusion_matrix)
 
 from config import settings
-from features import label_binaire
+from features import label_binaire, colonnes_all, CURATED
 from anomaly import AnomalyDetector
 
 
@@ -43,9 +43,11 @@ def _evaluer(y, scores, preds) -> dict:
 
 def main():
     os.makedirs(settings.data_dir, exist_ok=True)
-    if not os.path.exists(settings.eta_dataset_path):
-        raise SystemExit(f"Dataset introuvable : {settings.eta_dataset_path} — lancer MS12 dataset.py d'abord.")
-    df = pd.read_csv(settings.eta_dataset_path)
+    if not os.path.exists(settings.dataset_path):
+        print("[MS11] Dataset absent — génération (anomalies contextuelles)…")
+        import dataset_anomaly
+        dataset_anomaly.generer().to_csv(settings.dataset_path, index=False)
+    df = pd.read_csv(settings.dataset_path)
 
     train, test = _split_temporel(df)
     ytr, yte = label_binaire(train), label_binaire(test)
@@ -53,10 +55,12 @@ def main():
     print(f"[MS11] {len(df)} trajets | train={len(train)} test={len(test)} "
           f"| incidents train={100*ytr.mean():.2f}% | contamination={contam:.3f}")
 
+    cols_all = colonnes_all(df)
     detecteurs = {
-        "iforest_contexte": AnomalyDetector("iforest", contam, settings.seed, with_outcome=False),
-        "iforest_ratio":    AnomalyDetector("iforest", contam, settings.seed, with_outcome=True),
-        "seuil_ratio":      AnomalyDetector("ratio", contam, settings.seed),
+        "seuil_ratio":     AnomalyDetector("seuil_ratio", "threshold", contam, threshold_col="ratio"),
+        "seuil_surprise":  AnomalyDetector("seuil_surprise", "threshold", contam, threshold_col="surprise"),
+        "iforest_all":     AnomalyDetector("iforest_all", "iforest", contam, settings.seed, feature_cols=cols_all),
+        "iforest_curated": AnomalyDetector("iforest_curated", "iforest", contam, settings.seed, feature_cols=CURATED),
     }
 
     resultats = []
@@ -79,24 +83,21 @@ def main():
     print(f"\n[MS11] 🏆 Gagnant : {gagnant_nom}")
 
     # Réentraînement du gagnant sur TOUTES les données, puis gel
-    final = detecteurs[gagnant_nom].__class__(
-        detecteurs[gagnant_nom].approach, contam, settings.seed,
-        with_outcome=detecteurs[gagnant_nom].with_outcome)
+    final = detecteurs[gagnant_nom]
     final.fit(df)
     # Seuil de production = même budget d'alerte, calibré sur TOUTES les données
     final.threshold = float(np.quantile(final.scores(df), 1.0 - contam))
-    final.metrics = detecteurs[gagnant_nom].metrics
     final.save(settings.model_path)
 
     config = {
         "version": "ms11-analytique-v1",
         "detecteur": gagnant_nom,
-        "approach": final.approach,
-        "with_outcome": final.with_outcome,
-        "feature_columns": final.feature_columns,
+        "kind": final.kind,
+        "feature_cols": final.feature_cols,
+        "threshold_col": final.threshold_col,
         "threshold": final.threshold,
         "contamination": contam,
-        "metrics_test": detecteurs[gagnant_nom].metrics,
+        "metrics_test": final.metrics,
         "n_trajets": len(df),
         "taux_incidents_%": round(100 * label_binaire(df).mean(), 3),
         "dateCalcul": datetime.now(timezone.utc).isoformat(),
