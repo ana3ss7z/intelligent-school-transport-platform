@@ -377,6 +377,7 @@
           <div><label>sens</label><select id="plan_sens"><option>matin</option><option>soir</option></select></div>
           <button class="g" onclick="renderTournees()">Calculer & tracer les tournées</button>
           <div><label>groupeId</label><input id="plan_gid" class="sm" value="1"></div>
+          <button class="p" onclick="renderTourneeUne()">🗺️ tracer ce groupe</button>
           <button class="o" onclick="api('POST','/api/planification/tournee',{query:{groupeId:v('plan_gid'),sens:v('plan_sens')}})">une tournée (JSON)</button>
           <span class="muted" id="plan_info">—</span>
         </div>
@@ -670,6 +671,24 @@ async function renderTournees(){
   if(all.length)planMap.fitBounds(L.latLngBounds(all),{padding:[30,30]});
   setTimeout(()=>planMap.invalidateSize(),60);
   document.getElementById('plan_info').textContent=`${r.data.n_bus} bus · ${r.data.distance_totale_km} km · gain moyen ${r.data['gain_moyen_%']}%`;
+}
+async function renderTourneeUne(){
+  switchToTab('planification'); planMapInit();
+  const gid=v('plan_gid'); if(!gid){alert('Saisis un groupeId');return;}
+  const r=await api('POST','/api/planification/tournee',{query:{groupeId:gid,sens:v('plan_sens')||'matin'}});
+  if(!(r&&r.ok&&r.data&&r.data.geometrie))return;
+  planLayers.forEach(l=>planMap.removeLayer(l));planLayers=[];
+  const t=r.data, col=clColor(+gid||1), all=[];
+  if(t.geometrie.length){
+    const pl=L.polyline(t.geometrie,{color:col,weight:4,opacity:.9}).addTo(planMap)
+      .bindPopup(`<b>Bus ${gid}</b><br>${t.n_arrets} arrêts · ${t.duree_min} min<br>gain ${t['gain_vs_baseline_%']}%`);
+    planLayers.push(pl); t.geometrie.forEach(p=>all.push(p));
+  }
+  const sc=L.marker([ECOLE.lat,ECOLE.lng],{icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="font-size:22px;filter:drop-shadow(0 1px 3px #000)">🏫</div>`})}).addTo(planMap).bindPopup('École');
+  planLayers.push(sc); all.push([ECOLE.lat,ECOLE.lng]);
+  if(all.length)planMap.fitBounds(L.latLngBounds(all),{padding:[40,40]});
+  setTimeout(()=>planMap.invalidateSize(),60);
+  document.getElementById('plan_info').textContent=`Bus ${gid} · ${t.n_arrets} arrêts · ${t.duree_min} min · gain ${t['gain_vs_baseline_%']}%`;
 }
 
 /* ----- bascule d'onglet + redimensionnement carte ----- */
