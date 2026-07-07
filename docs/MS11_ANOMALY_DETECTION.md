@@ -47,6 +47,23 @@ les anomalies sont **hétérogènes et contextuelles** (sinon un simple seuil su
 
 **Base réelle :** `duree_base_s` = durée routière OSRM de Meknès (repli vol d'oiseau si OSRM off).
 
+### Visualisation des données
+
+**Répartition des types** — la grande majorité des trajets sont normaux ; les incidents sont rares et de 3 natures.
+
+![Répartition des types d'incident](../ms11-analytique/notebooks/figures/04_types_incidents.png)
+
+**Durée réelle par type** — les incidents « francs » (panne/accident) **explosent** la durée ; « contextuel »
+et « surcharge » restent **proches du normal** → impossibles à distinguer par la seule durée.
+
+![Durée réelle par type d'incident](../ms11-analytique/notebooks/figures/04_duree_par_type.png)
+
+**Où vivent les anomalies** — dans le plan `surprise × ratio`, chaque nature occupe une zone différente :
+les **francs** à droite (ratio élevé), les **contextuels** en haut (surprise élevée), les **surcharges**
+près de l'origine (invisibles ici → ce sont les montées/`dwell` qui les trahissent).
+
+![Espace surprise × ratio par type](../ms11-analytique/notebooks/figures/04_espace_anomalies.png)
+
 ---
 
 ## 4. Feature engineering (`features.py`) — le vrai enjeu
@@ -64,6 +81,17 @@ mais **anormal** par temps fluide. On divise donc le ratio par ce qui est *atten
 `incident_type` reste **exclu** des features (label d'évaluation).
 
 **Jeu de features « curé » du détecteur retenu :** `[surprise, ratio, dwell, nb_montees, nb_descentes, taux_occupation]`.
+
+**Distributions des 3 signaux** (normal vs incident, échelle log) — le `ratio` seul rate les anomalies
+discrètes ; la `surprise` récupère les contextuelles ; le `dwell` isole les surcharges. **Aucun signal seul
+ne suffit** → c'est l'argument central pour un modèle multivarié.
+
+![Distributions des signaux clés](../ms11-analytique/notebooks/figures/04_distributions_signaux.png)
+
+**Corrélations des features curées** — `ratio` et `surprise` sont liés mais **distincts** ; `dwell`/montées
+apportent une information **orthogonale** (donc utile à combiner).
+
+![Corrélations des features curées](../ms11-analytique/notebooks/figures/04_correlations.png)
 
 ---
 
@@ -85,6 +113,18 @@ mais **anormal** par temps fluide. On divise donc le ratio par ce qui est *atten
 
 > Confusion du gagnant (test) : `[[709 TN, 3 FP], [1 FN, 7 TP]]` → 7/8 incidents détectés.
 
+**Comparaison visuelle (PR-AUC)** — le détecteur curé domine nettement les seuils univariés et l'IF « dilué ».
+
+![Benchmark PR-AUC](../ms11-analytique/notebooks/figures/04_benchmark_prauc.png)
+
+**Courbes ROC & Précision-Rappel** (indépendantes du seuil) — `iforest_curated` est au-dessus partout.
+
+![Courbes ROC & Précision-Rappel](../ms11-analytique/notebooks/figures/04_courbes_roc_pr.png)
+
+**Matrice de confusion du gagnant** (budget d'alerte fixe) — 7/8 incidents détectés, 3 fausses alertes.
+
+![Matrice de confusion](../ms11-analytique/notebooks/figures/04_confusion.png)
+
 ### 5.3 Interprétation — la **triple leçon** (à défendre)
 1. **Le feature engineering prime.** La `surprise` (contextuelle) sépare mieux que le `ratio` brut
    (`seuil_surprise` ROC-AUC 0.99 > `seuil_ratio` 0.94).
@@ -99,6 +139,34 @@ mais **anormal** par temps fluide. On divise donc le ratio par ce qui est *atten
 ### 5.4 Le modèle gelé
 `detecteur = iforest_curated` · features `[surprise, ratio, dwell, nb_montees, nb_descentes, taux_occupation]`
 · seuil 0,615 · contamination 0,013. Artefacts : `anomaly_model.pkl`, `anomaly_config.json`, `anomaly_benchmark.json`.
+
+---
+
+## 5bis. Voir le modèle non supervisé (Isolation Forest)
+
+Ces vues rendent le fonctionnement du modèle **visuel** — utile pour la soutenance.
+
+**Frontière de décision (`surprise × ratio`)** — on entraîne un IF sur ces 2 axes et on colore le score
+partout : fond **clair** = zone « normale », fond **foncé** = zone « anormale ». Les incidents (rouge)
+tombent dans le foncé → le modèle a bien appris la forme du normal.
+
+![Frontière de décision Isolation Forest (surprise × ratio)](../ms11-analytique/notebooks/figures/04_frontiere_2d.png)
+
+**Autre coupe (`nb_montees × ratio`)** — ici on **voit** la **surcharge** (beaucoup de montées, durée
+quasi normale) devenir anormale : un axe qu'un simple seuil sur le ratio **ignore totalement**.
+
+![Frontière IF (nb_montees × ratio) — surcharge](../ms11-analytique/notebooks/figures/04_frontiere_surcharge.png)
+
+**Projection PCA (6 features → 2D)** colorée par le score d'anomalie du modèle complet : les incidents
+(cerclés de rouge) se concentrent dans les zones à **score élevé** → le modèle les **isole** correctement
+même dans l'espace multivarié.
+
+![Projection PCA colorée par le score](../ms11-analytique/notebooks/figures/04_pca_score.png)
+
+**Distribution des scores** (normal vs incident) avec le **seuil** d'alerte : une bonne séparation = peu de
+recouvrement à droite du seuil (les rares chevauchements = les fausses alertes / incidents ratés).
+
+![Distribution des scores d'anomalie](../ms11-analytique/notebooks/figures/04_scores_distribution.png)
 
 ---
 
@@ -156,9 +224,18 @@ jupyter nbconvert --to notebook --execute --inplace notebooks/04_anomaly_detecti
 
 ## 8. Notebook (démarche CRISP-DM)
 
-`notebooks/04_anomaly_detection.ipynb` — markdown avant chaque cellule : métier → **EDA `ratio` vs
-`surprise`** → benchmark des 4 détecteurs → **courbes ROC & PR** → matrice de confusion → triple leçon → gel.
-Figures dans `notebooks/figures/` (ratio_vs_surprise, courbes_roc_pr, confusion).
+`notebooks/04_anomaly_detection.ipynb` — markdown avant chaque cellule, **12 figures** dans `notebooks/figures/` :
+
+**A. EDA détaillée** — répartition des types d'incident, durée par type (violon log), distributions des 3
+signaux (ratio/surprise/dwell, normal vs incident), corrélations des features curées, nuage `surprise × ratio` par type.
+
+**B. Voir le modèle non supervisé** — **frontière de décision Isolation Forest en 2D** (surprise × ratio, puis
+nb_montees × ratio pour la surcharge), **projection PCA** (6D→2D) colorée par le score d'anomalie, **distribution
+des scores** normal vs incident avec le seuil.
+
+**C. Benchmark** — barres PR-AUC, **courbes ROC & Précision-Rappel**, matrice de confusion du gagnant.
+
+Palette **accessible aux daltoniens** (Okabe-Ito pour les catégories, séquentielle *viridis* pour les scores).
 
 ---
 

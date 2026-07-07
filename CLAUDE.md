@@ -453,6 +453,37 @@ anomaly_benchmark.json), `notebooks/04_anomaly_detection.ipynb`, Dockerfile, `.e
 
 ---
 
+### MS5 — PlanificationService / VRP (port 8085) ✅ NOUVEAU (S10)
+
+**Technologie :** Python 3.11 / FastAPI + **OR-Tools**. **Optimisation des tournées** : le clustering MS6 affecte
+les élèves aux bus (capacité) ; MS5 calcule **l'ordre de passage optimal** de chaque bus.
+
+**Modèle :** un **TSP par groupe/bus**, **dépôt = école** (part de l'école → ramasse → revient), coût d'arc =
+**durée routière OSRM réelle**. Résolu par **OR-Tools** (`PATH_CHEAPEST_ARC` + `GUIDED_LOCAL_SEARCH`).
+Baseline « plus proche voisin » pour mesurer le **gain**. `sens=soir` → ordre inversé (dépose).
+
+**Résultat mesuré (9 bus, données v2) :** distance totale ~108 km · durée ~224 min · **gain moyen ~12.6 %**
+vs l'ordre naïf (variable par bus : 0 % si le glouton est déjà optimal).
+
+**Fichiers :** `main.py`, `config.py`, `ms2_client.py` (élèves par groupe, **filtré depuis `/api/eleves`** —
+MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géométrie `/route` GeoJSON),
+`vrp.py` (OR-Tools TSP + baseline), `planner.py` (orchestrateur), `notebooks/05_vrp_study.ipynb`, Dockerfile, `.env`.
+
+**Endpoints :**
+| Route | Auth | Description |
+|-------|------|-------------|
+| GET `/api/planification/health` | Public | Health + solveur |
+| POST `/api/planification/tournee?groupeId=&sens=matin\|soir` | **JWT ADMIN/CHAUFFEUR** | Tournée d'un bus → `{ordre, distance_m, duree_min, gain_vs_baseline_%, geometrie}` |
+| POST `/api/planification/tournees?sens=` | **JWT ADMIN/CHAUFFEUR** | Toutes les tournées (lit l'affectation MS6 via MS2) + totaux + gain moyen |
+
+**Sécurité JWT :** `verify_token` ADMIN/CHAUFFEUR (même `jwt_secret` que MS7). **CORS :** aucun (Gateway).
+**Gateway :** route `ms5-planification` (8085) **déjà présente** → aucune modif.
+**Démarrage :** `cd ms5-planification && uvicorn main:app --port 8085` (env `nlp` + `pip install ortools`).
+> **Complémentarité :** MS6 = *quel bus* (affectation capacitaire) ; MS5 = *quel ordre* (temps de tournée).
+> Évolution S11 : CVRP global (assignation+routage conjoints) + benchmark vs MS6+TSP.
+
+---
+
 ## 🔁 RabbitMQ — Exchange et queues
 
 **Exchange :** `transport.exchange` (TopicExchange, durable)
@@ -523,6 +554,7 @@ cd ms8-gateway   && mvn spring-boot:run   # 8080 (en dernier)
 cd ms6-clustering  && uvicorn main:app --port 8086 --reload
 cd ms12-prediction && uvicorn main:app --port 8088 --reload   # env conda "nlp" (Python 3.11)
 cd ms11-analytique && uvicorn main:app --port 8091 --reload   # anomalies (env "nlp")
+cd ms5-planification && uvicorn main:app --port 8085 --reload  # VRP tournées (env "nlp" + ortools)
 # (raccourci : start-all-ms.bat lance tout, chaque MS dans son terminal)
 ```
 
@@ -541,7 +573,7 @@ cd ms11-analytique && uvicorn main:app --port 8091 --reload   # anomalies (env "
 | **S7** | **24-30/06** | **✅** | **MS6 Clustering refonte expert v3 (UTM, k-médoïdes capacitaire routier OSRM, Pareto, 3 notebooks CRISP-DM), données v2, console de test unifiée + cartes, fix CORS** |
 | **S8** | **01-07/07** | **🔄** | **Prédiction ETA ✅ (MS12 : dataset 180j ancré OSRM, benchmark multi-modèles → elasticnet, 3 notebooks CRISP-DM, service :8088). Reste : 5 déclencheurs clustering évolutifs** |
 | S9 | 08-14/07 | ⏳ | Chatbot LLM Mistral/Groq LangChain, FastAPI endpoints ETA |
-| S10 | 15-21/07 | ⏳ | VRP OR-Tools, Flutter parent v1, context injection LLM |
+| S10 | 15-21/07 | 🔄 | **VRP OR-Tools ✅ anticipé (MS5 : TSP par bus, dépôt=école, distances OSRM, gain moyen ~12.6 %, notebook 05, service :8085). Reste : Flutter parent v1, context injection LLM** |
 | S11 | 22-28/07 | ⏳ | Dashboard admin, Flutter notifications, VRP benchmark |
 | S12 | 29/07-04/08 | 🔄 | **Détection d'anomalies ✅ anticipée (MS11 : dataset propre anomalies contextuelles, Isolation Forest curé gagnant PR-AUC 0.91/rappel 0.88, notebook 04, service :8091). Reste : KPIs dashboard, Flutter chatbot** |
 | S13 | 05-11/08 | ⏳ | Tests e2e, Déploiement, Documentation |

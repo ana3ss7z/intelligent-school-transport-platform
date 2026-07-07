@@ -92,6 +92,8 @@
           <div><label>clustering</label><input id="p_clustering" class="sm" value="8086"></div>
           <div><label>incidents</label><input id="p_incidents" class="sm" value="8090"></div>
           <div><label>eta</label><input id="p_eta" class="sm" value="8088"></div>
+          <div><label>analytique</label><input id="p_analytique" class="sm" value="8091"></div>
+          <div><label>planification</label><input id="p_planification" class="sm" value="8085"></div>
         </div>
       </details>
 
@@ -346,6 +348,42 @@
         <p class="muted">💡 Démo provenance : laisse météo/trafic/ramadan/souk sur <b>auto</b> et renseigne <b>circuit_id + leg_id + bus_id + date</b> → le bloc <b>sources</b> de la réponse (panneau de droite) montre la vraie origine (open-meteo, heuristique, calendrier, roster MS2, historique). Ex. date <b>2026-03-04</b> = mercredi de Ramadan.</p>
       </div>
     </div>
+
+    <!-- ANALYTIQUE (MS11) -->
+    <div class="sec" data-sec="analytique">
+      <div class="card"><h2>📈 MS11 — Analytique / Détection d'anomalies</h2>
+        <button onclick="api('GET','/api/analytique/health',{auth:false})">health</button>
+        <button onclick="api('GET','/api/analytique/model-info',{auth:false})">model-info (détecteur + métriques)</button>
+        <button class="o" onclick="api('GET','/api/analytique/anomalies/scan?limit=10')">scan top 10 (ADMIN)</button>
+        <h3>Analyser un trajet observé (ADMIN)</h3>
+        <div class="row">
+          <div><label>durée réelle (min)</label><input id="an_reel" class="sm" value="42"></div>
+          <div><label>durée base (s)</label><input id="an_base" class="sm" value="215"></div>
+          <div><label>trafic</label><select id="an_trafic"><option>fluide</option><option>modere</option><option>dense</option><option>embouteillage</option></select></div>
+          <div><label>météo</label><select id="an_meteo"><option>ensoleille</option><option>nuageux</option><option>pluie</option><option>brouillard</option></select></div>
+          <div><label>montées</label><input id="an_mont" class="sm" value="6"></div>
+          <div><label>descentes</label><input id="an_desc" class="sm" value="0"></div>
+          <button class="g" onclick="api('POST','/api/analytique/anomalies',{body:anomBody()})">POST /anomalies</button>
+        </div>
+        <p class="muted">💡 Essaie : <b>42 min · fluide</b> = panne (🔴 critique) · <b>8.6 min · embouteillage + pluie</b> = normal (contexte justifié ✅) · <b>6.5 min · 30 montées</b> = surcharge (⚠️). La réponse donne <b>is_anomaly</b>, score, ratio, niveau.</p>
+      </div>
+    </div>
+
+    <!-- PLANIFICATION / VRP (MS5) -->
+    <div class="sec" data-sec="planification">
+      <div class="card"><h2>🗺️ MS5 — Planification / Tournées (VRP)</h2>
+        <button onclick="api('GET','/api/planification/health',{auth:false})">health</button>
+        <div class="cl-toolbar">
+          <div><label>sens</label><select id="plan_sens"><option>matin</option><option>soir</option></select></div>
+          <button class="g" onclick="renderTournees()">Calculer & tracer les tournées</button>
+          <div><label>groupeId</label><input id="plan_gid" class="sm" value="1"></div>
+          <button class="o" onclick="api('POST','/api/planification/tournee',{query:{groupeId:v('plan_gid'),sens:v('plan_sens')}})">une tournée (JSON)</button>
+          <span class="muted" id="plan_info">—</span>
+        </div>
+        <div id="planMap" class="mapbox"></div>
+        <p class="muted">Chaque couleur = un bus. Le tracé suit le réseau routier réel (OSRM), ordre optimisé par OR-Tools (dépôt 🏫 = école). Prérequis : clustering appliqué (groupes en base).</p>
+      </div>
+    </div>
   </div>
 
   <!-- ============ RIGHT : output ============ -->
@@ -364,7 +402,7 @@
 <script>
 /* ---------- config & token ---------- */
 let TOKEN = localStorage.getItem('tsc_token') || null;
-const PORT_OF = {auth:'p_auth',bus:'p_bus',eleves:'p_eleves',gps:'p_gps',notifications:'p_notifications',clustering:'p_clustering',incidents:'p_incidents',eta:'p_eta'};
+const PORT_OF = {auth:'p_auth',bus:'p_bus',eleves:'p_eleves',gps:'p_gps',notifications:'p_notifications',clustering:'p_clustering',incidents:'p_incidents',eta:'p_eta',analytique:'p_analytique',planification:'p_planification'};
 function v(id){return document.getElementById(id).value.trim();}
 function saveCfg(){localStorage.setItem('tsc_mode',v('mode'));}
 function svcOf(path){
@@ -375,6 +413,8 @@ function svcOf(path){
   if(path.startsWith('/api/notifications'))return 'notifications';
   if(path.startsWith('/api/clustering'))return 'clustering';
   if(path.startsWith('/api/incidents'))return 'incidents';
+  if(path.startsWith('/api/analytique'))return 'analytique';
+  if(path.startsWith('/api/planification'))return 'planification';
   if(path.startsWith('/api/eta'))return 'eta';
   return 'gateway';
 }
@@ -458,6 +498,7 @@ function etaBody(){
   num('eta_arrets','nb_arrets_restants');num('eta_montees','nb_montees');
   return b;
 }
+function anomBody(){return {duree_reelle_min:+v('an_reel'),duree_base_s:+v('an_base'),trafic:v('an_trafic'),meteo:v('an_meteo'),nb_montees:+v('an_mont'),nb_descentes:+v('an_desc')};}
 
 /* ---------- clustering helpers ---------- */
 async function clustering(kind){
@@ -476,6 +517,8 @@ async function smoke(){
     ['MS6 clustering','GET','/api/clustering/health',false],
     ['MS6 diagnostics','GET','/api/clustering/diagnostics',false],
     ['MS12 ETA','GET','/api/eta/health',false],
+    ['MS11 analytique','GET','/api/analytique/health',false],
+    ['MS5 planification','GET','/api/planification/health',false],
     ['MS1 bus','GET','/api/bus',true],
     ['MS2 élèves','GET','/api/eleves',true],
     ['MS3 gps/bus/tous','GET','/api/gps/bus/tous',true],
@@ -605,6 +648,30 @@ async function chargerBusCarte(){
   }
 }
 
+/* ----- carte tournées (VRP MS5) ----- */
+let planMap=null, planLayers=[];
+function planMapInit(){if(planMap)return;planMap=L.map('planMap',{zoomControl:true}).setView([33.8935,-5.5547],13);tile(planMap);}
+async function renderTournees(){
+  switchToTab('planification'); planMapInit();
+  const r=await api('POST','/api/planification/tournees',{query:{sens:v('plan_sens')||'matin'}});
+  if(!(r&&r.ok&&r.data&&r.data.tournees))return;
+  planLayers.forEach(l=>planMap.removeLayer(l));planLayers=[];
+  const all=[];
+  r.data.tournees.forEach((t,i)=>{
+    const col=clColor(i+1);
+    if(t.geometrie&&t.geometrie.length){
+      const pl=L.polyline(t.geometrie,{color:col,weight:3,opacity:.85}).addTo(planMap)
+        .bindPopup(`<b>Bus ${t.groupeId}</b><br>${t.n_arrets} arrêts · ${t.duree_min} min<br>gain ${t['gain_vs_baseline_%']}%`);
+      planLayers.push(pl); t.geometrie.forEach(p=>all.push(p));
+    }
+  });
+  const sc=L.marker([ECOLE.lat,ECOLE.lng],{icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="font-size:22px;filter:drop-shadow(0 1px 3px #000)">🏫</div>`})}).addTo(planMap).bindPopup('École');
+  planLayers.push(sc); all.push([ECOLE.lat,ECOLE.lng]);
+  if(all.length)planMap.fitBounds(L.latLngBounds(all),{padding:[30,30]});
+  setTimeout(()=>planMap.invalidateSize(),60);
+  document.getElementById('plan_info').textContent=`${r.data.n_bus} bus · ${r.data.distance_totale_km} km · gain moyen ${r.data['gain_moyen_%']}%`;
+}
+
 /* ----- bascule d'onglet + redimensionnement carte ----- */
 function switchToTab(id){
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.t===id));
@@ -614,10 +681,11 @@ function switchToTab(id){
 function onTabShow(id){
   if(id==='clustering'&&clMap)setTimeout(()=>clMap.invalidateSize(),60);
   if(id==='gps'&&gpsMap)setTimeout(()=>gpsMap.invalidateSize(),60);
+  if(id==='planification'&&planMap)setTimeout(()=>planMap.invalidateSize(),60);
 }
 
 /* ---------- tabs ---------- */
-const SECTIONS=[['health','🩺 Santé'],['bus','🚍 Bus'],['eleves','🎒 Élèves'],['gps','📍 GPS'],['clustering','🧩 Clustering'],['eta','🕒 ETA'],['incidents','⚠️ Incidents'],['notifications','🔔 Notifications']];
+const SECTIONS=[['health','🩺 Santé'],['bus','🚍 Bus'],['eleves','🎒 Élèves'],['gps','📍 GPS'],['clustering','🧩 Clustering'],['eta','🕒 ETA'],['analytique','📈 Analytique'],['planification','🗺️ Tournées'],['incidents','⚠️ Incidents'],['notifications','🔔 Notifications']];
 function buildTabs(){
   const t=document.getElementById('tabs');
   SECTIONS.forEach(([id,label],i)=>{

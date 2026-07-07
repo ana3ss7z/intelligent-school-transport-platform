@@ -1,0 +1,26 @@
+"""Client HTTP vers MS2-EleveService (élèves par groupe / tous), avec retry Tenacity."""
+import logging
+
+import httpx
+from tenacity import (retry, stop_after_attempt, wait_exponential,
+                      retry_if_exception_type)
+
+from config import settings
+
+logger = logging.getLogger(__name__)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8),
+       retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)))
+async def get_all_eleves() -> list[dict]:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.get(f"{settings.ms2_url}/api/eleves")
+        r.raise_for_status()
+        return r.json()
+
+
+async def get_eleves_groupe(groupe_id: int) -> list[dict]:
+    """Élèves d'un groupe. Filtré depuis /api/eleves (route interne permitAll, comme MS6) —
+    évite l'endpoint /groupe/{id} qui exige un JWT utilisateur que MS5 n'a pas."""
+    eleves = await get_all_eleves()
+    return [e for e in eleves if e.get("groupeId") == groupe_id]

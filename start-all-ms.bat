@@ -33,10 +33,11 @@ start "MS4 - Notifications (8084)"  cmd /k "cd /d %ROOT%ms4-notifications && mvn
 echo.
 
 REM ---------- 3) Microservices Python (FastAPI, env nlp) ----------
-echo [3/4] Services Python (clustering + prediction ETA)...
+echo [3/4] Services Python (clustering + ETA + anomalies + VRP)...
 start "MS6 - Clustering (8086)"       cmd /k "cd /d %ROOT%ms6-clustering && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8086 --reload"
 start "MS12 - Prediction ETA (8088)"  cmd /k "cd /d %ROOT%ms12-prediction && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8088 --reload"
 start "MS11 - Analytique/Anomalies (8091)" cmd /k "cd /d %ROOT%ms11-analytique && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8091 --reload"
+start "MS5 - Planification/VRP (8085)" cmd /k "cd /d %ROOT%ms5-planification && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8085 --reload"
 echo.
 
 REM ---------- 4) API Gateway (en DERNIER) ----------
@@ -49,7 +50,11 @@ echo ============================================================
 echo   Tous les services ont ete lances dans des terminaux
 echo   separes. Fermez une fenetre pour arreter le service.
 echo ============================================================
-echo   Gateway   : http://localhost:8080
-echo   Console   : html_tests\test-console.html
+echo   Java   : MS7:8087  MS1:8081  MS2:8082  MS3:8083  MS10:8090  MS4:8084  MS8(GW):8080
+echo   Python : MS6:8086  MS12:8088  MS11:8091  MS5:8085   (env nlp)
+echo   ---------------------------------------------------------
+echo   Gateway : http://localhost:8080
+echo   Console : html_tests\test-console.html
+echo   OSRM    : http://localhost:5000
 echo ============================================================
 endlocal
