@@ -1,0 +1,301 @@
+<div align="center">
+
+# 🚌 Transport Scolaire Intelligent
+
+### Plateforme microservices pour la digitalisation et l'optimisation du transport scolaire
+**Meknès, Maroc — 300 élèves géolocalisés (données GPS réelles)**
+
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F.svg?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2BPostGIS-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/Newman-88%2F88%20✓-brightgreen.svg)](#-tests)
+
+*Projet de Fin d'Études — Master SDIA (Systèmes Distribués & Intelligence Artificielle)*
+*Faculté des Sciences Moulay Ismail, Meknès*
+
+</div>
+
+---
+
+## 📖 Présentation
+
+**Transport Scolaire Intelligent** est un système distribué qui digitalise l'ensemble de la chaîne du transport
+scolaire — de la gestion des bus et des élèves au suivi GPS temps réel, en passant par l'**optimisation par
+intelligence artificielle** des groupes de ramassage, des tournées et de la prédiction des temps d'arrivée.
+
+L'architecture repose sur **12 microservices** répartis en deux écosystèmes complémentaires :
+
+- **Cœur métier (Java / Spring Boot)** — authentification, bus, élèves, localisation, incidents, notifications, passerelle API.
+- **Intelligence & optimisation (Python / FastAPI)** — clustering capacitaire, planification de tournées (VRP),
+  prédiction d'ETA et détection d'anomalies, chacun développé selon une démarche **data-science rigoureuse (CRISP-DM)**.
+
+> 💡 **Fil rouge scientifique du projet :** chaque brique d'IA est justifiée par un **benchmark honnête**
+> (plusieurs modèles comparés, protocole d'évaluation sérieux, limites assumées) — pas un simple appel de bibliothèque.
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    Client["📱 Client (Flutter / Console web)"]
+    GW["🚪 MS8 — API Gateway :8080<br/>(JWT · Rate-limiting Redis · CORS)"]
+    Client --> GW
+
+    subgraph JAVA["☕ Cœur métier — Spring Boot"]
+        AUTH["🔐 MS7 Auth :8087"]
+        BUS["🚍 MS1 Bus :8081"]
+        ELV["🎒 MS2 Élèves :8082"]
+        LOC["📍 MS3 Localisation :8083"]
+        NOTIF["🔔 MS4 Notifications :8084"]
+        INC["⚠️ MS10 Incidents :8090"]
+    end
+
+    subgraph PY["🐍 Intelligence & optimisation — FastAPI"]
+        CLU["🧩 MS6 Clustering :8086"]
+        VRP["🗺️ MS5 Planification/VRP :8085"]
+        ETA["⏱️ MS12 Prédiction ETA :8088"]
+        ANO["🔎 MS11 Anomalies :8091"]
+    end
+
+    GW --> AUTH & BUS & ELV & LOC & NOTIF & INC
+    GW --> CLU & VRP & ETA & ANO
+
+    subgraph INFRA["🧱 Infrastructure"]
+        PG[("🐘 PostgreSQL + PostGIS")]
+        REDIS[("⚡ Redis")]
+        MQ{{"🐰 RabbitMQ"}}
+        OSRM["🛣️ OSRM (routage Maroc)"]
+    end
+
+    ELV -- events --> MQ
+    INC -- events --> MQ
+    LOC -- events --> MQ
+    MQ --> NOTIF & CLU
+    LOC <--> REDIS
+    GW <--> REDIS
+    CLU & VRP & ETA & ANO -.-> OSRM
+    JAVA --> PG
+```
+
+---
+
+## 🧩 Microservices
+
+### ☕ Cœur métier (Java 21 / Spring Boot 3.5)
+
+| # | Service | Port | Rôle |
+|---|---------|:----:|------|
+| **MS7** | **AuthService** | `8087` | Authentification JWT (register / login / validate), RBAC `ADMIN·CHAUFFEUR·PARENT` |
+| **MS1** | **BusService** | `8081` | CRUD flotte, statut (`ACTIF·INACTIF·EN_PANNE`), position |
+| **MS2** | **EleveService** | `8082` | CRUD élèves, affectation bus/groupe, présence, événements RabbitMQ |
+| **MS3** | **LocalisationService** | `8083` | GPS temps réel via **WebSocket**, cache Redis, routage OSRM |
+| **MS4** | **NotificationService** | `8084` | Notifications push **FCM** (Firebase), historique, statistiques |
+| **MS10** | **IncidentService** | `8090` | Cycle de vie des incidents (`SIGNALE→…→RESOLU`), publication d'événements |
+| **MS8** | **API Gateway** | `8080` | Point d'entrée unique : validation JWT, rate-limiting Redis, CORS global |
+
+### 🐍 Intelligence & optimisation (Python 3.11 / FastAPI)
+
+| # | Service | Port | Rôle & modèle |
+|---|---------|:----:|---------------|
+| **MS6** | **ClusteringService** | `8086` | **Affectation élèves→bus** : k-médoïdes **capacitaire** sur distance **routière OSRM**, projection **UTM 30N**, affectation globale par **programmation linéaire**, sélection du nombre de bus par **Pareto** |
+| **MS5** | **PlanificationService (VRP)** | `8085` | **Ordre de tournée optimal** par bus : **TSP OR-Tools**, dépôt = école, distances OSRM réelles, gain mesuré vs baseline |
+| **MS12** | **PredictionService (ETA)** | `8088` | **Prédiction du temps d'arrivée** : benchmark multi-modèles, dataset semi-réel ancré OSRM (180 j), split temporel |
+| **MS11** | **AnalytiqueService (Anomalies)** | `8091` | **Détection d'anomalies** de trajet : Isolation Forest curé, feature `surprise` contextuelle, évaluation PR-AUC/ROC |
+
+> `MS9` (`:8089`) est réservé au **chatbot LLM** (jalon S9). `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring.
+
+---
+
+## 🔬 Intelligence artificielle — points forts
+
+Chaque service IA suit la même exigence : **comparer plusieurs approches, mesurer honnêtement, assumer les limites.**
+
+<table>
+<tr><th>Service</th><th>Problème</th><th>Résultat clé (mesuré)</th></tr>
+<tr>
+  <td><b>🧩 MS6</b><br/>Clustering</td>
+  <td>Répartir 300 élèves en groupes ≤ capacité, géographiquement cohérents</td>
+  <td>7 bus · silhouette routière 0.43 · compacité médiane 725 m · <b>taille ≤ capacité garantie par construction</b> (LP)</td>
+</tr>
+<tr>
+  <td><b>🗺️ MS5</b><br/>VRP / Tournées</td>
+  <td>Ordre de ramassage optimal par bus</td>
+  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel, cf. <code>verify_sens.py</code>)</td>
+</tr>
+<tr>
+  <td><b>⏱️ MS12</b><br/>Prédiction ETA</td>
+  <td>Estimer le temps d'arrivée d'un tronçon</td>
+  <td>Gagnant <b>ElasticNet</b> · R² (trajets normaux) 0.82 · MAE 0.86 min · <b>+52.7 %</b> vs baseline OSRM brute</td>
+</tr>
+<tr>
+  <td><b>🔎 MS11</b><br/>Anomalies</td>
+  <td>Repérer les trajets anormaux sans supervision</td>
+  <td>Gagnant <b>Isolation Forest curé</b> · <b>PR-AUC 0.91</b> · rappel 0.88 · le multivarié bat tout seuil univarié</td>
+</tr>
+</table>
+
+📓 Chaque service embarque ses **notebooks CRISP-DM** (EDA → comparaison de modèles → stratégie de production)
+et une **documentation dédiée** dans [`docs/`](docs/).
+
+---
+
+## 🛠️ Stack technique
+
+| Domaine | Technologies |
+|---------|--------------|
+| **Backend Java** | Java 21 · Spring Boot 3.5 · Spring Security 6 · Spring Cloud Gateway (WebFlux) · Maven multi-module |
+| **Services IA** | Python 3.11 · FastAPI · Uvicorn · scikit-learn · NumPy/pandas · SciPy (LP) · OR-Tools · pyproj (UTM) · XGBoost/LightGBM |
+| **Données** | PostgreSQL 15 + PostGIS |
+| **Cache & Messaging** | Redis 7 · RabbitMQ 3 (TopicExchange) |
+| **Sécurité** | JWT HMAC-SHA256 (JJWT / PyJWT) · double validation Gateway + service |
+| **Géo / Routage** | OSRM (données OSM Maroc) · distances routières réelles |
+| **Temps réel** | WebSocket natif Spring · notifications Firebase FCM |
+| **Résilience** | Tenacity (retry exponentiel) · `asyncio.Lock` |
+| **Conteneurs & Tests** | Docker Compose · Newman (Postman CLI) · Jupyter |
+
+---
+
+## 🚀 Démarrage rapide
+
+### Prérequis
+- **Docker & Docker Compose** · **Java 21 + Maven** · **Python 3.11** (environnement conda `nlp` recommandé)
+- Conteneur **OSRM** avec les données OSM Maroc (`osrm_meknes`)
+
+### 1. Infrastructure
+
+```bash
+docker-compose up -d          # PostgreSQL · Redis · RabbitMQ · pgAdmin
+docker start osrm_meknes      # moteur de routage OSRM (port 5000)
+```
+
+### 2. Lancement de tous les services
+
+```bash
+# Windows — un terminal par microservice
+start-all-ms.bat
+```
+
+<details>
+<summary>Lancement manuel (ordre recommandé)</summary>
+
+```bash
+# Java (Spring Boot) — la Gateway en dernier
+cd ms7-auth          && mvn spring-boot:run   # :8087
+cd ms1-bus           && mvn spring-boot:run   # :8081
+cd ms2-eleves        && mvn spring-boot:run   # :8082
+cd ms3-localisation  && mvn spring-boot:run   # :8083
+cd ms10-incidents    && mvn spring-boot:run   # :8090
+cd ms4-notifications && mvn spring-boot:run   # :8084
+cd ms8-gateway       && mvn spring-boot:run   # :8080
+
+# Python (FastAPI) — environnement conda "nlp"
+cd ms6-clustering    && uvicorn main:app --port 8086 --reload
+cd ms5-planification && uvicorn main:app --port 8085 --reload
+cd ms12-prediction   && uvicorn main:app --port 8088 --reload
+cd ms11-analytique   && uvicorn main:app --port 8091 --reload
+```
+</details>
+
+### 3. Vérification
+
+```bash
+curl http://localhost:8080/api/auth/health      # Gateway → Auth
+curl http://localhost:8086/api/clustering/health
+```
+
+Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](html_tests/test-console.html)
+(authentification, cartes Leaflet des clusters/bus temps réel, clustering, tournées, ETA, anomalies…).
+
+---
+
+## 🔌 Ports
+
+| Service | Port | | Service | Port |
+|---------|:----:|-|---------|:----:|
+| API Gateway (MS8) | `8080` | | Clustering (MS6) | `8086` |
+| Bus (MS1) | `8081` | | Auth (MS7) | `8087` |
+| Élèves (MS2) | `8082` | | Prédiction ETA (MS12) | `8088` |
+| Localisation (MS3) | `8083` | | *(Chatbot MS9 — réservé)* | `8089` |
+| Notifications (MS4) | `8084` | | Incidents (MS10) | `8090` |
+| Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
+| PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
+
+---
+
+## 🔁 Événements (RabbitMQ)
+
+Exchange **`transport.exchange`** (topic, durable). Communication asynchrone découplée entre services :
+
+| Routing key | Producteur | Consommateur |
+|-------------|:---------:|:------------:|
+| `eleve.created` · `eleve.gps.updated` · `eleve.deleted` | MS2 | MS6 (recalcul clustering) |
+| `gps.bus.updated` | MS3 | MS4 (notifications) |
+| `incident.signale` · `incident.resolu` | MS10 | MS4 (notifications) |
+
+---
+
+## 🔐 Sécurité
+
+- **JWT HMAC-SHA256** émis par MS7, secret partagé par tous les services.
+- **Double validation** (defense-in-depth) : la Gateway valide et injecte `X-User-*`, chaque service re-valide.
+- **RBAC** : `@PreAuthorize` côté Java, `verify_token` côté Python.
+- **CORS** géré **uniquement** par la Gateway ; **rate-limiting** Redis (global + renforcé sur `/auth`).
+
+---
+
+## 🧪 Tests
+
+| Outil | Couverture | Statut |
+|-------|-----------|:------:|
+| **Newman (Postman)** | API cœur métier | **88/88 assertions** ✅ |
+| **Console web** | Parcours de bout en bout + cartes | ✅ |
+| **Notebooks Jupyter** | Validation des modèles IA (CRISP-DM) | ✅ |
+| `verify_sens.py` | Preuve d'équité des tournées (OSRM réel) | ✅ |
+
+---
+
+## 📂 Structure du projet
+
+```
+transport-scolaire/
+├── pom.xml                  # parent Maven multi-module
+├── docker-compose.yml       # PostgreSQL · Redis · RabbitMQ · pgAdmin
+├── start-all-ms.bat         # lancement de tous les services
+├── ms-common/               # module Java partagé (JWT, rôles)
+├── ms1-bus/ … ms12-prediction/   # 12 microservices
+├── html_tests/              # console de test unifiée + cartes Leaflet
+├── simulateur-bus/          # simulateur de bus (OSRM + WebSocket)
+├── osrm-data/               # données OSM Maroc pré-traitées
+└── docs/                    # documentation détaillée + rapport + planning
+```
+
+Chaque service Python contient : `main.py` · modules métier · `notebooks/` (CRISP-DM) · `data/` (artefacts) · `requirements.txt`.
+
+---
+
+## 🗓️ Feuille de route
+
+| Sprint | Contenu | Statut |
+|--------|---------|:------:|
+| S1–S6 | Conception, infrastructure, Auth, Bus, Élèves, Gateway, GPS/WebSocket, OSRM, Incidents, Notifications | ✅ |
+| S7 | **MS6 Clustering** (refonte experte : UTM, k-médoïdes capacitaire routier, Pareto) | ✅ |
+| S8 | **MS12 Prédiction ETA** (dataset 180 j ancré OSRM, benchmark multi-modèles) | ✅ |
+| S9 | Chatbot LLM (MS9) | ⏳ |
+| S10 | **MS5 VRP** (TSP OR-Tools, tournées) · application Flutter parent | 🔄 |
+| S11 | Dashboard admin · benchmark CVRP global | ⏳ |
+| S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) · KPIs | 🔄 |
+| S13–S15 | Tests e2e · déploiement · mémoire & soutenance | ⏳ |
+
+---
+
+## 👤 Auteur
+
+**Anass** — Master SDIA (M2), Faculté des Sciences Moulay Ismail, Meknès
+Encadrant : **Pr. Ali Bekri**
+
+<div align="center"><sub>Projet de Fin d'Études · 2026</sub></div>
+```
