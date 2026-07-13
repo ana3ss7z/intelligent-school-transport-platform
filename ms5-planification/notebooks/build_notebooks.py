@@ -132,10 +132,55 @@ plt.tight_layout(); plt.savefig(f"{FIG}/05_gains_flotte.png", bbox_inches="tight
 '''))
 
     c.append(md(r'''
+**Étape 6 — Matin vs Soir : pourquoi le soir garde le MÊME ordre (pas l'inverse).** La tournée optimale est
+un **cycle**. On pourrait croire que le soir (dépose) doit **inverser** l'ordre du matin (ramassage). En fait,
+sur une matrice symétrique le coût total serait identique ; le vrai critère est le **temps passé à bord par
+élève**. Garder le **même ordre** équilibre ce temps sur la journée (matin + soir ≈ une durée de tournée pour
+**tout le monde**), alors que l'inverser **pénalise deux fois** l'élève ramassé en premier le matin.
+'''))
+    c.append(code(r'''
+def temps_a_bord(order, M, mode):
+    """Temps à bord par nœud-élève. order=[0,...,0] (0=école). ramassage: de l'élève à la fin ;
+    depose: de l'école (début) jusqu'à l'élève."""
+    out = {}
+    for t in range(1, len(order) - 1):
+        node = order[t]
+        out[node] = cout_tournee(order[t:], M) if mode == "ramassage" else cout_tournee(order[:t + 1], M)
+    return out
+
+R = res[show]; dur = R["dur"]; order = R["opt"]
+rev = [0] + [i for i in order if i != 0][::-1] + [0]         # cycle inversé
+matin    = temps_a_bord(order, dur, "ramassage")
+soir_mm  = temps_a_bord(order, dur, "depose")                # dépose MÊME ordre
+soir_inv = temps_a_bord(rev,   dur, "depose")                # dépose ordre INVERSÉ
+nodes = [i for i in order if i != 0]
+tot_mm  = np.array([(matin[n] + soir_mm[n]) / 60 for n in nodes])
+tot_inv = np.array([(matin[n] + soir_inv[n]) / 60 for n in nodes])
+asym = max(abs(dur[i][j] - dur[j][i]) for i in range(len(dur)) for j in range(len(dur)))
+print(f"Bus {show} — matrice {'ASYMÉTRIQUE (OSRM réel)' if asym>1e-6 else 'symétrique'} (asym max {asym:.0f}s)")
+print(f"Coût total tournée : même-ordre {cout_tournee(order,R['dur'])/60:.1f} min | inversé {cout_tournee(rev,R['dur'])/60:.1f} min")
+pd.DataFrame({"même_ordre_min": np.round(tot_mm,1), "inversé_min": np.round(tot_inv,1)}).describe().loc[["max","mean","std"]]
+'''))
+    c.append(md("**Temps à bord par élève sur la journée** (matin + soir). À gauche « même ordre » : barres quasi **égales** (équité). À droite « inversé » : très **dispersé**, l'élève du bout est puni deux fois."))
+    c.append(code(r'''
+x = np.arange(len(nodes))
+fig, ax = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
+ax[0].bar(x, tot_mm, color="#55A868"); ax[0].axhline(tot_mm.mean(), ls="--", c="k", label=f"moy {tot_mm.mean():.1f}")
+ax[0].set_title(f"MÊME ordre — écart-type {tot_mm.std():.2f} min (équitable)"); ax[0].legend()
+ax[1].bar(x, tot_inv, color="#C44E52"); ax[1].axhline(tot_inv.mean(), ls="--", c="k", label=f"moy {tot_inv.mean():.1f}")
+ax[1].set_title(f"Ordre INVERSÉ — écart-type {tot_inv.std():.2f} min (inéquitable)"); ax[1].legend()
+for a in ax: a.set_xlabel("élève (ordre de passage)"); a.set_ylabel("temps à bord jour (min)")
+plt.tight_layout(); plt.savefig(f"{FIG}/05_equite_matin_soir.png", bbox_inches="tight"); plt.show()
+'''))
+
+    c.append(md(r'''
 ### Conclusion
 - **OR-Tools** ordonne chaque tournée sur les **distances routières réelles** (OSRM), avec un **gain mesurable**
   vs un ordre naïf (variable selon la compacité du groupe : un petit groupe compact peut déjà être optimal).
 - **Complémentarité** : MS6 décide **qui** va dans quel bus (capacité) ; MS5 décide **dans quel ordre** (temps).
+- **Matin vs soir** : le soir garde le **même ordre** que le matin (dépose sur la même tournée). C'est **plus
+  équitable** (temps à bord égal sur la journée) et, sur les vraies routes OSRM **asymétriques**, l'ordre inversé
+  n'étant pas ré-optimisé, il coûte **aussi plus cher** — donc doublement à éviter. Preuve : `verify_sens.py`.
 - Servi par **MS5** : `POST /api/planification/tournee?groupeId=` et `/tournees`.
 - **Suite (S11)** : CVRP global (assignation + routage conjoints) + benchmark vs l'approche MS6+TSP.
 '''))

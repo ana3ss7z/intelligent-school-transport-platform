@@ -176,7 +176,11 @@ Sécurité : **JWT** (ADMIN/CHAUFFEUR). Route Gateway `ms5-planification` (8085)
 | `POST /api/planification/tournee?groupeId=&sens=matin\|soir` | tournée d'un bus → `{ ordre, distance_m, duree_min, gain_vs_baseline_%, geometrie }` |
 | `POST /api/planification/tournees?sens=` | toutes les tournées + totaux + gain moyen |
 
-`sens=matin` = ramassage (école→arrêts→école) ; `sens=soir` = dépose (ordre inversé).
+`sens=matin` = ramassage (école→arrêts→école) ; `sens=soir` = dépose sur la **même** tournée (**même ordre**, pas
+l'inverse). Pourquoi : « même ordre » et « ordre inversé » parcourent le même cycle, mais garder le même ordre
+**équilibre le temps à bord** sur la journée (matin + soir ≈ une durée de tournée pour chaque élève), alors que
+l'inverser pénalise deux fois l'élève ramassé en premier. De plus, sur les routes OSRM réelles (**asymétriques**),
+l'ordre inversé n'est pas ré-optimisé et coûte souvent plus cher. Preuve chiffrée : `ms5-planification/verify_sens.py`.
 
 **Démo (console `test-console.html`)** : onglet 🗺️ **Tournées** → *Calculer & tracer* → les bus s'affichent en
 couleurs sur la carte, chaque tracé suivant les vraies routes.

@@ -467,7 +467,10 @@ les élèves aux bus (capacité) ; MS5 calcule **l'ordre de passage optimal** de
 
 **Modèle :** un **TSP par groupe/bus**, **dépôt = école** (part de l'école → ramasse → revient), coût d'arc =
 **durée routière OSRM réelle**. Résolu par **OR-Tools** (`PATH_CHEAPEST_ARC` + `GUIDED_LOCAL_SEARCH`).
-Baseline « plus proche voisin » pour mesurer le **gain**. `sens=soir` → ordre inversé (dépose).
+Baseline « plus proche voisin » pour mesurer le **gain**. `sens=soir` → dépose sur la **même** tournée
+(**même ordre** que le matin, PAS l'inverse) : garder le même ordre équilibre le **temps à bord** sur la journée
+(écart-type ≈ 0 vs ~5.8 min si inversé) et, sur OSRM réel (asymétrique), l'inversé non ré-optimisé coûte ~2× plus.
+Preuve : `ms5-planification/verify_sens.py`.
 
 **Résultat mesuré (9 bus, données v2) :** distance totale ~108 km · durée ~224 min · **gain moyen ~12.6 %**
 vs l'ordre naïf (variable par bus : 0 % si le glouton est déjà optimal).
