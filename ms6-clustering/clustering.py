@@ -39,8 +39,9 @@ class ClusteringResult:
 
 
 # ── Production : k-médoïdes capacitaire routier ──────────────────────────────
-def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters) -> dict:
-    """Cœur synchrone (CPU) de la stratégie de production. D = matrice de distances (m)."""
+def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters, rayon_max=0.0) -> dict:
+    """Cœur synchrone (CPU) de la stratégie de production. D = matrice de distances (m).
+    rayon_max > 0 : contrainte de distance max au médoïde (les élèves trop loin → dispersés/999)."""
     n = len(ids)
 
     # 1) Détection des dispersés (bruit DBSCAN sur la matrice de distances)
@@ -58,37 +59,48 @@ def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters) -> dict:
     # 2) Choix du nombre de bus (Pareto) sur le CŒUR — non distordu par les dispersés.
     #    k_min basé sur l'effectif TOTAL pour garantir la capacité d'accueillir tout le monde.
     k_min_total = math.ceil(n / capacity)
-    rows = pareto(Dc, XYc, capacity, k_min=k_min_total, k_margin=k_margin, iters=iters)
+    rows = pareto(Dc, XYc, capacity, k_min=k_min_total, k_margin=k_margin, iters=iters, rayon_max=rayon_max)
     best = choisir_k(rows, min_silhouette=min_sil)
     k = best["k"]
     medoids_global = [int(core_idx[m]) for m in best["medoids"]]
 
-    # 3) Affectation GLOBALE capacitaire de TOUS les élèves (cœur + dispersés) aux médoïdes.
-    #    Garantit taille ≤ capacité par construction (k·capacité ≥ n). Les dispersés vont au
-    #    médoïde le plus proche disposant d'une place ; ils restent signalés (ramassage individuel).
-    labels_all = affectation_capacitaire(D[:, medoids_global], capacity)
-    disperses_idx = np.where(noise)[0]
+    # 3) Affectation GLOBALE capacitaire de TOUS les élèves aux médoïdes.
+    #    Garantit taille ≤ capacité par construction (k·capacité ≥ n). Avec rayon_max, les élèves
+    #    sans médoïde à ≤ R deviennent NON AFFECTÉS (label −1 → groupe 999, ramassage individuel).
+    labels_all = affectation_capacitaire(D[:, medoids_global], capacity, rayon_max=rayon_max)
 
-    mapping = {int(ids[i]): int(labels_all[i]) + 1 for i in range(n)}
-    metrics = evaluer(labels_all, capacity, D=D, medoids=medoids_global)   # métriques HONNÊTES (tous)
+    mapping, non_affectes = {}, []
+    for i in range(n):
+        lab = int(labels_all[i])
+        if lab < 0:                                # trop loin de tout médoïde (rayon)
+            mapping[int(ids[i])] = 999
+            non_affectes.append(int(ids[i]))
+        else:
+            mapping[int(ids[i])] = lab + 1
+    metrics = evaluer(labels_all, capacity, D=D, medoids=medoids_global)   # exclut les −1 (dispersés)
     pareto_summary = [{kk: r[kk] for kk in ("k", "silhouette", "compacite_med_m",
                                             "compacite_max_m", "taille_max", "faisable")}
                       for r in rows]
     return {
         "k": k, "mapping": mapping, "metrics": metrics,
-        "n_disperses": int(noise.sum()),
-        "disperses_ids": [int(ids[i]) for i in disperses_idx],
+        "n_disperses": int(noise.sum()),                        # signalés par DBSCAN (informatif)
+        "disperses_ids": [int(ids[i]) for i in np.where(noise)[0]],
+        "n_non_affectes": len(non_affectes),                    # forcés dispersés par le rayon (→ 999)
+        "non_affectes_ids": non_affectes,
+        "rayon_max_m": rayon_max,
         "pareto": pareto_summary,
     }
 
 
 async def production_clustering(eleves: list[dict], capacity: int | None = None,
-                                 use_road: bool | None = None) -> ClusteringResult:
+                                 use_road: bool | None = None,
+                                 rayon: float | None = None) -> ClusteringResult:
     ids, latlon = extraire_coords(eleves)
     if len(ids) < 2:
         raise ValueError("Pas assez d'élèves pour le clustering (min 2)")
     capacity = capacity or settings.bus_capacity
     use_road = settings.use_road_distance if use_road is None else use_road
+    rayon = settings.rayon_max_m if rayon is None else rayon   # paramètre ajustable (0 = désactivé)
 
     XY, proj = projeter_metres(latlon)
     dist_src = "euclidienne (projetée)"
@@ -106,25 +118,28 @@ async def production_clustering(eleves: list[dict], capacity: int | None = None,
 
     res = await asyncio.to_thread(
         _compute_production, ids, XY, D, capacity,
-        settings.k_margin, settings.min_silhouette, settings.kmedoids_iters)
+        settings.k_margin, settings.min_silhouette, settings.kmedoids_iters, rayon)
 
-    logger.info("[MS6] Production : k=%d bus, distance=%s, silhouette=%s, dispersés=%d",
-                res["k"], dist_src, res["metrics"].get("silhouette"), res["n_disperses"])
+    logger.info("[MS6] Production : k=%d bus, distance=%s, silhouette=%s, dispersés=%d, rayon=%.0f, non_affectés=%d",
+                res["k"], dist_src, res["metrics"].get("silhouette"), res["n_disperses"],
+                rayon, res["n_non_affectes"])
     return ClusteringResult(
         methode=f"kmedoids_capacitaire ({dist_src})",
         k=res["k"], silhouette=res["metrics"].get("silhouette"),
         labels=res["mapping"], metrics=res["metrics"],
         extra={"distance": dist_src, "projection": proj, "capacity": capacity,
+               "rayon_max_m": rayon,
                "n_disperses": res["n_disperses"], "disperses_ids": res["disperses_ids"],
+               "n_non_affectes": res["n_non_affectes"], "non_affectes_ids": res["non_affectes_ids"],
                "pareto": res["pareto"]})
 
 
 async def pareto_flotte(eleves: list[dict], capacity: int | None = None,
-                        use_road: bool | None = None) -> dict:
+                        use_road: bool | None = None, rayon: float | None = None) -> dict:
     """Renvoie uniquement la courbe de Pareto (qualité/compacité vs nombre de bus)."""
-    res = await production_clustering(eleves, capacity, use_road)
+    res = await production_clustering(eleves, capacity, use_road, rayon)
     return {"capacity": res.extra["capacity"], "distance": res.extra["distance"],
-            "k_retenu": res.k, "pareto": res.extra["pareto"]}
+            "rayon_max_m": res.extra["rayon_max_m"], "k_retenu": res.k, "pareto": res.extra["pareto"]}
 
 
 # ── Exploratoire / rétrocompatibilité (projection mètres) ────────────────────

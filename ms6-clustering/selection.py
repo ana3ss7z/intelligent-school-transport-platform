@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 def pareto(D: np.ndarray, XY: np.ndarray, capacity: int, k_min: int | None = None,
-           k_margin: int = 3, iters: int = 6) -> list[dict]:
+           k_margin: int = 3, iters: int = 6, rayon_max: float = 0.0) -> list[dict]:
     """
     Pour chaque k, calcule la partition capacitaire et ses métriques (routières/euclidiennes).
     k_min : nombre de bus minimal (par défaut ⌈n/capacité⌉ ; on peut imposer un k_min plus grand
             pour réserver de la capacité aux élèves dispersés ajoutés ensuite).
+    `rayon_max` > 0 : contrainte de rayon max au médoïde (les points trop loin deviennent dispersés).
     Retourne une liste de dicts {k, labels, medoids, metrics...}.
     """
     n = len(D)
@@ -30,7 +31,7 @@ def pareto(D: np.ndarray, XY: np.ndarray, capacity: int, k_min: int | None = Non
     for k in range(k_min, k_min + k_margin + 1):
         if k * capacity < n:
             continue
-        labels, medoids = kmedoids_capacitaire(D, k, capacity, XY, iters=iters)
+        labels, medoids = kmedoids_capacitaire(D, k, capacity, XY, iters=iters, rayon_max=rayon_max)
         m = evaluer(labels, capacity, D=D, medoids=medoids)
         out.append({"k": k, "labels": labels, "medoids": medoids, **m})
     return out

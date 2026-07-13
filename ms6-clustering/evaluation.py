@@ -9,8 +9,8 @@ from sklearn.metrics import (
 
 
 def _intra_medoides(D: np.ndarray, labels: np.ndarray, medoids: list[int]) -> np.ndarray:
-    """Distance de chaque point à son médoïde (matrice précalculée)."""
-    return np.array([D[i, medoids[labels[i]]] for i in range(len(labels))], dtype=float)
+    """Distance de chaque point AFFECTÉ à son médoïde (matrice précalculée ; ignore les dispersés −1)."""
+    return np.array([D[i, medoids[labels[i]]] for i in range(len(labels)) if labels[i] >= 0], dtype=float)
 
 
 def evaluer(labels: np.ndarray, capacity: int,
@@ -56,8 +56,9 @@ def evaluer(labels: np.ndarray, capacity: int,
     # Compacité (distance au médoïde si fourni, sinon au centroïde)
     if medoids is not None and precomputed:
         d = _intra_medoides(D, labels, medoids)
-        res["compacite_med_m"] = round(float(np.median(d)), 1)
-        res["compacite_max_m"] = round(float(d.max()), 1)
+        if len(d):
+            res["compacite_med_m"] = round(float(np.median(d)), 1)
+            res["compacite_max_m"] = round(float(d.max()), 1)
     elif XY is not None:
         ds = []
         for c in uniq:

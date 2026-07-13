@@ -242,6 +242,12 @@ Pipeline en 3 étapes dans `clustering.py::production_clustering` :
 `capacity` (query param) → sinon `settings.bus_capacity` (`.env`, défaut **50**). Le nombre de bus s'adapte
 automatiquement (`k = ⌈N/capacité⌉` + Pareto). *(Flotte hétérogène = évolution S8, `ms1_client.get_capacites()` prêt mais non branché.)*
 
+**2ᵉ paramètre métier AJUSTABLE — `rayon` (S10) :** distance routière **max élève→médoïde** (m ; `0` = désactivé).
+`rayon` (query param) → sinon `settings.rayon_max_m` (`.env`). Contrainte **dure** (SLA compacité) : arcs > R
+interdits dans le LP ; les élèves sans bus à ≤ R deviennent **non affectés → groupe 999** (ramassage individuel) ;
+repli glouton si LP infaisable. **Arbitrage mesuré** (notebook `06_rayon_max_study.ipynb`) : R↓ ⇒ compacité
+garantie ↑ & silhouette cœur ↑, **au prix de** plus de bus et/ou plus de dispersés (ex. R=1500 → compacité_max≤1500, ~3 dispersés ; R=1000 → ~40 dispersés, silhouette 0.57).
+
 **Fichiers (refonte modulaire) :**
 ```
 ms6-clustering/
@@ -278,7 +284,7 @@ PyJWT==2.8, cryptography==42.0.8
 | GET `/api/clustering/eleves` | Public | Tous les élèves (MS2) |
 | GET `/api/clustering/sans-groupe` | Public | Élèves sans groupeId |
 | GET `/api/clustering/diagnostics` | Public | Stats EDA + `k` recommandé (⌈N/capacité⌉) |
-| POST `/api/clustering/production?appliquer=&capacity=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier + bulk update MS2 |
+| POST `/api/clustering/production?appliquer=&capacity=&rayon=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier (+ contrainte `rayon` optionnelle) + bulk update MS2 |
 | POST `/api/clustering/pareto?capacity=&road=` | **JWT ADMIN** | Courbe Pareto qualité vs nb de bus (sans écrire) |
 | POST `/api/clustering/kmeans?appliquer=` | **JWT ADMIN** | *(legacy)* K-Means projeté mètres |
 | POST `/api/clustering/dbscan?appliquer=` | **JWT ADMIN** | *(legacy)* DBSCAN projeté mètres, bruit → 999 |
@@ -304,6 +310,7 @@ OSRM_URL=http://localhost:5000
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 JWT_SECRET=<même valeur que MS7 application.properties>
 BUS_CAPACITY=50            # capacité uniforme paramétrable
+RAYON_MAX_M=0              # distance max élève→médoïde (m) ; 0 = désactivé (ajustable comme la capacité)
 USE_ROAD_DISTANCE=true     # distance routière OSRM (false = euclidienne projetée)
 EPSG_METRIC=32630          # UTM 30N
 MIN_SILHOUETTE=0.50

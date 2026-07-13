@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # ── Stratégie de production (clustering capacitaire routier) ──────────
     bus_capacity: int = 50          # capacité d'un bus (paramètre métier extensible)
+    rayon_max_m: float = 0.0        # distance max élève→médoïde (m) ; 0 = désactivé (paramètre ajustable)
     use_road_distance: bool = True  # OSRM (vrai réseau) ; repli euclidien si indisponible
     use_road_for_auto: bool = False # recalcul auto (RabbitMQ) : euclidien par défaut (rapide)
     epsg_metric: int = 32630        # UTM 30N (Meknès) — projection planaire en mètres

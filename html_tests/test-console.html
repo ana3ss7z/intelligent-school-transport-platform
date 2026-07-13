@@ -244,6 +244,7 @@
         <div class="row">
           <div><label>appliquer</label><select id="cl_apply"><option value="true">true (écrit MS2)</option><option value="false">false (dry-run)</option></select></div>
           <div><label>capacity</label><input id="cl_cap" class="sm" placeholder="50"></div>
+          <div><label>rayon max (m)</label><input id="cl_rayon" class="sm" placeholder="0=off"></div>
           <div><label>road (OSRM)</label><select id="cl_road"><option value="">défaut .env</option><option value="true">true</option><option value="false">false</option></select></div>
           <button class="g" onclick="clustering('production')">POST /production</button>
           <button class="o" onclick="clustering('pareto')">POST /pareto</button>
@@ -505,6 +506,7 @@ function anomBody(){return {duree_reelle_min:+v('an_reel'),duree_base_s:+v('an_b
 async function clustering(kind){
   const q={};
   if(v('cl_cap'))q.capacity=v('cl_cap');
+  if(v('cl_rayon'))q.rayon=v('cl_rayon');
   if(v('cl_road'))q.road=v('cl_road');
   if(kind==='production')q.appliquer=v('cl_apply');
   const r=await api('POST','/api/clustering/'+kind,{query:q});

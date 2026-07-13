@@ -144,14 +144,16 @@ async def comparer_algorithmes():
 @app.post("/api/clustering/production", dependencies=[Depends(verify_token)])
 async def clustering_production(appliquer: bool = True,
                                 capacity: int | None = None,
-                                road: bool | None = None):
+                                road: bool | None = None,
+                                rayon: float | None = None):
     """
     Stratégie de production : k-médoïdes capacitaire sur distance routière OSRM (repli euclidien),
     détection des dispersés, choix du nombre de bus par Pareto. JWT ADMIN requis.
+    `capacity` et `rayon` (distance max élève→médoïde, m ; 0 = désactivé) sont ajustables.
     """
     try:
         eleves = await get_all_eleves()
-        result = await production_clustering(eleves, capacity=capacity, use_road=road)
+        result = await production_clustering(eleves, capacity=capacity, use_road=road, rayon=rayon)
         updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
         return {
             "methode": result.methode,
@@ -160,8 +162,12 @@ async def clustering_production(appliquer: bool = True,
             "nb_eleves": len(result.labels),
             "groupes_appliques": updated,
             "distance": result.extra["distance"],
+            "capacity": result.extra["capacity"],
+            "rayon_max_m": result.extra["rayon_max_m"],
             "n_disperses": result.extra["n_disperses"],
             "disperses_ids": result.extra["disperses_ids"],
+            "n_non_affectes": result.extra["n_non_affectes"],
+            "non_affectes_ids": result.extra["non_affectes_ids"],
             "metrics": result.metrics,
             "pareto": result.extra["pareto"],
             "distribution": _distribution(result.labels),
@@ -171,11 +177,12 @@ async def clustering_production(appliquer: bool = True,
 
 
 @app.post("/api/clustering/pareto", dependencies=[Depends(verify_token)])
-async def clustering_pareto(capacity: int | None = None, road: bool | None = None):
+async def clustering_pareto(capacity: int | None = None, road: bool | None = None,
+                            rayon: float | None = None):
     """Courbe de Pareto qualité/compacité vs nombre de bus (sans appliquer). JWT ADMIN requis."""
     try:
         eleves = await get_all_eleves()
-        return await pareto_flotte(eleves, capacity=capacity, use_road=road)
+        return await pareto_flotte(eleves, capacity=capacity, use_road=road, rayon=rayon)
     except Exception as e:
         raise HTTPException(500, str(e))
 
