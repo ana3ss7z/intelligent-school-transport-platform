@@ -47,6 +47,8 @@ public class SecurityConfig {
                 // MS6 → MS2 : lister les élèves sans groupe (point de départ)
                 .requestMatchers(HttpMethod.GET,  "/api/eleves/sans-groupe").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/eleves/groupes/bulk").permitAll()
+                // MS6 → MS2 : propager busId après liaison groupe↔bus
+                .requestMatchers(HttpMethod.PUT, "/api/eleves/bus/bulk").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/eleves").permitAll() // 👈 AJOUTE CETTE LIGNE
 
                 // ── Toutes les autres routes nécessitent un JWT ───────────

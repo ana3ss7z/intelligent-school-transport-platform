@@ -204,4 +204,20 @@ public int assignerGroupesBulk(Map<Long, Long> eleveGroupeMap) {
     log.info("[MS2] Bulk update groupeId — {} élèves mis à jour", eleves.size());
     return eleves.size();
 }
+
+/**
+ * Mise à jour en masse des busId — liaison groupe↔bus, appelée par MS6 après clustering.
+ * Une seule transaction pour les N élèves.
+ */
+@Transactional
+public int assignerBusBulk(Map<Long, Long> eleveBusMap) {
+    List<Eleve> eleves = repo.findAllById(eleveBusMap.keySet());
+    for (Eleve eleve : eleves) {
+        Long busId = eleveBusMap.get(eleve.getId());
+        eleve.setBusId(busId != null && busId > 0 ? busId : null); // 0/absent → reset
+    }
+    repo.saveAll(eleves);
+    log.info("[MS2] Bulk update busId — {} élèves liés à un bus", eleves.size());
+    return eleves.size();
+}
 }

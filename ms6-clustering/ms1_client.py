@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
        wait=wait_exponential(multiplier=1, min=1, max=6),
        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)))
 async def get_bus_actifs() -> list[dict]:
+    """Bus ACTIF de MS1, triés par id (route interne permitAll /api/bus/actifs)."""
     async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.get(f"{settings.ms1_url}/api/bus")
+        resp = await client.get(f"{settings.ms1_url}/api/bus/actifs")
         resp.raise_for_status()
         bus = resp.json()
-    return [b for b in bus if str(b.get("statut", "")).upper() == "ACTIF"]
+    return sorted(bus, key=lambda b: b.get("id", 0))
 
 
 async def get_capacites() -> list[int]:

@@ -146,4 +146,16 @@ public ResponseEntity<Map<String, Integer>> assignerGroupesBulk(
     int updated = service.assignerGroupesBulk(eleveGroupeMap);
     return ResponseEntity.ok(Map.of("updated", updated));
 }
+
+/**
+ * PUT /api/eleves/bus/bulk
+ * Liaison groupe↔bus : propage busId en masse après clustering (MS6 → MS1 → MS2).
+ * Route interne — pas de JWT requis (voir SecurityConfig).
+ */
+@PutMapping("/bus/bulk")
+public ResponseEntity<Map<String, Integer>> assignerBusBulk(
+        @RequestBody Map<Long, Long> eleveBusMap) {
+    int updated = service.assignerBusBulk(eleveBusMap);
+    return ResponseEntity.ok(Map.of("updated", updated));
+}
 }

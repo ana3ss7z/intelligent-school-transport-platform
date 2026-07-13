@@ -106,6 +106,7 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 - Entité `Bus` : `id`, `matricule` (unique), `capacite`, `statut`, `chauffeurId`, `latitude`, `longitude`
 - `StatutBus` : `ACTIF`, `INACTIF`, `EN_PANNE`
 - Endpoints CRUD complets + `PATCH /statut` + `PATCH /position`
+- **`GET /api/bus/actifs`** (permitAll, interne) → flotte ACTIF pour la **liaison groupe↔bus** (MS6) ← NOUVEAU B1
 - **RabbitMQ publie :** `bus.created`, `bus.deleted` → **déclenche le recalcul clustering MS6** (changement de flotte = changement de capacité totale → `k` peut changer). Config : `spring-boot-starter-amqp` + `RabbitMQConfig` (exchange `transport.exchange`).
 
 ---
@@ -137,6 +138,7 @@ private Boolean statutPresence;
 | PATCH | `/api/eleves/{id}/bus?busId=X` | ADMIN | Assigner bus |
 | PATCH | `/api/eleves/{id}/groupe?groupeId=X` | **permitAll** | Assigner groupe (MS6) |
 | PUT | `/api/eleves/groupes/bulk` | **permitAll** | Bulk update groupeId (MS6) ← NOUVEAU |
+| PUT | `/api/eleves/bus/bulk` | **permitAll** | Bulk update busId — **liaison groupe↔bus (MS6)** ← NOUVEAU B1 |
 | PATCH | `/api/eleves/{id}/presence` | ADMIN/CHAUFFEUR | Présence |
 | DELETE | `/api/eleves/{id}` | ADMIN | Supprimer |
 
@@ -146,6 +148,7 @@ private Boolean statutPresence;
 .requestMatchers(HttpMethod.GET,  "/api/eleves/sans-groupe").permitAll()
 .requestMatchers(HttpMethod.PATCH,"/api/eleves/*/groupe").permitAll()
 .requestMatchers(HttpMethod.PUT,  "/api/eleves/groupes/bulk").permitAll()
+.requestMatchers(HttpMethod.PUT,  "/api/eleves/bus/bulk").permitAll()   // liaison groupe↔bus (B1)
 ```
 
 **RabbitMQ publie :** `eleve.created`, `eleve.gps.updated`, `eleve.deleted`
@@ -305,6 +308,12 @@ PyJWT==2.8, cryptography==42.0.8
 Exposé via `GET /api/clustering/quality` + champ `quality` de `/production` + logs WARNING. Seuils ajustables (`.env` `QUALITY_*`).
 
 **Pattern Bulk Update (anti-DDoS interne) :** une seule requête `PUT /api/eleves/groupes/bulk` au lieu de 300 PATCH.
+
+**Liaison groupe↔bus (B1, `binding.py`) :** à l'**application** du clustering (endpoint `/production?appliquer=true`
+et recalcul auto RabbitMQ), MS6 résout chaque groupe (1..k) vers un **bus MS1 actif** (`GET /api/bus/actifs`,
+mapping 1-1 par id — capacité uniforme) puis **propage `busId`** aux élèves (`PUT /api/eleves/bus/bulk`).
+**Indispensable** : sans ça, `findByBusId` (MS4/ETA) renvoie vide → aucun parent notifié. Dispersés (999) → pas de bus ;
+flotte insuffisante / MS1 indispo → dégradé (partiel + WARNING). Rapport `bus_binding` dans la réponse `/production`.
 
 **Consumer RabbitMQ :** queue `ms6.clustering.queue`, keys `eleve.created/gps.updated/deleted` (MS2) + `bus.created/bus.deleted` (MS1, déclencheur « nouveau bus »), `asyncio.Lock()`.
 Le recalcul auto utilise désormais `production_clustering` (chemin capacitaire).

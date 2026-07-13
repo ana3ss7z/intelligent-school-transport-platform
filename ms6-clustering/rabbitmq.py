@@ -6,6 +6,7 @@ import asyncio
 import logging
 import aio_pika
 from config import settings
+from binding import appliquer_bus
 from clustering import production_clustering
 from ms2_client import assigner_groupes_bulk, get_all_eleves
 from quality import maybe_maj_baseline
@@ -31,6 +32,11 @@ async def _recalculer_et_ecrire():
             # 1 seule requête HTTP bulk au lieu de N PATCH simultanés
             updated = await assigner_groupes_bulk(result.labels)
             logger.info("[MS6] %d/%d élèves mis à jour", updated, len(result.labels))
+
+            # Liaison groupe↔bus : propage busId (rend notifs/ETA fonctionnels)
+            rapport = await appliquer_bus(result.labels)
+            logger.info("[MS6] Liaison bus : %d élèves liés (%d/%d groupes)",
+                        rapport.get("n_lies", 0), rapport.get("k", 0) - rapport.get("manque_bus", 0), rapport.get("k", 0))
 
             # Garde-fou qualité : logge le verdict ; MAJ la baseline seulement si OK (recalcul appliqué)
             verdict = result.extra.get("quality", {})

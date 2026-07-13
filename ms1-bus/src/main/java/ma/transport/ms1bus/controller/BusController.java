@@ -41,6 +41,12 @@ public class BusController {
         return ResponseEntity.ok(service.listerParStatut(statut));
     }
 
+    /** Route interne (MS6 → MS1, sans JWT) : bus ACTIF pour la liaison groupe↔bus. */
+    @GetMapping("/actifs")
+    public ResponseEntity<List<BusResponse>> listerActifs() {
+        return ResponseEntity.ok(service.listerParStatut(StatutBus.ACTIF));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
 

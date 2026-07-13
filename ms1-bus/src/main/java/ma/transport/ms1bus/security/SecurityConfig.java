@@ -41,6 +41,8 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
             })
         )
         .authorizeHttpRequests(auth -> auth
+            // Route interne (MS6 → MS1, sans JWT) : flotte active pour la liaison groupe↔bus
+            .requestMatchers(HttpMethod.GET, "/api/bus/actifs").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

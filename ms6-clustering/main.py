@@ -11,6 +11,7 @@ import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from binding import appliquer_bus
 from clustering import (comparer, run_dbscan, run_kmeans,
                         production_clustering, pareto_flotte, diagnostics)
 from config import settings
@@ -179,6 +180,9 @@ async def clustering_production(appliquer: bool = True,
         result = await production_clustering(eleves, capacity=capacity, use_road=road, rayon=rayon)
         updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
 
+        # Liaison groupe↔bus : propage busId (rend notifs MS4 / ETA MS12 fonctionnels)
+        bus_binding = await appliquer_bus(result.labels) if appliquer else "non demandé"
+
         # Garde-fou qualité : verdict informatif ; baseline MAJ seulement si run appliqué ET OK
         verdict = result.extra["quality"]
         _dernier_verdict = verdict
@@ -193,6 +197,7 @@ async def clustering_production(appliquer: bool = True,
             "silhouette": result.silhouette,
             "nb_eleves": len(result.labels),
             "groupes_appliques": updated,
+            "bus_binding": bus_binding,
             "distance": result.extra["distance"],
             "capacity": result.extra["capacity"],
             "rayon_max_m": result.extra["rayon_max_m"],
