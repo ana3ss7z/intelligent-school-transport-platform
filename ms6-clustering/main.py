@@ -15,7 +15,11 @@ from clustering import (comparer, run_dbscan, run_kmeans,
                         production_clustering, pareto_flotte, diagnostics)
 from config import settings
 from ms2_client import assigner_groupes_bulk, get_all_eleves, get_eleves_sans_groupe
+from quality import charger_baseline, maybe_maj_baseline
 from rabbitmq import start_consumer
+
+# Dernier verdict qualité calculé (exposé par GET /api/clustering/quality)
+_dernier_verdict: dict | None = None
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s — %(message)s")
 logger = logging.getLogger(__name__)
@@ -91,6 +95,24 @@ async def clustering_diagnostics():
         raise HTTPException(502, f"MS2 inaccessible : {e}")
 
 
+@app.get("/api/clustering/quality")
+async def clustering_quality():
+    """Garde-fou qualité : référence dynamique + seuils + dernier verdict calculé. Lecture seule.
+    Destiné au dashboard admin (UC-13). Le seuil est RELATIF (pas un 0.5 fixe)."""
+    return {
+        "baseline": charger_baseline(),
+        "dernier_verdict": _dernier_verdict,
+        "seuils": {
+            "sil_drop_rel": settings.quality_sil_drop_rel,
+            "sil_drop_abs": settings.quality_sil_drop_abs,
+            "sil_floor_rel": settings.quality_sil_floor_rel,
+            "comp_inc_rel": settings.quality_comp_inc_rel,
+            "disperses_inc": settings.quality_disperses_inc,
+        },
+        "note": "Référence calibrée sur nos runs réels (~0.43), pas sur un seuil générique 0.5.",
+    }
+
+
 # ── Routes protégées (JWT ADMIN requis) ──────────────────────────────
 
 @app.post("/api/clustering/kmeans", dependencies=[Depends(verify_token)])
@@ -151,10 +173,20 @@ async def clustering_production(appliquer: bool = True,
     détection des dispersés, choix du nombre de bus par Pareto. JWT ADMIN requis.
     `capacity` et `rayon` (distance max élève→médoïde, m ; 0 = désactivé) sont ajustables.
     """
+    global _dernier_verdict
     try:
         eleves = await get_all_eleves()
         result = await production_clustering(eleves, capacity=capacity, use_road=road, rayon=rayon)
         updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
+
+        # Garde-fou qualité : verdict informatif ; baseline MAJ seulement si run appliqué ET OK
+        verdict = result.extra["quality"]
+        _dernier_verdict = verdict
+        if verdict["niveau"] != "OK":
+            logger.warning("[MS6] Qualité clustering %s : %s", verdict["niveau"], "; ".join(verdict["raisons"]))
+        if appliquer:
+            maybe_maj_baseline(result.metrics, result.extra, verdict)
+
         return {
             "methode": result.methode,
             "k": result.k,
@@ -169,6 +201,7 @@ async def clustering_production(appliquer: bool = True,
             "n_non_affectes": result.extra["n_non_affectes"],
             "non_affectes_ids": result.extra["non_affectes_ids"],
             "metrics": result.metrics,
+            "quality": verdict,
             "pareto": result.extra["pareto"],
             "distribution": _distribution(result.labels),
         }

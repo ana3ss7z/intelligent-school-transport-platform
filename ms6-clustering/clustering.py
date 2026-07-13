@@ -24,6 +24,7 @@ from algorithms import (kmeans as _kmeans, estimer_eps, dbscan_precomputed,
                         kmedoids_capacitaire, affectation_capacitaire)
 from selection import pareto, choisir_k
 from evaluation import evaluer
+from quality import evaluer_qualite
 
 logger = logging.getLogger(__name__)
 
@@ -120,18 +121,23 @@ async def production_clustering(eleves: list[dict], capacity: int | None = None,
         _compute_production, ids, XY, D, capacity,
         settings.k_margin, settings.min_silhouette, settings.kmedoids_iters, rayon)
 
-    logger.info("[MS6] Production : k=%d bus, distance=%s, silhouette=%s, dispersés=%d, rayon=%.0f, non_affectés=%d",
+    extra = {"distance": dist_src, "projection": proj, "capacity": capacity,
+             "rayon_max_m": rayon,
+             "n_disperses": res["n_disperses"], "disperses_ids": res["disperses_ids"],
+             "n_non_affectes": res["n_non_affectes"], "non_affectes_ids": res["non_affectes_ids"],
+             "pareto": res["pareto"]}
+    # Garde-fou qualité (dynamique) : verdict informatif, sans écriture (la baseline n'est MAJ qu'à l'application)
+    quality = evaluer_qualite(res["metrics"], extra)
+    extra["quality"] = quality
+
+    logger.info("[MS6] Production : k=%d bus, distance=%s, silhouette=%s, dispersés=%d, rayon=%.0f, non_affectés=%d — qualité=%s",
                 res["k"], dist_src, res["metrics"].get("silhouette"), res["n_disperses"],
-                rayon, res["n_non_affectes"])
+                rayon, res["n_non_affectes"], quality["niveau"])
     return ClusteringResult(
         methode=f"kmedoids_capacitaire ({dist_src})",
         k=res["k"], silhouette=res["metrics"].get("silhouette"),
         labels=res["mapping"], metrics=res["metrics"],
-        extra={"distance": dist_src, "projection": proj, "capacity": capacity,
-               "rayon_max_m": rayon,
-               "n_disperses": res["n_disperses"], "disperses_ids": res["disperses_ids"],
-               "n_non_affectes": res["n_non_affectes"], "non_affectes_ids": res["non_affectes_ids"],
-               "pareto": res["pareto"]})
+        extra=extra)
 
 
 async def pareto_flotte(eleves: list[dict], capacity: int | None = None,

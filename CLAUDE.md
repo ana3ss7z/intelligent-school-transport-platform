@@ -286,7 +286,8 @@ PyJWT==2.8, cryptography==42.0.8
 | GET `/api/clustering/eleves` | Public | Tous les élèves (MS2) |
 | GET `/api/clustering/sans-groupe` | Public | Élèves sans groupeId |
 | GET `/api/clustering/diagnostics` | Public | Stats EDA + `k` recommandé (⌈N/capacité⌉) |
-| POST `/api/clustering/production?appliquer=&capacity=&rayon=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier (+ contrainte `rayon` optionnelle) + bulk update MS2 |
+| GET `/api/clustering/quality` | Public | **Garde-fou qualité** : baseline dynamique + seuils + dernier verdict (dashboard admin) ← **NOUVEAU** |
+| POST `/api/clustering/production?appliquer=&capacity=&rayon=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier (+ contrainte `rayon` optionnelle) + bulk update MS2 (+ `quality` dans la réponse) |
 | POST `/api/clustering/pareto?capacity=&road=` | **JWT ADMIN** | Courbe Pareto qualité vs nb de bus (sans écrire) |
 | POST `/api/clustering/kmeans?appliquer=` | **JWT ADMIN** | *(legacy)* K-Means projeté mètres |
 | POST `/api/clustering/dbscan?appliquer=` | **JWT ADMIN** | *(legacy)* DBSCAN projeté mètres, bruit → 999 |
@@ -295,6 +296,13 @@ PyJWT==2.8, cryptography==42.0.8
 **Config de production gelée (`notebooks/production_config.json`, capacité 50) :**
 `k=7 bus · Silhouette routier 0.43 · compacité médiane 725 m / max 2409 m · taille_max 50 · faisable ✅ · 17 dispersés`
 > Silhouette 0.43 < seuil 0.5 = **arbitrage assumé** capacité ↔ compacité (sans contrainte KMeans monte plus haut mais produit des groupes infaisables).
+
+**Garde-fou qualité DYNAMIQUE (`quality.py`) :** à chaque recalcul, produit un **verdict** `OK / DEGRADE / CRITIQUE`
+(informatif, pas un déclencheur). **PAS un seuil fixe 0.5** (qui serait toujours rouge puisque notre silhouette est 0.43) :
+- **CRITIQUE** si capacité dépassée (`taille_max > capacité`, contrainte dure) **ou** silhouette < **plancher** (0.75 × 0.4334 ≈ **0.325**, ancré sur le point de conception) ;
+- **DEGRADE** si **régression relative** vs référence : silhouette −15 % (et −0.05 abs), ou compacité max +25 %, ou dispersés +15 ;
+- **référence dynamique** = `data/quality_baseline.json`, **bootstrap depuis `production_config.json` (0.43, jamais 0.5)**, réécrite à chaque run **OK appliqué** (roulante).
+Exposé via `GET /api/clustering/quality` + champ `quality` de `/production` + logs WARNING. Seuils ajustables (`.env` `QUALITY_*`).
 
 **Pattern Bulk Update (anti-DDoS interne) :** une seule requête `PUT /api/eleves/groupes/bulk` au lieu de 300 PATCH.
 

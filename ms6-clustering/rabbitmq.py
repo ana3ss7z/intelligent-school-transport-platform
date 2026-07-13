@@ -8,6 +8,7 @@ import aio_pika
 from config import settings
 from clustering import production_clustering
 from ms2_client import assigner_groupes_bulk, get_all_eleves
+from quality import maybe_maj_baseline
 
 logger = logging.getLogger(__name__)
 _clustering_lock = asyncio.Lock()
@@ -30,6 +31,13 @@ async def _recalculer_et_ecrire():
             # 1 seule requête HTTP bulk au lieu de N PATCH simultanés
             updated = await assigner_groupes_bulk(result.labels)
             logger.info("[MS6] %d/%d élèves mis à jour", updated, len(result.labels))
+
+            # Garde-fou qualité : logge le verdict ; MAJ la baseline seulement si OK (recalcul appliqué)
+            verdict = result.extra.get("quality", {})
+            if verdict.get("niveau") and verdict["niveau"] != "OK":
+                logger.warning("[MS6] Qualité clustering %s : %s",
+                               verdict["niveau"], "; ".join(verdict.get("raisons", [])))
+            maybe_maj_baseline(result.metrics, result.extra, verdict)
 
         except Exception as exc:
             logger.error("[MS6] Erreur clustering : %s", exc, exc_info=True)
