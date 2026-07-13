@@ -106,6 +106,7 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 - Entité `Bus` : `id`, `matricule` (unique), `capacite`, `statut`, `chauffeurId`, `latitude`, `longitude`
 - `StatutBus` : `ACTIF`, `INACTIF`, `EN_PANNE`
 - Endpoints CRUD complets + `PATCH /statut` + `PATCH /position`
+- **RabbitMQ publie :** `bus.created`, `bus.deleted` → **déclenche le recalcul clustering MS6** (changement de flotte = changement de capacité totale → `k` peut changer). Config : `spring-boot-starter-amqp` + `RabbitMQConfig` (exchange `transport.exchange`).
 
 ---
 
@@ -297,7 +298,7 @@ PyJWT==2.8, cryptography==42.0.8
 
 **Pattern Bulk Update (anti-DDoS interne) :** une seule requête `PUT /api/eleves/groupes/bulk` au lieu de 300 PATCH.
 
-**Consumer RabbitMQ :** queue `ms6.clustering.queue`, keys `eleve.created/gps.updated/deleted`, `asyncio.Lock()`.
+**Consumer RabbitMQ :** queue `ms6.clustering.queue`, keys `eleve.created/gps.updated/deleted` (MS2) + `bus.created/bus.deleted` (MS1, déclencheur « nouveau bus »), `asyncio.Lock()`.
 Le recalcul auto utilise désormais `production_clustering` (chemin capacitaire).
 
 **Sécurité JWT :** routes POST protégées par `verify_token` (ADMIN), `jwt_secret` = même valeur que MS7.
@@ -510,6 +511,8 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | `eleve.created` | MS2 | MS6 | `ms6.clustering.queue` |
 | `eleve.gps.updated` | MS2 | MS6 | `ms6.clustering.queue` |
 | `eleve.deleted` | MS2 | MS6 | `ms6.clustering.queue` |
+| `bus.created` | **MS1** | MS6 | `ms6.clustering.queue` ← **NOUVEAU (déclencheur « nouveau bus »)** |
+| `bus.deleted` | **MS1** | MS6 | `ms6.clustering.queue` ← **NOUVEAU** |
 | `gps.bus.updated` | MS3 | MS4 | `ms4.gps.bus.updated.queue` |
 | `gps.bus.updated` | MS3 | **MS12** | `ms12.eta.queue` ← **NOUVEAU (pipeline ETA temps réel G1)** |
 | `eta.bus.arriving` | **MS12** | MS4 | `ms4.eta.arriving.queue` ← **NOUVEAU** |

@@ -35,10 +35,16 @@ async def _recalculer_et_ecrire():
             logger.error("[MS6] Erreur clustering : %s", exc, exc_info=True)
 
 
+_TRIGGERS = (
+    "eleve.created", "eleve.gps.updated", "eleve.deleted",  # démographie élèves
+    "bus.created", "bus.deleted",                            # flotte (capacité totale → k)
+)
+
+
 async def _on_message(message: aio_pika.IncomingMessage):
     async with message.process():
         logger.info("[MS6] Message reçu — routing_key=%s", message.routing_key)
-        if message.routing_key in ("eleve.created", "eleve.gps.updated", "eleve.deleted"):
+        if message.routing_key in _TRIGGERS:
             asyncio.create_task(_recalculer_et_ecrire())
 
 
@@ -52,9 +58,8 @@ async def start_consumer():
             settings.exchange_name, aio_pika.ExchangeType.TOPIC, durable=True
         )
         queue = await channel.declare_queue("ms6.clustering.queue", durable=True)
-        await queue.bind(exchange, routing_key="eleve.created")
-        await queue.bind(exchange, routing_key="eleve.gps.updated")
-        await queue.bind(exchange, routing_key="eleve.deleted")
+        for key in _TRIGGERS:
+            await queue.bind(exchange, routing_key=key)
         await queue.consume(_on_message)
 
         logger.info("[MS6] Consumer RabbitMQ démarré")
