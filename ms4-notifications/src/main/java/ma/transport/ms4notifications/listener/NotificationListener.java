@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
  * 1. incident.signale   → notifie l'admin + parents du bus concerné
  * 2. incident.resolu    → notifie les parents que le bus repart
  * 3. gps.bus.updated    → détecte arrivée à l'école et notifie les parents
+ * 4. eta.bus.arriving   → ETA temps réel (MS12) : « le bus arrive dans ~10 min » (UC-4)
  */
 @Slf4j
 @Component
@@ -107,6 +108,34 @@ public class NotificationListener {
 
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement gps.bus.updated : {}", e.getMessage());
+        }
+    }
+
+    // ─── 4. ETA temps réel — bus proche de l'école (UC-4) ────────────────────
+
+    @RabbitListener(queues = "ms4.eta.arriving.queue")
+    public void onEtaArriving(String message) {
+        log.info("[MS4] 📨 eta.bus.arriving reçu");
+        try {
+            JsonNode node  = objectMapper.readTree(message);
+            Long busId     = node.get("busId").asLong();
+            double etaMin  = node.get("eta_min").asDouble();
+            String heure   = node.hasNonNull("heure_arrivee_estimee")
+                    ? node.get("heure_arrivee_estimee").asText() : "";
+
+            String titre = "🚌 Le bus arrive bientôt";
+            String corps = heure.isEmpty()
+                    ? String.format("Le bus de votre enfant arrivera à l'école dans ~%d min.", Math.round(etaMin))
+                    : String.format("Le bus de votre enfant arrivera à l'école dans ~%d min (vers %s).",
+                                     Math.round(etaMin), heure);
+
+            parentLookup.getParentsParBus(busId).forEach(parentId ->
+                fcmService.envoyerAuParent(parentId, TypeNotification.BUS_EN_ROUTE,
+                                           titre, corps, busId, "BUS")
+            );
+
+        } catch (Exception e) {
+            log.error("[MS4] Erreur traitement eta.bus.arriving : {}", e.getMessage());
         }
     }
 

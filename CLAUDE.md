@@ -214,7 +214,8 @@ public void envoyerAuParent(Long parentId, TypeNotification type,
 **RabbitMQ consumers :**
 - `ms4.incident.signale.queue` → `incident.signale`
 - `ms4.incident.resolu.queue` → `incident.resolu`
-- `ms4.gps.bus.updated.queue` → `gps.bus.updated`
+- `ms4.gps.bus.updated.queue` → `gps.bus.updated` (arrivée école à ≤150 m → `BUS_ARRIVE_ECOLE`)
+- `ms4.eta.arriving.queue` → `eta.bus.arriving` (MS12) → « le bus arrive dans ~10 min » (`BUS_EN_ROUTE`, UC-4) ← **NOUVEAU G1**
 
 **Statut FCM :** mode dégradé (placeholder JSON) — ECHEC en DB, fonctionnel dès vrai `firebase-service-account.json`
 
@@ -403,6 +404,12 @@ taux_occupation), contexte marocain (ramadan, jour_souk), travaux planifiés, **
 **Protocole d'évaluation :** split **temporel** (30 derniers jours = test), métriques MAE/RMSE/R²/MAPE,
 **double vue** (tous trajets vs trajets normaux), baseline métier = durée OSRM brute.
 
+**Pipeline ETA temps réel (G1) — `rabbitmq.py` :** MS12 consomme `gps.bus.updated` (MS3), calcule l'ETA
+bus→école (modèle + OSRM), et publie `eta.bus.arriving` dès que l'ETA ≤ `ETA_ALERT_MIN` (10 min) →
+MS4 pousse la notif parents (**UC-4**). Réutilise l'endpoint `predict()` (import différé, `auto_context=True`).
+Garde-fous : throttle 20 s + cooldown 30 min par bus. `.env` : `RABBITMQ_URL`, `EXCHANGE_NAME`, `ETA_ALERT_MIN`,
+`ECOLE_LAT/LNG`. Consumer démarré dans le `lifespan` (mode dégradé si RabbitMQ absent).
+
 **Sécurité JWT :** `verify_token` (même `jwt_secret` que MS7). **CORS :** aucun (géré par la Gateway).
 
 **Démarrage :**
@@ -504,8 +511,16 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | `eleve.gps.updated` | MS2 | MS6 | `ms6.clustering.queue` |
 | `eleve.deleted` | MS2 | MS6 | `ms6.clustering.queue` |
 | `gps.bus.updated` | MS3 | MS4 | `ms4.gps.bus.updated.queue` |
+| `gps.bus.updated` | MS3 | **MS12** | `ms12.eta.queue` ← **NOUVEAU (pipeline ETA temps réel G1)** |
+| `eta.bus.arriving` | **MS12** | MS4 | `ms4.eta.arriving.queue` ← **NOUVEAU** |
 | `incident.signale` | MS10 | MS4 | `ms4.incident.signale.queue` |
 | `incident.resolu` | MS10 | MS4 | `ms4.incident.resolu.queue` |
+
+> **Pipeline ETA temps réel (G1) :** `MS3 gps.bus.updated → MS12` calcule l'ETA bus→école (modèle + OSRM),
+> et dès que l'ETA ≤ `ETA_ALERT_MIN` (10 min) publie `eta.bus.arriving → MS4` qui pousse la notification
+> aux parents (UC-4). Garde-fous : throttle (recalcul ≤ 1×/20 s par bus) + cooldown (alerte ≤ 1×/30 min par bus).
+> Limite assumée : alerte à l'arrivée **école** (destination unique) ; l'ETA par arrêt élève nécessite la tournée
+> persistée (G2/MS5) + le suivi de présence (G5).
 
 ---
 

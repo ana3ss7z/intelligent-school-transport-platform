@@ -9,6 +9,15 @@ class Settings(BaseSettings):
     ms3_url: str = "http://localhost:8083"
     ms2_url: str = "http://localhost:8082"
 
+    # ── Pipeline ETA temps réel (G1) : MS3 gps.bus.updated → ETA → MS4 ─
+    rabbitmq_url: str = "amqp://admin:admin123@localhost:5672/"
+    exchange_name: str = "transport.exchange"
+    eta_alert_min: float = 10.0        # seuil "arrivée imminente" (min) → alerte parents
+    ecole_lat: float = 33.893          # destination (arrivée à l'école)
+    ecole_lng: float = -5.5455
+    eta_check_throttle_s: float = 20.0 # recalcule l'ETA d'un bus au plus toutes les N s
+    eta_alert_cooldown_s: float = 1800.0  # ré-alerte au plus 1×/30 min par bus
+
     # ── Fournisseurs de contexte (features en production) ────────────
     weather_provider: str = "open-meteo"                         # open-meteo | off
     weather_url: str = "https://api.open-meteo.com/v1/forecast"  # gratuit, sans clé

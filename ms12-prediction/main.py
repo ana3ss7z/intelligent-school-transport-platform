@@ -5,6 +5,7 @@ Modèle = meilleur régresseur choisi par benchmark (chargé de façon agnostiqu
 Sécurité : JWT requis sur /predict (ADMIN/CHAUFFEUR). CORS géré uniquement par la Gateway.
 """
 from __future__ import annotations
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -56,6 +57,10 @@ async def lifespan(app: FastAPI):
                     eta_model.config.get("algorithme"), eta_model.config.get("version"))
     else:
         logger.warning("[MS12] Aucun modèle — lancer `python train.py`. /predict renverra 503.")
+
+    # Pipeline ETA temps réel (G1) : consomme gps.bus.updated (MS3) → publie eta.bus.arriving (→ MS4)
+    from rabbitmq import start_consumer
+    asyncio.create_task(start_consumer())
     yield
 
 

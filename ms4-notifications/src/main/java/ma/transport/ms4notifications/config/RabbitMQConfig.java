@@ -32,6 +32,12 @@ public class RabbitMQConfig {
         return new Queue("ms4.gps.bus.updated.queue", true);
     }
 
+    // ETA temps réel (G1) : MS12 publie eta.bus.arriving quand le bus arrive ~10 min avant l'école
+    @Bean
+    public Queue ms4EtaArrivingQueue() {
+        return new Queue("ms4.eta.arriving.queue", true);
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -53,6 +59,13 @@ public class RabbitMQConfig {
                                  TopicExchange transportExchange) {
         return BindingBuilder.bind(ms4GpsBusQueue)
                 .to(transportExchange).with("gps.bus.updated");
+    }
+
+    @Bean
+    public Binding bindingEtaArriving(Queue ms4EtaArrivingQueue,
+                                      TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4EtaArrivingQueue)
+                .to(transportExchange).with("eta.bus.arriving");
     }
 
     // ─── JSON message converter ───────────────────────────────────────────────
