@@ -65,3 +65,8 @@ graphify-out/
 .graphifyignore
 *.png
 
+
+# Comptes générés (mots de passe en clair — ne jamais committer)
+comptes_utilisateurs.*
+#les tests html 
+/tests_html/
