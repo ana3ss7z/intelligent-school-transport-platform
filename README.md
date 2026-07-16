@@ -251,10 +251,14 @@ Exchange **`transport.exchange`** (topic, durable). Communication asynchrone dé
 
 | Outil | Couverture | Statut |
 |-------|-----------|:------:|
+| **`e2e_integration_test.py`** | Chaîne complète (clustering→busId→GPS→ETA→notif→présence→anomalie) | **8/8** ✅ |
 | **Newman (Postman)** | API cœur métier | **88/88 assertions** ✅ |
 | **Console web** | Parcours de bout en bout + cartes | ✅ |
 | **Notebooks Jupyter** | Validation des modèles IA (CRISP-DM) | ✅ |
 | `verify_sens.py` | Preuve d'équité des tournées (OSRM réel) | ✅ |
+
+> **Données de démo** : `generer_comptes.py` (idempotent, `--reset`) crée des familles réalistes (parents/fratries),
+> des chauffeurs et une flotte de bus, et exporte les identifiants (`comptes_utilisateurs.csv/json`, gitignorés).
 
 ---
 
@@ -283,12 +287,13 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 |--------|---------|:------:|
 | S1–S6 | Conception, infrastructure, Auth, Bus, Élèves, Gateway, GPS/WebSocket, OSRM, Incidents, Notifications | ✅ |
 | S7 | **MS6 Clustering** (refonte experte : UTM, k-médoïdes capacitaire routier, Pareto) | ✅ |
-| S8 | **MS12 Prédiction ETA** (dataset 180 j ancré OSRM, benchmark multi-modèles) | ✅ |
-| S9 | Chatbot LLM (MS9) | ⏳ |
+| S8 | **MS12 Prédiction ETA** + déclencheurs clustering + **garde-fou qualité** | ✅ |
+| — | **Intégration temps réel** : ETA→notif, anomalies GPS live, présence, liaison groupe↔bus (validé e2e 8/8) | ✅ |
+| S9 | **Chatbot LLM (MS9)** — prochaine grande brique | ⏳ |
 | S10 | **MS5 VRP** (TSP OR-Tools, tournées) · application Flutter parent | 🔄 |
-| S11 | Dashboard admin · benchmark CVRP global | ⏳ |
-| S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) · KPIs | 🔄 |
-| S13–S15 | Tests e2e · déploiement · mémoire & soutenance | ⏳ |
+| S11 | Dashboard admin (UC-13) · benchmark CVRP global | ⏳ |
+| S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | 🔄 |
+| S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 
 ---
 

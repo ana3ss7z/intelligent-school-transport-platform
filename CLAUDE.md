@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 1er juillet 2026 — S7 (MS6 clustering v3) + S8 en cours (MS12 prédiction ETA)
+## État au 16 juillet 2026 — briques IA livrées (MS6/MS12/MS5/MS11) + couche d'intégration temps réel validée e2e
 
 ---
 
@@ -16,7 +16,12 @@ Système de transport scolaire intelligent basé sur une architecture **microser
 **Encadrant :** Pr. Ali Bekri  
 **Faculté :** Faculté des Sciences Moulay Ismail, Meknès  
 **Planning :** S1 à S15 (mai → août 2026)  
-**État actuel :** S7 complétée (26 juin 2026) — S8 à démarrer
+**État actuel :** Les 4 briques IA sont livrées — **MS6** clustering capacitaire routier, **MS12** prédiction ETA,
+**MS5** VRP (tournées), **MS11** détection d'anomalies. La **couche d'intégration temps réel** est câblée et
+**validée e2e (8/8)** : **G1** pipeline ETA→notif parents, **G3** monitor anomalies GPS live, **G5** présence
+« enfant à bord », **B1** liaison groupe↔bus (busId propagé), **garde-fou qualité** clustering, déclencheur
+« nouveau bus » MS1→MS6. **Données réalistes générées** (216 parents/fratries, 10 chauffeurs, flotte de bus ;
+`generer_comptes.py` idempotent). **Prochaine grande brique : MS9 chatbot LLM (S9).**
 
 ---
 
@@ -627,35 +632,51 @@ cd ms5-planification && uvicorn main:app --port 8085 --reload  # VRP tournées (
 | S5 | 10-16/06 | ✅ | MS3-Localisation, WebSocket GPS, Seeding 300 élèves |
 | S6 | 17-23/06 | ✅ | OSRM, Simulateur bus, MS10-Incidents, MS4-Notifications FCM |
 | **S7** | **24-30/06** | **✅** | **MS6 Clustering refonte expert v3 (UTM, k-médoïdes capacitaire routier OSRM, Pareto, 3 notebooks CRISP-DM), données v2, console de test unifiée + cartes, fix CORS** |
-| **S8** | **01-07/07** | **🔄** | **Prédiction ETA ✅ (MS12 : dataset 180j ancré OSRM, benchmark multi-modèles → elasticnet, 3 notebooks CRISP-DM, service :8088). Reste : 5 déclencheurs clustering évolutifs** |
-| S9 | 08-14/07 | ⏳ | Chatbot LLM Mistral/Groq LangChain, FastAPI endpoints ETA |
-| S10 | 15-21/07 | 🔄 | **VRP OR-Tools ✅ anticipé (MS5 : TSP par bus, dépôt=école, distances OSRM, gain moyen ~12.6 %, notebook 05, service :8085). Reste : Flutter parent v1, context injection LLM** |
-| S11 | 22-28/07 | ⏳ | Dashboard admin, Flutter notifications, VRP benchmark |
-| S12 | 29/07-04/08 | 🔄 | **Détection d'anomalies ✅ anticipée (MS11 : dataset propre anomalies contextuelles, Isolation Forest curé gagnant PR-AUC 0.91/rappel 0.88, notebook 04, service :8091). Reste : KPIs dashboard, Flutter chatbot** |
-| S13 | 05-11/08 | ⏳ | Tests e2e, Déploiement, Documentation |
+| **S8** | **01-07/07** | **✅** | **MS12 Prédiction ETA (dataset 180j ancré OSRM, benchmark → elasticnet, service :8088). Déclencheurs clustering : ajout élève / déménagement / nouveau bus (MS1→MS6) ✅ ; silhouette dégradée = garde-fou informatif (pas trigger)** |
+| **S8-S12** | **08-16/07** | **✅** | **Couche d'intégration temps réel (validée e2e 8/8) : G1 ETA→notif (MS3→MS12→MS4), G3 anomalies GPS live (MS11), G5 présence→notif, B1 liaison groupe↔bus, garde-fou qualité dynamique. Données comptes générées (parents/fratries/flotte)** |
+| S9 | 08-14/07 | ⏳ | **Chatbot LLM (MS9) Mistral/Groq + LangChain, FR/AR** — prochaine grande brique |
+| S10 | 15-21/07 | 🔄 | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085). Reste : Flutter parent v1** |
+| S11 | 22-28/07 | ⏳ | Dashboard admin (UC-13), Flutter notifications, benchmark CVRP |
+| S12 | 29/07-04/08 | 🔄 | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. Reste : KPIs dashboard, Flutter** |
+| S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---
 
-## 🔜 Prochaine étape : S8
+## 🔜 Prochaine étape : S9 — Chatbot LLM (MS9)
 
-1. **Dataset ETA 180 jours** — générer données synthétiques réalistes (heure, météo, trafic, retard)
-2. **XGBoost ETA** — entraîner modèle de prédiction temps d'arrivée, exposer via FastAPI (MS9 ou extension MS6)
-3. **5 déclencheurs clustering évolutifs** — recalcul automatique basé sur : ajout élève, déménagement, nouveau bus, seuil Silhouette dégradé, planification admin
+1. **MS9 — Chatbot LLM parents (UC-10)** : Mistral/Groq (free tier) + LangChain, FastAPI :8089, FR/AR, context
+   injection depuis MS3 (GPS), MS12 (ETA), MS2 (présence/enfants), MS10 (incidents). Route Gateway `ms9-llm` déjà présente.
+2. **NL2SQL admin (UC-11)** — question langage naturel → SQL PostgreSQL → réponse (extension MS9).
+
+**Puis (CDC restant) :** Dashboard admin (UC-13), réaffectation dynamique (UC-9), app Flutter parent/chauffeur.
+
+**Chaînons d'intégration encore ouverts (audit) :** G2 persistance des tournées (entité Circuit/Arrêt → ETA par arrêt),
+G4 réaffectation dynamique, G6 `clustering.updated`→MS5 re-plan, G7 boucle de feedback ML (durées réelles→historique),
+canal de **notification admin** (MS4 ne pousse que par parent/bus).
 
 ---
 
-## ⚠️ Points d'attention pour S8
+## ⚠️ Points d'attention (à jour)
 
-1. **MS6 JWT_SECRET** : doit être identique à `app.jwt.secret` dans MS7 `application.properties` — à configurer dans `ms6-clustering/.env`
+1. **Convertisseur RabbitMQ MS4** : les producteurs doivent publier en **`text/plain`** (le `Jackson2JsonMessageConverter`
+   de MS4 rejette un `application/json` objet dans les handlers `String`). Corrigé pour MS12 (`eta.bus.arriving`) ; les
+   producteurs Java publient déjà des Strings.
 
-2. **Firebase en mode dégradé** : ECHEC en DB est normal. Pour activer FCM réel → télécharger `firebase-service-account.json` depuis Firebase Console → placer dans `ms4-notifications/src/main/resources/` → ajouter à `.gitignore`
+2. **Contrainte DB `notifications_type_check`** : Hibernate (`ddl-auto=update`) **ne met pas à jour** la contrainte CHECK
+   quand on ajoute une valeur d'enum (`ENFANT_A_BORD`). Sur une base **existante** → `ALTER TABLE notifications
+   DROP/ADD CONSTRAINT` avec la liste complète ; une base **fraîche** la crée correctement.
 
-3. **MS8 dépréciations** : `spring.cloud.gateway.routes` → `spring.cloud.gateway.server.webflux.routes` (non bloquant)
+3. **FCM** : Firebase est **configuré** (`firebase-service-account.json` présent). Les tokens de démo invalides →
+   `ECHEC` en DB (normal ; la notif est bien historisée). Sans device token → notif ECHEC « aucun device » (historisée).
 
-4. **MS6 route Gateway** : ajouter la route MS6 dans `application.yml` MS8 (fichier `ms8-gateway-route.yml` fourni)
+4. **Données de démo** : `generer_comptes.py` (idempotent, option `--reset`) crée parents/fratries + chauffeurs + bus,
+   exporte `comptes_utilisateurs.csv/json` (**gitignorés**, mots de passe en clair — dev only). `parentId`/device token
+   requis pour que les notifs atteignent un parent.
 
-5. **Python 3.13** : utiliser `scikit-learn==1.5.2`, `numpy==2.1.0`, `cryptography==42.0.8` (pas les versions antérieures)
+5. **JWT_SECRET** : identique partout (`app.jwt.secret` MS7 = `.env` des services Python). **CORS** : uniquement la Gateway.
+
+6. **Python 3.11 (env conda `nlp`)** : `scikit-learn==1.5.2`, `aio-pika==9.4.1` ; services Python démarrés via `start-all-ms.bat`.
 
 ---
 
