@@ -4,6 +4,7 @@ Détection d'anomalies sur les trajets de bus (Isolation Forest, non supervisé)
 Sécurité : JWT ADMIN. CORS géré uniquement par la Gateway.
 """
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 from config import settings
 from anomaly import AnomalyDetector
 from features import label_binaire
+from live_monitor import anomalies_live
 from osrm_client import route_async
 
 logging.basicConfig(level=logging.INFO,
@@ -51,6 +53,10 @@ async def lifespan(app: FastAPI):
                     _state["config"].get("detecteur"), _state["config"].get("version"))
     else:
         logger.warning("[MS11] Aucun modèle — lancer `python train_anomaly.py`.")
+
+    # Monitor GPS live (G3) : anomalies instantanées sur gps.bus.updated (MS3)
+    from rabbitmq import start_consumer
+    asyncio.create_task(start_consumer())
     yield
 
 
@@ -96,6 +102,18 @@ class AnomalyRequest(BaseModel):
 async def health():
     return {"status": "UP", "service": "ms11-analytique", "port": settings.port,
             "model_loaded": _loaded(), "detecteur": _state["config"].get("detecteur")}
+
+
+@app.get("/api/analytique/live")
+async def anomalies_temps_reel(limit: int = 20):
+    """Anomalies GPS instantanées détectées en temps réel (monitor live G3). Lecture seule (dashboard)."""
+    items = list(anomalies_live)[:limit]
+    return {
+        "n": len(items),
+        "seuils": {"arret_min": settings.seuil_arret_min, "vitesse_kmh": settings.seuil_vitesse_kmh},
+        "anomalies": items,
+        "note": "Règles instantanées (arrêt prolongé, vitesse) — complément du détecteur ML par trajet (/scan).",
+    }
 
 
 @app.get("/api/analytique/model-info")

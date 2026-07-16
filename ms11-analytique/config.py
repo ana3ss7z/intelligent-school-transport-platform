@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     # ── Détection ────────────────────────────────────────────────────
     contamination: float = 0.02       # proportion attendue d'anomalies (aligne le seuil)
 
+    # ── Monitor GPS live (G3) : anomalies instantanées sur gps.bus.updated ──
+    rabbitmq_url: str = "amqp://admin:admin123@localhost:5672/"
+    exchange_name: str = "transport.exchange"
+    seuil_arret_min: float = 5.0      # arrêt prolongé si immobile > N min
+    seuil_vitesse_kmh: float = 90.0   # vitesse anormale au-delà (bus scolaire urbain)
+    arret_rayon_m: float = 30.0       # déplacement en deçà duquel le bus est considéré immobile
+
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", protected_namespaces=()
     )
