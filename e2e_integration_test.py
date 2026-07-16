@@ -65,12 +65,15 @@ def main():
     if not avec_bus:
         print("\n⚠️ Aucun bus ACTIF dans MS1 — impossible de continuer."); _resume()
 
-    cible = avec_bus[0]; bus_id = cible["busId"]
-    # Affecter le parent de test à cet élève (PUT complet)
-    requests.put(f"{GW}/api/eleves/{cible['id']}", headers=H, timeout=10, json={
-        "nom": cible["nom"], "prenom": cible["prenom"], "latitude": cible["latitude"],
-        "longitude": cible["longitude"], "parentId": pid, "busId": bus_id, "groupeId": cible.get("groupeId")})
-    print(f"     élève #{cible['id']} (bus {bus_id}) ← parent #{pid}\n")
+    bus_id = avec_bus[0]["busId"]
+    # Élève de TEST dédié (jamais un vrai élève) rattaché au parent de test + à un bus actif.
+    # Il sera supprimé en fin de run → aucune donnée réelle n'est modifiée.
+    rc = requests.post(f"{GW}/api/eleves", headers=H, timeout=10, json={
+        "nom": "E2E", "prenom": "Test", "latitude": 33.905, "longitude": -5.575,
+        "parentId": pid, "busId": bus_id})
+    test_eid = rc.json().get("id") if rc.status_code in (200, 201) else None
+    check("élève de test créé", test_eid is not None, f"id={test_eid}, bus={bus_id}")
+    print(f"     élève de test #{test_eid} (bus {bus_id}) ← parent #{pid}\n")
 
     # ── G1 : GPS bus ~3 km → ETA ≤ 10 min → BUS_EN_ROUTE ──
     print("[G1] ETA temps réel")
@@ -81,7 +84,7 @@ def main():
 
     # ── G5 : présence → ENFANT_A_BORD ──
     print("[G5] Présence enfant à bord")
-    check("PATCH présence", requests.patch(f"{GW}/api/eleves/{cible['id']}/presence?present=true", headers=H, timeout=10).status_code == 200)
+    check("PATCH présence", requests.patch(f"{GW}/api/eleves/{test_eid}/presence?present=true", headers=H, timeout=10).status_code == 200)
     time.sleep(4)
 
     notifs = requests.get(f"{GW}/api/notifications", headers=H, timeout=15).json()
@@ -102,6 +105,11 @@ def main():
     live = requests.get(f"{MS11}/api/analytique/live", timeout=10).json()
     kinds = [a.get("type") for a in live.get("anomalies", [])]
     check("anomalie live détectée", len(kinds) > 0, f"types={kinds[:3]}")
+
+    # Nettoyage : supprimer l'élève de test (aucune donnée réelle touchée)
+    if test_eid:
+        requests.delete(f"{GW}/api/eleves/{test_eid}", headers=H, timeout=10)
+        print(f"\n(nettoyage : élève de test #{test_eid} supprimé)")
 
     _resume()
 

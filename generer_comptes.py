@@ -86,13 +86,14 @@ def register(nom, email, pwd, role, tel) -> int | None:
 
 # ── Construction des familles (nom + proximité) ──────────────────────
 def construire_familles(eleves: list[dict]) -> list[list[dict]]:
+    # Tri déterministe (par id) → familles identiques quel que soit l'ordre renvoyé par MS2
     par_nom: dict[str, list[dict]] = defaultdict(list)
-    for e in eleves:
+    for e in sorted(eleves, key=lambda e: e["id"]):
         par_nom[e.get("nom", "?")].append(e)
 
     familles: list[list[dict]] = []
-    for nom, groupe in par_nom.items():
-        restants = list(groupe)
+    for nom in sorted(par_nom):
+        restants = sorted(par_nom[nom], key=lambda e: e["id"])
         while restants:
             chef = restants.pop(0)
             fratrie = [chef]
@@ -107,8 +108,24 @@ def construire_familles(eleves: list[dict]) -> list[list[dict]]:
     return familles
 
 
+# ── Reset (optionnel) : purge des comptes générés orphelins via psql/docker ─────
+def reset_comptes():
+    import subprocess
+    sql = ("DELETE FROM utilisateurs u WHERE u.role='PARENT' AND NOT EXISTS (SELECT 1 FROM eleves e WHERE e.parent_id=u.id);"
+           "DELETE FROM utilisateurs u WHERE u.role='CHAUFFEUR' AND NOT EXISTS (SELECT 1 FROM bus b WHERE b.chauffeur_id=u.id);"
+           "DELETE FROM utilisateurs u WHERE u.role='ADMIN' AND u.email <> 'admin@transport.ma';")
+    try:
+        subprocess.run(["docker", "exec", "transport_postgres", "psql", "-U", "transport_user",
+                        "-d", "transport_scolaire", "-c", sql], check=True)
+        print("🧹 Reset : comptes orphelins purgés.")
+    except Exception as e:
+        print(f"⚠️ Reset ignoré (docker/psql indisponible) : {e}")
+
+
 # ── Programme principal ──────────────────────────────────────────────
 def main():
+    if "--reset" in sys.argv:
+        reset_comptes()
     try:
         token = login_admin()
     except Exception as e:
@@ -126,7 +143,7 @@ def main():
         prenom = PRENOMS_ADULTES[(i - 1) % len(PRENOMS_ADULTES)]
         nom = f"{prenom} (Chauffeur {i})"
         email = f"chauffeur{i}@transport.ma"
-        tel = tel_ma()
+        tel = "+21266" + f"{i:07d}"
         uid = register(nom, email, PWD_CHAUFFEUR, "CHAUFFEUR", tel)
         if uid is None:
             continue
@@ -158,18 +175,14 @@ def main():
     multi = sum(1 for f in familles if len(f) > 1)
     print(f"\n{len(eleves)} élèves → {len(familles)} familles ({multi} avec ≥2 enfants). Création des parents…")
 
-    emails_vus: set[str] = set()
     n_liens = 0
     for idx, fratrie in enumerate(familles, 1):
         nom_fam = fratrie[0].get("nom", "Famille")
-        prenom_p = random.choice(PRENOMS_ADULTES)
-        base = f"{slug(prenom_p)}.{slug(nom_fam)}"
-        email = f"{base}@famille.ma"; seq = 1
-        while email in emails_vus:
-            seq += 1; email = f"{base}{seq}@famille.ma"
-        emails_vus.add(email)
+        cle = min(e["id"] for e in fratrie)          # clé de famille STABLE (plus petit id d'enfant)
+        prenom_p = PRENOMS_ADULTES[cle % len(PRENOMS_ADULTES)]
+        email = f"{slug(prenom_p)}.{slug(nom_fam)}.{cle}@famille.ma"   # unique et déterministe
         nom_parent = f"{prenom_p} {nom_fam}"
-        tel = tel_ma()
+        tel = "+2126" + f"{cle:08d}"[-8:]            # déterministe → re-run = mêmes comptes
         pid = register(nom_parent, email, PWD_PARENT, "PARENT", tel)
         if pid is None:
             continue
