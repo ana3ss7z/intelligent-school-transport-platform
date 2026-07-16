@@ -139,6 +139,29 @@ public class NotificationListener {
         }
     }
 
+    // ─── 5. Présence confirmée — « enfant à bord » (G5, UC-4) ────────────────
+
+    @RabbitListener(queues = "ms4.eleve.presence.queue")
+    public void onElevePresence(String message) {
+        log.info("[MS4] 📨 eleve.presence.updated reçu");
+        try {
+            JsonNode node   = objectMapper.readTree(message);
+            Long eleveId    = node.get("eleveId").asLong();
+            Long parentId   = node.hasNonNull("parentId") ? node.get("parentId").asLong() : null;
+            String nom      = node.hasNonNull("nom") ? node.get("nom").asText() : "Votre enfant";
+            if (parentId == null) return;
+
+            String titre = "🎒 Enfant à bord";
+            String corps = String.format("%s est bien monté dans le bus.", nom);
+
+            fcmService.envoyerAuParent(parentId, TypeNotification.ENFANT_A_BORD,
+                                       titre, corps, eleveId, "ELEVE");
+
+        } catch (Exception e) {
+            log.error("[MS4] Erreur traitement eleve.presence.updated : {}", e.getMessage());
+        }
+    }
+
     // ─── Helper distance Haversine ────────────────────────────────────────────
 
     private double calculerDistance(double lat1, double lng1,

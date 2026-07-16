@@ -38,6 +38,12 @@ public class RabbitMQConfig {
         return new Queue("ms4.eta.arriving.queue", true);
     }
 
+    // Présence (G5) : MS2 publie eleve.presence.updated quand l'enfant monte dans le bus
+    @Bean
+    public Queue ms4ElevePresenceQueue() {
+        return new Queue("ms4.eleve.presence.queue", true);
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -66,6 +72,13 @@ public class RabbitMQConfig {
                                       TopicExchange transportExchange) {
         return BindingBuilder.bind(ms4EtaArrivingQueue)
                 .to(transportExchange).with("eta.bus.arriving");
+    }
+
+    @Bean
+    public Binding bindingElevePresence(Queue ms4ElevePresenceQueue,
+                                        TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4ElevePresenceQueue)
+                .to(transportExchange).with("eleve.presence.updated");
     }
 
     // ─── JSON message converter ───────────────────────────────────────────────

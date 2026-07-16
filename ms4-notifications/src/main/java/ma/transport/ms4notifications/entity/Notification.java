@@ -77,7 +77,8 @@ public class Notification {
         INCIDENT_RESOLU,    // L'incident est résolu, le bus repart
         BUS_ARRIVE_ECOLE,   // Le bus est arrivé à l'école
         BUS_EN_ROUTE,       // Le bus a démarré son circuit
-        RETARD              // Le bus est en retard
+        RETARD,             // Le bus est en retard
+        ENFANT_A_BORD       // L'enfant est bien monté dans le bus (présence confirmée)
     }
 
     public enum StatutEnvoi {

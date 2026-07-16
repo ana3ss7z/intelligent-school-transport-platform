@@ -7,6 +7,8 @@ import java.util.stream.Collectors;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ public class EleveService {
 
     private final EleveRepository repo;
     private final RabbitTemplate rabbitTemplate;
+    private final ObjectMapper objectMapper;
 
     // ── Créer un élève ───────────────────────────────────────────────
     public EleveResponse creer(EleveRequest req) {
@@ -154,6 +157,23 @@ public class EleveService {
                 .orElseThrow(() -> new RuntimeException("Élève non trouvé : " + id));
         eleve.setStatutPresence(present);
         repo.save(eleve);
+
+        // Montée confirmée → notifier le parent (« enfant à bord »). MS4 consomme eleve.presence.updated.
+        if (Boolean.TRUE.equals(present) && eleve.getParentId() != null) {
+            try {
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("eleveId", eleve.getId());
+                payload.put("parentId", eleve.getParentId());
+                payload.put("busId", eleve.getBusId());
+                payload.put("nom", eleve.getPrenom() + " " + eleve.getNom());
+                payload.put("present", true);
+                rabbitTemplate.convertAndSend("transport.exchange", "eleve.presence.updated",
+                        objectMapper.writeValueAsString(payload));
+                log.info("[MS2] Présence publiée — élève={} parent={}", eleve.getId(), eleve.getParentId());
+            } catch (Exception e) {
+                log.warn("[MS2] Publication eleve.presence.updated échouée : {}", e.getMessage());
+            }
+        }
     }
 
     // ── Supprimer un élève ───────────────────────────────────────────
