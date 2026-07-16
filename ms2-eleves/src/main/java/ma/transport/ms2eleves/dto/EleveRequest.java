@@ -30,4 +30,7 @@ public class EleveRequest {
 
     /** Groupe géographique (résultat K-Means MS6) */
     private Long groupeId;
+
+    /** Rang de passage dans la tournée (résultat VRP MS5) */
+    private Integer ordrePassage;
 }

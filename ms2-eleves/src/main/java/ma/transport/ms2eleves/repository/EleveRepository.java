@@ -13,4 +13,5 @@ public interface EleveRepository
     List<Eleve> findByGroupeId(Long groupeId);
     List<Eleve> findByGroupeIdIsNull();
     List<Eleve> findByBusId(Long busId);
+    List<Eleve> findByBusIdOrderByOrdrePassageAsc(Long busId);
 }

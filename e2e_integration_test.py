@@ -66,6 +66,19 @@ def main():
         print("\n⚠️ Aucun bus ACTIF dans MS1 — impossible de continuer."); _resume()
 
     bus_id = avec_bus[0]["busId"]
+
+    # ── G2 : tournées persistées (ordre de passage) ──
+    print("\n[G2] Tournées persistées (ordre de passage)")
+    rt = requests.post(f"{GW}/api/planification/tournees?persister=true", headers=H, timeout=180)
+    check("POST /planification/tournees", rt.status_code == 200,
+          f"HTTP {rt.status_code}" + (f", ordre_persiste={rt.json().get('ordre_persiste')}" if rt.status_code == 200 else ""))
+    ordonnes = requests.get(f"{GW}/api/eleves/bus/{bus_id}", headers=H, timeout=15)
+    if ordonnes.status_code == 200:
+        rangs = [e.get("ordrePassage") for e in ordonnes.json()]
+        check("élèves du bus ordonnés (ordrePassage)", any(r is not None for r in rangs), f"rangs={rangs[:6]}")
+    else:
+        check("GET /api/eleves/bus/{busId}", False, f"HTTP {ordonnes.status_code}")
+
     # Élève de TEST dédié (jamais un vrai élève) rattaché au parent de test + à un bus actif.
     # Il sera supprimé en fin de run → aucune donnée réelle n'est modifiée.
     rc = requests.post(f"{GW}/api/eleves", headers=H, timeout=10, json={
@@ -105,6 +118,17 @@ def main():
     live = requests.get(f"{MS11}/api/analytique/live", timeout=10).json()
     kinds = [a.get("type") for a in live.get("anomalies", [])]
     check("anomalie live détectée", len(kinds) > 0, f"types={kinds[:3]}")
+
+    # ── D1 : canal admin (alertes qualité + anomalie historisées) ──
+    print("\n[D1] Canal de notification admin")
+    # force un verdict qualité ≠ OK (rayon serré → dispersés↑) sans appliquer
+    requests.post(f"{GW}/api/clustering/production?appliquer=false&rayon=1000", headers=H, timeout=180)
+    time.sleep(4)
+    alln = requests.get(f"{GW}/api/notifications", headers=H, timeout=15).json()
+    alst = alln if isinstance(alln, list) else alln.get("content", [])
+    admin_types = {n.get("type") for n in alst if n.get("sourceType") == "ADMIN"}
+    check("alerte ALERTE_QUALITE (D1)", "ALERTE_QUALITE" in admin_types, "reçue" if "ALERTE_QUALITE" in admin_types else f"admin={admin_types}")
+    check("alerte ANOMALIE_DETECTEE (D1)", "ANOMALIE_DETECTEE" in admin_types, "reçue" if "ANOMALIE_DETECTEE" in admin_types else f"admin={admin_types}")
 
     # Nettoyage : supprimer l'élève de test (aucune donnée réelle touchée)
     if test_eid:

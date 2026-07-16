@@ -127,6 +127,7 @@ private Long parentId;   // FK logique vers MS7 (pas de contrainte SQL)
 private Long busId;      // FK logique vers MS1 — assigné par ADMIN ou clustering
 private Long groupeId;   // Résultat clustering MS6 (K-Means / DBSCAN)
 private Boolean statutPresence;
+private Integer ordrePassage;  // Rang dans la tournée (persisté par MS5-VRP ; null si non planifié) ← NOUVEAU G2
 ```
 
 **Endpoints complets :**
@@ -144,6 +145,8 @@ private Boolean statutPresence;
 | PATCH | `/api/eleves/{id}/groupe?groupeId=X` | **permitAll** | Assigner groupe (MS6) |
 | PUT | `/api/eleves/groupes/bulk` | **permitAll** | Bulk update groupeId (MS6) ← NOUVEAU |
 | PUT | `/api/eleves/bus/bulk` | **permitAll** | Bulk update busId — **liaison groupe↔bus (MS6)** ← NOUVEAU B1 |
+| PUT | `/api/eleves/ordre/bulk` | **permitAll** | Bulk update ordrePassage — **tournées persistées (MS5)** ← NOUVEAU G2 |
+| GET | `/api/eleves/bus/{busId}` | ADMIN/CHAUFFEUR | Élèves du bus **dans l'ordre de passage** (vue chauffeur) ← NOUVEAU G2 |
 | PATCH | `/api/eleves/{id}/presence` | ADMIN/CHAUFFEUR | Présence |
 | DELETE | `/api/eleves/{id}` | ADMIN | Supprimer |
 
@@ -182,7 +185,8 @@ List<Eleve> findByGroupeIdIsNull();
 **Entité `Notification` (inner enums) :**
 ```java
 public enum TypeNotification {
-    INCIDENT_SIGNALE, INCIDENT_RESOLU, BUS_ARRIVE_ECOLE, BUS_EN_ROUTE, RETARD, ENFANT_A_BORD
+    INCIDENT_SIGNALE, INCIDENT_RESOLU, BUS_ARRIVE_ECOLE, BUS_EN_ROUTE, RETARD, ENFANT_A_BORD,
+    ALERTE_QUALITE, ANOMALIE_DETECTEE   // ← canal admin (D1) : qualité clustering (MS6) + anomalie GPS (MS11)
 }
 public enum StatutEnvoi { EN_ATTENTE, ENVOYE, ECHEC }
 ```
@@ -226,6 +230,8 @@ public void envoyerAuParent(Long parentId, TypeNotification type,
 - `ms4.gps.bus.updated.queue` → `gps.bus.updated` (arrivée école à ≤150 m → `BUS_ARRIVE_ECOLE`)
 - `ms4.eta.arriving.queue` → `eta.bus.arriving` (MS12) → « le bus arrive dans ~10 min » (`BUS_EN_ROUTE`, UC-4) ← **NOUVEAU G1**
 - `ms4.eleve.presence.queue` → `eleve.presence.updated` (MS2) → « enfant à bord » (`ENFANT_A_BORD`, UC-4) au parent précis ← **NOUVEAU G5**
+- `ms4.quality.queue` → `clustering.quality.low` (MS6) → alerte admin `ALERTE_QUALITE` (canal admin D1) ← **NOUVEAU**
+- `ms4.anomalie.queue` → `anomalie.detectee` (MS11) → alerte admin `ANOMALIE_DETECTEE` (canal admin D1) ← **NOUVEAU**
 
 **Statut FCM :** mode dégradé (placeholder JSON) — ECHEC en DB, fonctionnel dès vrai `firebase-service-account.json`
 
@@ -549,6 +555,8 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | `gps.bus.updated` | MS3 | **MS11** | `ms11.gps.queue` ← **NOUVEAU (monitor anomalies GPS live G3)** |
 | `eta.bus.arriving` | **MS12** | MS4 | `ms4.eta.arriving.queue` ← **NOUVEAU** |
 | `eleve.presence.updated` | **MS2** | MS4 | `ms4.eleve.presence.queue` ← **NOUVEAU (G5 « enfant à bord »)** |
+| `clustering.quality.low` | **MS6** | MS4 | `ms4.quality.queue` ← **NOUVEAU (canal admin D1 — alerte qualité)** |
+| `anomalie.detectee` | **MS11** | MS4 | `ms4.anomalie.queue` ← **NOUVEAU (canal admin D1 — anomalie GPS)** |
 | `incident.signale` | MS10 | MS4 | `ms4.incident.signale.queue` |
 | `incident.resolu` | MS10 | MS4 | `ms4.incident.resolu.queue` |
 

@@ -24,3 +24,16 @@ async def get_eleves_groupe(groupe_id: int) -> list[dict]:
     évite l'endpoint /groupe/{id} qui exige un JWT utilisateur que MS5 n'a pas."""
     eleves = await get_all_eleves()
     return [e for e in eleves if e.get("groupeId") == groupe_id]
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8),
+       retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)))
+async def assigner_ordre_bulk(eleve_ordre: dict[int, int]) -> int:
+    """Persiste l'ordre de passage des tournées via PUT /api/eleves/ordre/bulk (route interne)."""
+    if not eleve_ordre:
+        return 0
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.put(f"{settings.ms2_url}/api/eleves/ordre/bulk",
+                             json={str(k): v for k, v in eleve_ordre.items()})
+        r.raise_for_status()
+        return r.json().get("updated", 0)

@@ -19,4 +19,5 @@ public class EleveResponse {
     private Long groupeId;
     private Long busId;
     private Boolean statutPresence;
+    private Integer ordrePassage;
 }

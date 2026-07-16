@@ -3,6 +3,7 @@ Consumer RabbitMQ MS6 — recalcule le clustering après chaque événement él�
 Utilise bulk update (1 requête HTTP) au lieu de N PATCH simultanés.
 """
 import asyncio
+import json
 import logging
 import aio_pika
 from config import settings
@@ -13,6 +14,31 @@ from quality import maybe_maj_baseline
 
 logger = logging.getLogger(__name__)
 _clustering_lock = asyncio.Lock()
+
+
+async def publier(routing_key: str, payload: dict) -> None:
+    """Publie un événement sur l'exchange (ex. alerte qualité → MS4). content_type text/plain (compat MS4)."""
+    try:
+        connection = await aio_pika.connect_robust(settings.rabbitmq_url)
+        async with connection:
+            channel = await connection.channel()
+            exchange = await channel.declare_exchange(settings.exchange_name, aio_pika.ExchangeType.TOPIC, durable=True)
+            await exchange.publish(
+                aio_pika.Message(body=json.dumps(payload).encode(), content_type="text/plain"),
+                routing_key=routing_key)
+    except Exception as exc:
+        logger.warning("[MS6] Publication %s échouée : %s", routing_key, exc)
+
+
+async def signaler_qualite(result) -> None:
+    """Publie clustering.quality.low si le verdict qualité n'est pas OK (canal admin D1)."""
+    q = result.extra.get("quality", {})
+    if q.get("niveau") and q["niveau"] != "OK":
+        await publier("clustering.quality.low", {
+            "niveau": q["niveau"], "raisons": q.get("raisons", []),
+            "silhouette": result.silhouette, "k": result.k,
+            "n_disperses": result.extra.get("n_disperses", 0),
+        })
 
 
 async def _recalculer_et_ecrire():
@@ -43,6 +69,7 @@ async def _recalculer_et_ecrire():
             if verdict.get("niveau") and verdict["niveau"] != "OK":
                 logger.warning("[MS6] Qualité clustering %s : %s",
                                verdict["niveau"], "; ".join(verdict.get("raisons", [])))
+                await signaler_qualite(result)          # canal admin (D1)
             maybe_maj_baseline(result.metrics, result.extra, verdict)
 
         except Exception as exc:

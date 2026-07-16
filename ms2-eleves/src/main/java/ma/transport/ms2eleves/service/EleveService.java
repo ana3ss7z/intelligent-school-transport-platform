@@ -107,9 +107,10 @@ public class EleveService {
         eleve.setLongitude(req.getLongitude());
         eleve.setParentId(req.getParentId());
 
-        // Mise à jour optionnelle de busId / groupeId si fournis dans la requête
-        if (req.getBusId() != null)    eleve.setBusId(req.getBusId());
-        if (req.getGroupeId() != null) eleve.setGroupeId(req.getGroupeId());
+        // Mise à jour optionnelle de busId / groupeId / ordrePassage si fournis dans la requête
+        if (req.getBusId() != null)        eleve.setBusId(req.getBusId());
+        if (req.getGroupeId() != null)     eleve.setGroupeId(req.getGroupeId());
+        if (req.getOrdrePassage() != null) eleve.setOrdrePassage(req.getOrdrePassage());
 
         Eleve saved = repo.save(eleve);
 
@@ -198,6 +199,7 @@ public class EleveService {
                 .groupeId(e.getGroupeId())
                 .busId(e.getBusId())
                 .statutPresence(e.getStatutPresence())
+                .ordrePassage(e.getOrdrePassage())
                 .build();
     }
 
@@ -239,5 +241,26 @@ public int assignerBusBulk(Map<Long, Long> eleveBusMap) {
     repo.saveAll(eleves);
     log.info("[MS2] Bulk update busId — {} élèves liés à un bus", eleves.size());
     return eleves.size();
+}
+
+/**
+ * Mise à jour en masse de l'ordre de passage — appelé par MS5-VRP après calcul des tournées.
+ */
+@Transactional
+public int assignerOrdreBulk(Map<Long, Long> eleveOrdreMap) {
+    List<Eleve> eleves = repo.findAllById(eleveOrdreMap.keySet());
+    for (Eleve eleve : eleves) {
+        Long ordre = eleveOrdreMap.get(eleve.getId());
+        eleve.setOrdrePassage(ordre != null && ordre > 0 ? ordre.intValue() : null);
+    }
+    repo.saveAll(eleves);
+    log.info("[MS2] Bulk update ordrePassage — {} élèves ordonnés", eleves.size());
+    return eleves.size();
+}
+
+/** Élèves d'un bus, dans l'ordre de passage (vue chauffeur). */
+public List<EleveResponse> parBusOrdonne(Long busId) {
+    return repo.findByBusIdOrderByOrdrePassageAsc(busId).stream()
+            .map(this::toResponse).collect(Collectors.toList());
 }
 }

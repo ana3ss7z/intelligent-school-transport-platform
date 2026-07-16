@@ -78,7 +78,9 @@ public class Notification {
         BUS_ARRIVE_ECOLE,   // Le bus est arrivé à l'école
         BUS_EN_ROUTE,       // Le bus a démarré son circuit
         RETARD,             // Le bus est en retard
-        ENFANT_A_BORD       // L'enfant est bien monté dans le bus (présence confirmée)
+        ENFANT_A_BORD,      // L'enfant est bien monté dans le bus (présence confirmée)
+        ALERTE_QUALITE,     // Alerte admin : qualité de clustering dégradée (MS6)
+        ANOMALIE_DETECTEE   // Alerte admin : anomalie GPS détectée (MS11)
     }
 
     public enum StatutEnvoi {

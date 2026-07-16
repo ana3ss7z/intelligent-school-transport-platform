@@ -49,6 +49,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/eleves/groupes/bulk").permitAll()
                 // MS6 → MS2 : propager busId après liaison groupe↔bus
                 .requestMatchers(HttpMethod.PUT, "/api/eleves/bus/bulk").permitAll()
+                // MS5 → MS2 : persister l'ordre de passage des tournées
+                .requestMatchers(HttpMethod.PUT, "/api/eleves/ordre/bulk").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/eleves").permitAll() // 👈 AJOUTE CETTE LIGNE
 
                 // ── Toutes les autres routes nécessitent un JWT ───────────

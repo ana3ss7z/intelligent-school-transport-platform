@@ -162,6 +162,42 @@ public class NotificationListener {
         }
     }
 
+    // ─── 6. Canal admin (D1) — alerte qualité clustering (MS6) ───────────────
+
+    @RabbitListener(queues = "ms4.quality.queue")
+    public void onQualiteDegradee(String message) {
+        log.info("[MS4] 📨 clustering.quality.low reçu");
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            String niveau = node.path("niveau").asText("DEGRADE");
+            String raisons = node.path("raisons").toString();
+            String titre = "⚠️ Qualité de clustering " + niveau;
+            String corps = String.format("Clustering %s (silhouette=%s, k=%s). Raisons : %s",
+                    niveau, node.path("silhouette").asText("?"), node.path("k").asText("?"), raisons);
+            // Notif admin historisée (parentId null = destinataire ADMIN, vu via GET /api/notifications)
+            fcmService.envoyerAuParent(null, TypeNotification.ALERTE_QUALITE, titre, corps, null, "ADMIN");
+        } catch (Exception e) {
+            log.error("[MS4] Erreur traitement clustering.quality.low : {}", e.getMessage());
+        }
+    }
+
+    // ─── 7. Canal admin (D1) — anomalie GPS live (MS11) ──────────────────────
+
+    @RabbitListener(queues = "ms4.anomalie.queue")
+    public void onAnomalieDetectee(String message) {
+        log.info("[MS4] 📨 anomalie.detectee reçu");
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            Long busId  = node.hasNonNull("busId") ? node.get("busId").asLong() : null;
+            String type = node.path("type").asText("ANOMALIE");
+            String titre = "🚨 Anomalie détectée — bus " + (busId != null ? busId : "?");
+            String corps = String.format("Anomalie %s détectée sur le bus %s.", type, busId);
+            fcmService.envoyerAuParent(null, TypeNotification.ANOMALIE_DETECTEE, titre, corps, busId, "ADMIN");
+        } catch (Exception e) {
+            log.error("[MS4] Erreur traitement anomalie.detectee : {}", e.getMessage());
+        }
+    }
+
     // ─── Helper distance Haversine ────────────────────────────────────────────
 
     private double calculerDistance(double lat1, double lng1,

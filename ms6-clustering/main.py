@@ -188,6 +188,8 @@ async def clustering_production(appliquer: bool = True,
         _dernier_verdict = verdict
         if verdict["niveau"] != "OK":
             logger.warning("[MS6] Qualité clustering %s : %s", verdict["niveau"], "; ".join(verdict["raisons"]))
+            from rabbitmq import signaler_qualite
+            await signaler_qualite(result)              # canal admin (D1)
         if appliquer:
             maybe_maj_baseline(result.metrics, result.extra, verdict)
 

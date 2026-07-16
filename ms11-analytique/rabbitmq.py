@@ -15,6 +15,20 @@ from live_monitor import observer
 
 logger = logging.getLogger(__name__)
 
+_exchange: aio_pika.Exchange | None = None
+
+
+async def _publier_anomalie(a: dict) -> None:
+    """Publie anomalie.detectee → MS4 (canal admin D1). content_type text/plain (compat MS4)."""
+    if _exchange is None:
+        return
+    try:
+        await _exchange.publish(
+            aio_pika.Message(body=json.dumps(a).encode(), content_type="text/plain"),
+            routing_key="anomalie.detectee")
+    except Exception as exc:
+        logger.warning("[MS11] Publication anomalie.detectee échouée : %s", exc)
+
 
 async def _on_message(message: aio_pika.IncomingMessage) -> None:
     async with message.process():
@@ -37,15 +51,18 @@ async def _on_message(message: aio_pika.IncomingMessage) -> None:
         for a in detections:
             logger.warning("[MS11] ⚠️ Anomalie live %s — bus %s (%s)",
                            a["type"], a["busId"], {k: v for k, v in a.items() if k not in ("busId", "type")})
+            await _publier_anomalie(a)                  # canal admin (D1)
 
 
 async def start_consumer() -> None:
+    global _exchange
     try:
         connection = await aio_pika.connect_robust(settings.rabbitmq_url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=1)
-        exchange = await channel.declare_exchange(
+        _exchange = await channel.declare_exchange(
             settings.exchange_name, aio_pika.ExchangeType.TOPIC, durable=True)
+        exchange = _exchange
         queue = await channel.declare_queue("ms11.gps.queue", durable=True)
         await queue.bind(exchange, routing_key="gps.bus.updated")
         await queue.consume(_on_message)

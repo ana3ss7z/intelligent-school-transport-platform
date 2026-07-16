@@ -46,4 +46,7 @@ public class Eleve {
     @Column(nullable = false, columnDefinition = "boolean default false")
     @Builder.Default
     private Boolean statutPresence = false;
+
+    /** Rang de passage dans la tournée du bus (persisté par MS5-VRP) — 1..n, null si non planifié */
+    private Integer ordrePassage;
 }

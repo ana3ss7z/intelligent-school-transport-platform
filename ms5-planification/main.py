@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config import settings
-from ms2_client import get_all_eleves, get_eleves_groupe
+from ms2_client import get_all_eleves, get_eleves_groupe, assigner_ordre_bulk
 from planner import planifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s — %(message)s")
@@ -43,8 +43,8 @@ async def health():
 
 
 @app.post("/api/planification/tournee", dependencies=[Depends(verify_token)])
-async def tournee(groupeId: int, sens: str = "matin"):
-    """Tournée optimale d'un groupe (bus)."""
+async def tournee(groupeId: int, sens: str = "matin", persister: bool = True):
+    """Tournée optimale d'un groupe (bus). `persister` → écrit l'ordre de passage dans MS2."""
     try:
         eleves = await get_eleves_groupe(groupeId)
     except Exception as e:
@@ -52,12 +52,14 @@ async def tournee(groupeId: int, sens: str = "matin"):
     if not eleves:
         raise HTTPException(404, f"Aucun élève pour le groupe {groupeId}")
     res = await planifier(eleves, sens=sens)
+    if persister and res.get("ordre"):
+        res["persiste"] = await assigner_ordre_bulk({int(eid): i + 1 for i, eid in enumerate(res["ordre"])})
     return {"groupeId": groupeId, **res}
 
 
 @app.post("/api/planification/tournees", dependencies=[Depends(verify_token)])
-async def tournees(sens: str = "matin"):
-    """Tournées de tous les groupes (lit l'affectation MS6 courante via MS2)."""
+async def tournees(sens: str = "matin", persister: bool = True):
+    """Tournées de tous les groupes (lit l'affectation MS6 courante via MS2). `persister` → écrit l'ordre dans MS2."""
     try:
         eleves = await get_all_eleves()
     except Exception as e:
@@ -72,12 +74,16 @@ async def tournees(sens: str = "matin"):
         raise HTTPException(404, "Aucun groupe (lancer le clustering MS6 avec appliquer=true)")
 
     tournees_out, dist_tot, duree_tot = [], 0.0, 0.0
+    ordre_global: dict[int, int] = {}
     for g in sorted(groupes):
         r = await planifier(groupes[g], sens=sens)
         r["groupeId"] = g
         tournees_out.append(r)
         dist_tot += r["distance_m"]; duree_tot += r["duree_min"]
+        for i, eid in enumerate(r.get("ordre", [])):
+            ordre_global[int(eid)] = i + 1
 
+    persiste = await assigner_ordre_bulk(ordre_global) if (persister and ordre_global) else 0
     gains = [t["gain_vs_baseline_%"] for t in tournees_out if t["n_arrets"] > 1]
     return {
         "sens": sens,
@@ -85,5 +91,6 @@ async def tournees(sens: str = "matin"):
         "distance_totale_km": round(dist_tot / 1000.0, 2),
         "duree_totale_min": round(duree_tot, 1),
         "gain_moyen_%": round(sum(gains) / len(gains), 1) if gains else 0.0,
+        "ordre_persiste": persiste,
         "tournees": tournees_out,
     }

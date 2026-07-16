@@ -44,6 +44,17 @@ public class RabbitMQConfig {
         return new Queue("ms4.eleve.presence.queue", true);
     }
 
+    // Canal admin (D1) : alertes qualité clustering (MS6) et anomalies GPS (MS11)
+    @Bean
+    public Queue ms4QualityQueue() {
+        return new Queue("ms4.quality.queue", true);
+    }
+
+    @Bean
+    public Queue ms4AnomalieQueue() {
+        return new Queue("ms4.anomalie.queue", true);
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -79,6 +90,16 @@ public class RabbitMQConfig {
                                         TopicExchange transportExchange) {
         return BindingBuilder.bind(ms4ElevePresenceQueue)
                 .to(transportExchange).with("eleve.presence.updated");
+    }
+
+    @Bean
+    public Binding bindingQuality(Queue ms4QualityQueue, TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4QualityQueue).to(transportExchange).with("clustering.quality.low");
+    }
+
+    @Bean
+    public Binding bindingAnomalie(Queue ms4AnomalieQueue, TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4AnomalieQueue).to(transportExchange).with("anomalie.detectee");
     }
 
     // ─── JSON message converter ───────────────────────────────────────────────

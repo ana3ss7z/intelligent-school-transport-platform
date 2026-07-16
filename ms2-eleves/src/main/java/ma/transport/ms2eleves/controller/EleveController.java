@@ -58,6 +58,13 @@ public class EleveController {
         return ResponseEntity.ok(service.parParent(parentId));
     }
 
+    // ── GET /api/eleves/bus/{busId} : élèves du bus dans l'ordre de passage (vue chauffeur) ──
+    @GetMapping("/bus/{busId}")
+    @PreAuthorize("hasAnyRole('ADMIN','CHAUFFEUR')")
+    public ResponseEntity<List<EleveResponse>> parBusOrdonne(@PathVariable Long busId) {
+        return ResponseEntity.ok(service.parBusOrdonne(busId));
+    }
+
     // ── GET /api/eleves/groupe/{groupeId} ────────────────────────────
     @GetMapping("/groupe/{groupeId}")
     public ResponseEntity<List<EleveResponse>> parGroupe(
@@ -156,6 +163,17 @@ public ResponseEntity<Map<String, Integer>> assignerGroupesBulk(
 public ResponseEntity<Map<String, Integer>> assignerBusBulk(
         @RequestBody Map<Long, Long> eleveBusMap) {
     int updated = service.assignerBusBulk(eleveBusMap);
+    return ResponseEntity.ok(Map.of("updated", updated));
+}
+
+/**
+ * PUT /api/eleves/ordre/bulk
+ * Persistance de l'ordre de passage des tournées (MS5-VRP). Route interne — pas de JWT.
+ */
+@PutMapping("/ordre/bulk")
+public ResponseEntity<Map<String, Integer>> assignerOrdreBulk(
+        @RequestBody Map<Long, Long> eleveOrdreMap) {
+    int updated = service.assignerOrdreBulk(eleveOrdreMap);
     return ResponseEntity.ok(Map.of("updated", updated));
 }
 }
