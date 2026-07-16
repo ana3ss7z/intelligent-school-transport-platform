@@ -177,7 +177,7 @@ List<Eleve> findByGroupeIdIsNull();
 **Entité `Notification` (inner enums) :**
 ```java
 public enum TypeNotification {
-    INCIDENT_SIGNALE, INCIDENT_RESOLU, BUS_ARRIVE_ECOLE, BUS_EN_ROUTE, RETARD
+    INCIDENT_SIGNALE, INCIDENT_RESOLU, BUS_ARRIVE_ECOLE, BUS_EN_ROUTE, RETARD, ENFANT_A_BORD
 }
 public enum StatutEnvoi { EN_ATTENTE, ENVOYE, ECHEC }
 ```
@@ -220,6 +220,7 @@ public void envoyerAuParent(Long parentId, TypeNotification type,
 - `ms4.incident.resolu.queue` → `incident.resolu`
 - `ms4.gps.bus.updated.queue` → `gps.bus.updated` (arrivée école à ≤150 m → `BUS_ARRIVE_ECOLE`)
 - `ms4.eta.arriving.queue` → `eta.bus.arriving` (MS12) → « le bus arrive dans ~10 min » (`BUS_EN_ROUTE`, UC-4) ← **NOUVEAU G1**
+- `ms4.eleve.presence.queue` → `eleve.presence.updated` (MS2) → « enfant à bord » (`ENFANT_A_BORD`, UC-4) au parent précis ← **NOUVEAU G5**
 
 **Statut FCM :** mode dégradé (placeholder JSON) — ECHEC en DB, fonctionnel dès vrai `firebase-service-account.json`
 
@@ -479,6 +480,14 @@ anomaly_benchmark.json), `notebooks/04_anomaly_detection.ipynb`, Dockerfile, `.e
 | GET `/api/analytique/model-info` | Public | Métriques (PR-AUC/ROC/F1), seuil, contamination |
 | POST `/api/analytique/anomalies` | **JWT ADMIN** | Un trajet observé (durée réelle + base/coords + contexte) → `{is_anomaly, anomaly_score, ratio, niveau}` |
 | GET `/api/analytique/anomalies/scan?limit=` | **JWT ADMIN** | Scanne le dataset → top anomalies + précision/rappel vs incidents réels |
+| GET `/api/analytique/live?limit=` | Public | **Monitor GPS live (G3)** : anomalies instantanées détectées en temps réel ← **NOUVEAU** |
+
+**Monitor GPS live (G3, `live_monitor.py` + `rabbitmq.py`) :** MS11 consomme `gps.bus.updated` (queue `ms11.gps.queue`)
+et applique des **règles instantanées** (UC-8) : **arrêt prolongé** (immobile > `SEUIL_ARRET_MIN`) et **vitesse anormale**
+(> `SEUIL_VITESSE_KMH`). Complément du **détecteur ML** (Isolation Forest, post-hoc au niveau trajet) : le modèle
+score des *trajets complets*, inadapté à un ping GPS. Sortie = **buffer mémoire + logs**, exposée par `GET /api/analytique/live`
+(pas d'événement sans consommateur ; évolution : `anomalie.detectee` → MS10/MS4 quand un canal admin existera).
+La **déviation** (3ᵉ signal UC-8) nécessite la route planifiée persistée (G2).
 
 **Sécurité JWT :** `verify_token` ADMIN (même `jwt_secret` que MS7). **CORS :** aucun (Gateway).
 **Démarrage :** `cd ms11-analytique && python train_anomaly.py && uvicorn main:app --port 8091` (env `nlp`).
@@ -532,7 +541,9 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | `bus.deleted` | **MS1** | MS6 | `ms6.clustering.queue` ← **NOUVEAU** |
 | `gps.bus.updated` | MS3 | MS4 | `ms4.gps.bus.updated.queue` |
 | `gps.bus.updated` | MS3 | **MS12** | `ms12.eta.queue` ← **NOUVEAU (pipeline ETA temps réel G1)** |
+| `gps.bus.updated` | MS3 | **MS11** | `ms11.gps.queue` ← **NOUVEAU (monitor anomalies GPS live G3)** |
 | `eta.bus.arriving` | **MS12** | MS4 | `ms4.eta.arriving.queue` ← **NOUVEAU** |
+| `eleve.presence.updated` | **MS2** | MS4 | `ms4.eleve.presence.queue` ← **NOUVEAU (G5 « enfant à bord »)** |
 | `incident.signale` | MS10 | MS4 | `ms4.incident.signale.queue` |
 | `incident.resolu` | MS10 | MS4 | `ms4.incident.resolu.queue` |
 
