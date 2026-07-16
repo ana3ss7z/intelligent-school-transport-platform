@@ -67,9 +67,11 @@ async def _compute_and_maybe_alert(bus_id: int, lat: float, lng: float) -> None:
     if _exchange is None:
         logger.warning("[MS12] Exchange non initialisé — alerte non publiée")
         return
+    # content_type text/plain : les listeners MS4 (@RabbitListener String) lisent le corps brut
+    # via objectMapper.readTree — un content_type application/json ferait échouer le convertisseur.
     await _exchange.publish(
         aio_pika.Message(body=json.dumps(payload).encode(),
-                         content_type="application/json"),
+                         content_type="text/plain"),
         routing_key="eta.bus.arriving",
     )
     logger.info("[MS12] 🔔 eta.bus.arriving — bus %s arrive dans %.1f min (%s)",
