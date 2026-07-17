@@ -1,0 +1,131 @@
+/* Polices self-hostées (Fontsource, pas de CDN) */
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/archivo";
+@import "@fontsource-variable/jetbrains-mono";
+
+@import "tailwindcss";
+
+/* ============================================================
+   Design system — « Signalétique / plan de transport »
+   Couleurs FONCTIONNELLES (statut / ligne), pas décoratives.
+   Variables sémantiques -> basculent en thème clair/sombre.
+   ============================================================ */
+@layer base {
+  :root {
+    --paper: #f7f5f0;      /* fond atlas papier */
+    --panel: #ffffff;      /* cartes / panneaux */
+    --panel-2: #fbfaf6;    /* panneau alterné */
+    --line: #d9d5cc;       /* traits / grille / bordures */
+    --ink: #14181f;        /* texte principal */
+    --ink-soft: #5a6270;   /* texte secondaire */
+    --header: #0e2a47;     /* encre entêtes */
+    /* Statuts / lignes (sémantiques) */
+    --route: #2a6fdb;      /* ligne / info */
+    --ok: #1fa37a;         /* actif / OK */
+    --warn: #f2a900;       /* dégradé / attention */
+    --alert: #e4572e;      /* alerte / critique */
+    --line2: #6b4eff;      /* 2e ligne / accent secondaire */
+    --focus: #2a6fdb;
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0e1116;
+    --panel: #171b22;
+    --panel-2: #1c212b;
+    --line: #2a2f3a;
+    --ink: #e7e9ee;
+    --ink-soft: #9aa3b2;
+    --header: #cdd8ea;
+    --route: #5b8def;
+    --ok: #3fd0a0;
+    --warn: #ffc247;
+    --alert: #ff7a5c;
+    --line2: #9a85ff;
+    --focus: #5b8def;
+    color-scheme: dark;
+  }
+}
+
+/* Mapping des tokens vers Tailwind (génère bg-paper, text-ink, font-mono…) */
+@theme {
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-header: var(--header);
+  --color-route: var(--route);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-alert: var(--alert);
+  --color-line2: var(--line2);
+
+  --font-display: "Space Grotesk Variable", ui-sans-serif, sans-serif;
+  --font-sans: "Archivo Variable", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-station: 999px;
+}
+
+@layer base {
+  * { border-color: var(--line); }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 { font-family: var(--font-display); color: var(--header); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  /* Chiffres tabulaires en mono pour la télémétrie (ETA, coords, IDs) */
+  .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* Focus visible partout (accessibilité WCAG) */
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* Motif signature : ligne + pastille-station (dessin animé au chargement) */
+@keyframes draw-line { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.station-line { transform-origin: top; animation: draw-line 0.5s ease-out both; }
+
+/* ── Skeleton (chargement) — shimmer discret ─────────────────── */
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.skeleton {
+  position: relative; overflow: hidden;
+  background: color-mix(in oklab, var(--ink-soft) 12%, transparent);
+  border-radius: 6px;
+}
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--panel) 60%, transparent), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+/* ── Toasts — entrée depuis la droite ─────────────────────────── */
+@keyframes toast-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(16px); } }
+.toast-in { animation: toast-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.toast-out { animation: toast-out 0.2s ease-in both; }
+
+/* ── Transition de page (fondu + léger montant) ───────────────── */
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.page-in { animation: page-in 0.28s ease-out both; }
+
+/* ── Pulse (bus en anomalie sur la carte) ─────────────────────── */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--alert) 70%, transparent); }
+  70% { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.pulse-alert { animation: pulse-ring 1.3s ease-out infinite; }

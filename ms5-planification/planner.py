@@ -2,6 +2,7 @@
 Orchestrateur de planification : groupe d'élèves → tournée optimale.
 Étapes : arrêts (école + élèves) → matrice OSRM → OR-Tools (TSP) → ordre + distance/temps + géométrie + gain.
 """
+import asyncio
 import logging
 
 from config import settings
@@ -33,7 +34,9 @@ async def planifier(eleves: list[dict], sens: str = "matin") -> dict:
     pts = [depot] + [(e["latitude"], e["longitude"]) for e in valides]
     dur, dist = await matrice(pts)
 
-    order = solve_tsp(dur, depot=0, time_limit_s=settings.vrp_time_limit_s)
+    # OR-Tools est bloquant (CPU) : on l'exécute dans un thread pour ne pas geler l'event loop
+    # → avec asyncio.gather (MS5 /tournees), les groupes se résolvent réellement en parallèle.
+    order = await asyncio.to_thread(solve_tsp, dur, 0, settings.vrp_time_limit_s)
     base = baseline_plus_proche(dur, depot=0)
 
     duree_opt = cout_tournee(order, dur)

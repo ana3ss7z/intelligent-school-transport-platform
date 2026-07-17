@@ -4,6 +4,7 @@ Optimisation des tournées : pour chaque groupe MS6, ordre de ramassage optimal 
 Sécurité : JWT (ADMIN/CHAUFFEUR). CORS géré uniquement par la Gateway.
 """
 from __future__ import annotations
+import asyncio
 import logging
 from collections import defaultdict
 
@@ -73,10 +74,13 @@ async def tournees(sens: str = "matin", persister: bool = True):
     if not groupes:
         raise HTTPException(404, "Aucun groupe (lancer le clustering MS6 avec appliquer=true)")
 
+    # Calcul des tournées EN PARALLÈLE (OSRM concurrent) — bien plus rapide que séquentiel.
+    gs = sorted(groupes)
+    results = await asyncio.gather(*[planifier(groupes[g], sens=sens) for g in gs])
+
     tournees_out, dist_tot, duree_tot = [], 0.0, 0.0
     ordre_global: dict[int, int] = {}
-    for g in sorted(groupes):
-        r = await planifier(groupes[g], sens=sens)
+    for g, r in zip(gs, results):
         r["groupeId"] = g
         tournees_out.append(r)
         dist_tot += r["distance_m"]; duree_tot += r["duree_min"]

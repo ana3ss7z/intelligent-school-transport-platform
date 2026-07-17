@@ -70,3 +70,8 @@ graphify-out/
 comptes_utilisateurs.*
 #les tests html
 /html_tests/
+# Frontend (Node/Bun/Flutter)
+frontend/**/node_modules/
+frontend/**/dist/
+frontend/**/.vite/
+frontend/**/build/

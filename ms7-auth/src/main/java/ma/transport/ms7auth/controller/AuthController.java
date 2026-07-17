@@ -1,5 +1,7 @@
 package ma.transport.ms7auth.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -8,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -15,7 +18,9 @@ import lombok.RequiredArgsConstructor;
 import ma.transport.ms7auth.dto.AuthResponse;
 import ma.transport.ms7auth.dto.LoginRequest;
 import ma.transport.ms7auth.dto.RegisterRequest;
+import ma.transport.ms7auth.dto.UserResponse;
 import ma.transport.ms7auth.entity.Utilisateur;
+import ma.transport.ms7auth.enums.Role;
 import ma.transport.ms7auth.repository.UtilisateurRepository;
 import ma.transport.ms7auth.security.JwtService;
 
@@ -84,6 +89,26 @@ public class AuthController {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build());
+    }
+
+    // ── Liste des utilisateurs (ADMIN) ───────────────────────────────
+    // Sécurisé par SecurityConfig (hasRole ADMIN). Ne renvoie JAMAIS le mot de passe.
+    @GetMapping("/users")
+    public ResponseEntity<List<UserResponse>> getUsers(
+            @RequestParam(required = false) Role role) {
+
+        List<UserResponse> users = repo.findAll().stream()
+                .filter(u -> role == null || u.getRole() == role)
+                .map(u -> UserResponse.builder()
+                        .id(u.getId())
+                        .nom(u.getNom())
+                        .email(u.getEmail())
+                        .role(u.getRole())
+                        .telephone(u.getTelephone())
+                        .build())
+                .toList();
+
+        return ResponseEntity.ok(users);
     }
 
     // ── Vérification token ───────────────────────────────────────────

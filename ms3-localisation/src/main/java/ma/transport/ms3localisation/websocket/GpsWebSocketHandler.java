@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,7 +59,13 @@ public class GpsWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        sessions.put(session.getId(), session);
+        // sendMessage() n'est PAS thread-safe : plusieurs bus qui publient en même temps
+        // déclenchent des écritures concurrentes sur la même session → TEXT_PARTIAL_WRITING.
+        // Le décorateur sérialise les envois par session (buffer 512 Ko, drop si trop lent).
+        WebSocketSession concurrent = new ConcurrentWebSocketSessionDecorator(
+                session, 5000, 512 * 1024,
+                ConcurrentWebSocketSessionDecorator.OverflowStrategy.DROP);
+        sessions.put(session.getId(), concurrent);
         filtres.put(session.getId(), "ALL"); // par défaut tout recevoir
         log.info("[WS] Client connecté — id={} | total={}",
                 session.getId(), sessions.size());
