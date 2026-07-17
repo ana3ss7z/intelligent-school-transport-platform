@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { RefreshCw, Trash2, Download } from "lucide-react";
 import { usePolling } from "../hooks/usePolling";
+import { useTableView } from "../hooks/useTableView";
 import { getIncidents, getIncidentStats, changeIncidentStatut, deleteIncident } from "../api/endpoints";
-import type { StatutIncident } from "../api/types";
+import type { Incident, StatutIncident } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
+import { Pager, SortTh } from "../components/Pager";
 import { Panel, Stat, StatusChip, SectionTitle } from "../components/ui";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
+import { exportCsv } from "../lib/csv";
 
 const STATUTS: StatutIncident[] = ["SIGNALE", "CONFIRME", "EN_TRAITEMENT", "RESOLU"];
 
@@ -21,6 +25,7 @@ export function Incidents() {
   const { role } = useAuth();
   const isAdmin = role === "ADMIN";
   const toast = useToast();
+  const { confirm, prompt } = useConfirm();
   const { data, loading, error, refreshing, refetch } = usePolling(async () => {
     const [items, stats] = await Promise.all([getIncidents(), getIncidentStats().catch(() => null)]);
     return { items, stats };
@@ -30,7 +35,7 @@ export function Incidents() {
   const majStatut = async (id: number, statut: StatutIncident) => {
     let notes: string | undefined;
     if (statut === "RESOLU") {
-      const n = window.prompt("Notes de résolution (optionnel) — les parents seront notifiés :", "");
+      const n = await prompt({ title: "Résoudre l'incident", message: "Notes de résolution (optionnel) — les parents seront notifiés.", placeholder: "ex. dépannage effectué", confirmLabel: "Résoudre" });
       if (n === null) return; // annulé
       notes = n || undefined;
     }
@@ -44,10 +49,15 @@ export function Incidents() {
   };
 
   const supprimer = async (id: number) => {
-    if (!window.confirm(`Supprimer l'incident ${id} ?`)) return;
+    if (!await confirm({ title: "Supprimer l'incident", message: `Supprimer l'incident ${id} ?`, danger: true, confirmLabel: "Supprimer" })) return;
     try { await deleteIncident(id); toast.success(`Incident ${id} supprimé`); refetch(); }
     catch (e: unknown) { toast.error((e as { message?: string })?.message ?? "Échec de la suppression"); }
   };
+
+  const items = [...(data?.items ?? [])].sort((a, b) => b.id - a.id);
+  const rows = filtre ? items.filter((i) => i.statut === filtre) : items;
+  const { pageRows, page, setPage, totalPages, total, sortKey, sortDir, toggleSort } =
+    useTableView<Incident>(rows, { pageSize: 25, initialSort: "id", initialDir: "desc" });
 
   if (loading) {
     return (
@@ -59,8 +69,6 @@ export function Incidents() {
   }
   if (error && !data) return <ErrorState message={error} onRetry={refetch} />;
 
-  const items = [...data!.items].sort((a, b) => b.id - a.id);
-  const rows = filtre ? items.filter((i) => i.statut === filtre) : items;
   const s = data!.stats;
 
   return (
@@ -82,24 +90,34 @@ export function Incidents() {
 
       <Panel className="p-4">
         <div className="flex items-center justify-between mb-3 gap-2">
-          <SectionTitle sub={`${rows.length} entrées`}>Journal des incidents</SectionTitle>
-          <select aria-label="Filtrer par statut" value={filtre} onChange={(e) => setFiltre(e.target.value as StatutIncident | "")}
-            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm outline-none focus:border-route">
-            <option value="">Tous les statuts</option>
-            {STATUTS.map((st) => <option key={st} value={st}>{st}</option>)}
-          </select>
+          <SectionTitle sub={`${total} entrées`}>Journal des incidents</SectionTitle>
+          <div className="flex items-center gap-2">
+            <select aria-label="Filtrer par statut" value={filtre} onChange={(e) => setFiltre(e.target.value as StatutIncident | "")}
+              className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm outline-none focus:border-route">
+              <option value="">Tous les statuts</option>
+              {STATUTS.map((st) => <option key={st} value={st}>{st}</option>)}
+            </select>
+            <button onClick={() => exportCsv("incidents", rows as unknown as Record<string, unknown>[])}
+              className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-ink transition-colors">
+              <Download size={15} /> CSV
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[11px] font-mono uppercase tracking-wider text-ink-soft text-left border-b border-line">
-                <th className="py-2 pr-3">#</th><th className="py-2 pr-3">Type</th><th className="py-2 pr-3">Bus</th>
-                <th className="py-2 pr-3">Description</th><th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Statut</th>{isAdmin && <th className="py-2 text-right">Actions</th>}
+                <SortTh label="#" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
+                <SortTh label="Type" active={sortKey === "type"} dir={sortDir} onClick={() => toggleSort("type")} />
+                <SortTh label="Bus" active={sortKey === "busId"} dir={sortDir} onClick={() => toggleSort("busId")} />
+                <th className="py-2 pr-3">Description</th>
+                <SortTh label="Date" active={sortKey === "dateSignalement"} dir={sortDir} onClick={() => toggleSort("dateSignalement")} />
+                <SortTh label="Statut" active={sortKey === "statut"} dir={sortDir} onClick={() => toggleSort("statut")} />
+                {isAdmin && <th className="py-2 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {rows.map((i) => (
+              {pageRows.map((i) => (
                 <tr key={i.id} className="border-b border-line/60">
                   <td className="py-2 pr-3 tabular text-ink-soft">{i.id}</td>
                   <td className="py-2 pr-3"><StatusChip tone={typeTone(i.type)}>{i.type}</StatusChip></td>
@@ -125,7 +143,8 @@ export function Incidents() {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && <EmptyState message={filtre ? `Aucun incident « ${filtre} ».` : "Aucun incident signalé."} />}
+          {total === 0 && <EmptyState message={filtre ? `Aucun incident « ${filtre} ».` : "Aucun incident signalé."} />}
+          <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
         </div>
       </Panel>
     </div>

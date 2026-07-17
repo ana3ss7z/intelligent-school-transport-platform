@@ -10,6 +10,7 @@ import { SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
 import { RouteStrip } from "../components/RouteStrip";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { lineColor } from "../lib/colors";
 
 const statutTone = (s: string) => (s === "ACTIF" ? "ok" : s === "EN_PANNE" ? "alert" : "neutral");
@@ -17,6 +18,7 @@ const STATUTS = ["ACTIF", "INACTIF", "EN_PANNE"];
 
 export function BusPage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const { role } = useAuth();
   const isAdmin = role === "ADMIN";
   const { data: bus, loading, error, refetch } = useAsync(getBus, []);
@@ -58,7 +60,7 @@ export function BusPage() {
   };
 
   const removeBus = async (id: number) => {
-    if (!window.confirm(`Supprimer le bus ${id} ? Cette action est irréversible.`)) return;
+    if (!await confirm({ title: "Supprimer le bus", message: `Supprimer le bus ${id} ? Cette action est irréversible.`, danger: true, confirmLabel: "Supprimer" })) return;
     try { await deleteBus(id); toast.success(`Bus ${id} supprimé`); if (sel === id) setSel(null); refetch(); }
     catch (e: unknown) { toast.error((e as { message?: string })?.message ?? "Échec de la suppression"); }
   };

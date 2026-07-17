@@ -1,7 +1,7 @@
 import { api } from "./client";
 import type {
   AuthResponse, Bus, Eleve, EleveInput, Incident, IncidentStats, LiveAnomaly,
-  NotifStats, NotificationItem, ProductionResult, StatutIncident, User,
+  NotifStats, NotificationItem, ProductionResult, StatutIncident, User, UserInput,
 } from "./types";
 
 // Endpoints lourds (OSRM + clustering) : le timeout global de 20 s ne suffit pas.
@@ -97,3 +97,6 @@ export const predictEta = (p: {
 // ── Utilisateurs (MS7) ───────────────────────────────────────
 export const getUsers = (role?: string) =>
   api.get<User[]>(`/api/auth/users${role ? `?role=${role}` : ""}`).then((r) => r.data);
+export const createUser = (p: UserInput) => api.post<User>("/api/auth/users", p).then((r) => r.data);
+export const updateUser = (id: number, p: UserInput) => api.put<User>(`/api/auth/users/${id}`, p).then((r) => r.data);
+export const deleteUser = (id: number) => api.delete(`/api/auth/users/${id}`).then((r) => r.data);

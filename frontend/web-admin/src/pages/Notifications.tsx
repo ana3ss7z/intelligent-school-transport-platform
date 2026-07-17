@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Download } from "lucide-react";
 import { usePolling } from "../hooks/usePolling";
+import { useTableView } from "../hooks/useTableView";
 import { getNotifications, getNotifStats } from "../api/endpoints";
+import type { NotificationItem } from "../api/types";
 import { Panel, Stat, StatusChip, SectionTitle } from "../components/ui";
+import { Pager, SortTh } from "../components/Pager";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
+import { exportCsv } from "../lib/csv";
 
 const ADMIN_TYPES = ["ALERTE_QUALITE", "ANOMALIE_DETECTEE"];
 const typeTone = (t: string) =>
@@ -20,6 +24,11 @@ export function Notifications() {
   }, 15000);
   const [onlyAdmin, setOnlyAdmin] = useState(false);
 
+  const items = [...(data?.items ?? [])].sort((a, b) => b.id - a.id);
+  const rows = onlyAdmin ? items.filter((n) => ADMIN_TYPES.includes(n.type)) : items;
+  const { pageRows, page, setPage, totalPages, total, sortKey, sortDir, toggleSort } =
+    useTableView<NotificationItem>(rows, { pageSize: 25, initialSort: "id", initialDir: "desc" });
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -29,9 +38,6 @@ export function Notifications() {
     );
   }
   if (error && !data) return <ErrorState message={error} onRetry={refetch} />;
-
-  const items = [...data!.items].sort((a, b) => b.id - a.id);
-  const rows = onlyAdmin ? items.filter((n) => ADMIN_TYPES.includes(n.type)) : items;
 
   return (
     <div className="space-y-6">
@@ -51,23 +57,32 @@ export function Notifications() {
       </div>
 
       <Panel className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <SectionTitle sub={`${rows.length} entrées`}>Journal</SectionTitle>
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-            <input type="checkbox" checked={onlyAdmin} onChange={(e) => setOnlyAdmin(e.target.checked)} className="accent-[var(--warn)] size-4" />
-            Alertes admin uniquement
-          </label>
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <SectionTitle sub={`${total} entrées`}>Journal</SectionTitle>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input type="checkbox" checked={onlyAdmin} onChange={(e) => setOnlyAdmin(e.target.checked)} className="accent-[var(--warn)] size-4" />
+              Alertes admin
+            </label>
+            <button onClick={() => exportCsv("notifications", rows as unknown as Record<string, unknown>[])}
+              className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-ink transition-colors">
+              <Download size={15} /> CSV
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[11px] font-mono uppercase tracking-wider text-ink-soft text-left border-b border-line">
-                <th className="py-2 pr-3">Type</th><th className="py-2 pr-3">Titre</th>
-                <th className="py-2 pr-3">Cible</th><th className="py-2 pr-3">Statut</th><th className="py-2">Date</th>
+                <SortTh label="Type" active={sortKey === "type"} dir={sortDir} onClick={() => toggleSort("type")} />
+                <th className="py-2 pr-3">Titre</th>
+                <th className="py-2 pr-3">Cible</th>
+                <SortTh label="Statut" active={sortKey === "statutEnvoi"} dir={sortDir} onClick={() => toggleSort("statutEnvoi")} />
+                <SortTh label="Date" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 200).map((n) => (
+              {pageRows.map((n) => (
                 <tr key={n.id} className="border-b border-line/60">
                   <td className="py-2 pr-3"><StatusChip tone={typeTone(n.type)}>{n.type}</StatusChip></td>
                   <td className="py-2 pr-3 max-w-[280px] truncate">{n.titre}</td>
@@ -78,7 +93,8 @@ export function Notifications() {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && <EmptyState message={onlyAdmin ? "Aucune alerte admin." : "Aucune notification."} />}
+          {total === 0 && <EmptyState message={onlyAdmin ? "Aucune alerte admin." : "Aucune notification."} />}
+          <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
         </div>
       </Panel>
     </div>

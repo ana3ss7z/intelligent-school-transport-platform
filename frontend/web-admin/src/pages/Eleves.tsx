@@ -1,16 +1,20 @@
 import { useMemo, useState } from "react";
-import { Search, X, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, X, Plus, Pencil, Trash2, Download } from "lucide-react";
 import { useAsync } from "../hooks/useAsync";
+import { useTableView } from "../hooks/useTableView";
 import { getEleves, assignEleveBus, createEleve, updateEleve, deleteEleve } from "../api/endpoints";
 import type { Eleve, EleveInput } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { MapPicker } from "../components/MapPicker";
+import { Pager, SortTh } from "../components/Pager";
 import { Panel, StatusChip, Stat, Button } from "../components/ui";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
+import { exportCsv } from "../lib/csv";
 import { lineColor } from "../lib/colors";
 
 type Presence = "all" | "present" | "absent";
@@ -21,6 +25,7 @@ export function Eleves() {
   const { theme } = useTheme();
   const isAdmin = role === "ADMIN";
   const toast = useToast();
+  const { confirm } = useConfirm();
   const { data, loading, error, refetch } = useAsync(getEleves, []);
 
   const affecterBus = async (eleveId: number, busId: number) => {
@@ -53,7 +58,7 @@ export function Eleves() {
     } finally { setSaving(false); }
   };
   const removeEleve = async (e: Eleve) => {
-    if (!window.confirm(`Supprimer ${e.prenom} ${e.nom} ?`)) return;
+    if (!await confirm({ title: "Supprimer l'élève", message: `Supprimer ${e.prenom} ${e.nom} ?`, danger: true, confirmLabel: "Supprimer" })) return;
     try { await deleteEleve(e.id); toast.success(`${e.prenom} ${e.nom} supprimé`); refetch(); }
     catch (err: unknown) { toast.error((err as { message?: string })?.message ?? "Échec de la suppression"); }
   };
@@ -78,6 +83,9 @@ export function Eleves() {
       return true;
     });
   }, [all, q, busFilter, groupeFilter, presence]);
+
+  const { pageRows, page, setPage, totalPages, total, sortKey, sortDir, toggleSort } =
+    useTableView<Eleve>(rows, { pageSize: 25, initialSort: "nom" });
 
   const hasFilter = q || busFilter || groupeFilter || presence !== "all";
   const reset = () => { setQ(""); setBusFilter(""); setGroupeFilter(""); setPresence("all"); };
@@ -136,20 +144,26 @@ export function Eleves() {
               <X size={14} /> réinitialiser
             </button>
           )}
-          <span className="ml-auto text-[11px] font-mono uppercase tracking-wider text-ink-soft">{rows.length} résultats</span>
+          <button onClick={() => exportCsv("eleves", rows as unknown as Record<string, unknown>[])}
+            className="ml-auto inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-ink transition-colors">
+            <Download size={15} /> Exporter CSV
+          </button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[11px] font-mono uppercase tracking-wider text-ink-soft text-left border-b border-line">
-                <th className="py-2 pr-3">Élève</th><th className="py-2 pr-3">Groupe</th>
-                <th className="py-2 pr-3">Bus</th><th className="py-2 pr-3">Ordre</th><th className="py-2 pr-3">Présence</th>
+                <SortTh label="Élève" active={sortKey === "nom"} dir={sortDir} onClick={() => toggleSort("nom")} />
+                <SortTh label="Groupe" active={sortKey === "groupeId"} dir={sortDir} onClick={() => toggleSort("groupeId")} />
+                <SortTh label="Bus" active={sortKey === "busId"} dir={sortDir} onClick={() => toggleSort("busId")} />
+                <SortTh label="Ordre" active={sortKey === "ordrePassage"} dir={sortDir} onClick={() => toggleSort("ordrePassage")} />
+                <SortTh label="Présence" active={sortKey === "statutPresence"} dir={sortDir} onClick={() => toggleSort("statutPresence")} />
                 {isAdmin && <th className="py-2 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 300).map((e) => (
+              {pageRows.map((e) => (
                 <tr key={e.id} className="border-b border-line/60">
                   <td className="py-2 pr-3">{e.prenom} {e.nom}</td>
                   <td className="py-2 pr-3">
@@ -183,7 +197,8 @@ export function Eleves() {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && <EmptyState message="Aucun élève ne correspond aux filtres." />}
+          {total === 0 && <EmptyState message="Aucun élève ne correspond aux filtres." />}
+          <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
         </div>
       </Panel>
 

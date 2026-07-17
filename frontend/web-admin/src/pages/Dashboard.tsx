@@ -1,8 +1,12 @@
 import { AlertTriangle, Activity, Bus, GraduationCap, Bell, Gauge, RefreshCw } from "lucide-react";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { usePolling } from "../hooks/usePolling";
 import {
   getEleves, getBusActifs, getNotifStats, getQuality, getLiveAnomalies,
-  getEtaModelInfo, getAnomalyModelInfo,
+  getEtaModelInfo, getAnomalyModelInfo, getIncidentStats,
 } from "../api/endpoints";
 import { Panel, Stat, SectionTitle, StatusChip } from "../components/ui";
 import { SkeletonStats } from "../components/Skeleton";
@@ -11,14 +15,17 @@ import { ErrorState } from "../components/AsyncState";
 const niveauTone = (n?: string) =>
   n === "CRITIQUE" ? "alert" : n === "DEGRADE" ? "warn" : "ok";
 
+const TT = { background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, fontSize: 12 };
+
 export function Dashboard() {
   const { data, loading, error, refreshing, refetch, lastUpdated } = usePolling(async () => {
-    const [eleves, bus, stats, quality, live, eta, ano] = await Promise.all([
+    const [eleves, bus, stats, quality, live, eta, ano, incStats] = await Promise.all([
       getEleves(), getBusActifs(), getNotifStats().catch(() => null),
       getQuality().catch(() => null), getLiveAnomalies().catch(() => null),
       getEtaModelInfo().catch(() => null), getAnomalyModelInfo().catch(() => null),
+      getIncidentStats().catch(() => null),
     ]);
-    return { eleves, bus, stats, quality, live, eta, ano };
+    return { eleves, bus, stats, quality, live, eta, ano, incStats };
   }, 12000);
 
   if (loading) {
@@ -36,6 +43,24 @@ export function Dashboard() {
   const verdict = d.quality?.dernier_verdict?.niveau as string | undefined;
   const sil = d.quality?.baseline?.silhouette as number | undefined;
   const anomalies = d.live?.anomalies ?? [];
+
+  // Données graphiques
+  const notifData = [
+    { name: "Envoyées", v: d.stats?.envoyes ?? 0, fill: "var(--ok)" },
+    { name: "Échecs", v: d.stats?.echecs ?? 0, fill: "var(--alert)" },
+    { name: "Attente", v: d.stats?.attente ?? 0, fill: "var(--warn)" },
+  ];
+  const inc = d.incStats ?? {};
+  const incData = [
+    { name: "Signalés", v: inc.signale ?? 0, fill: "var(--warn)" },
+    { name: "Confirmés", v: inc.confirme ?? 0, fill: "var(--route)" },
+    { name: "En cours", v: inc.en_traitement ?? 0, fill: "var(--line2)" },
+    { name: "Résolus", v: inc.resolu ?? 0, fill: "var(--ok)" },
+  ];
+  const presData = [
+    { name: "À bord", value: presents, fill: "var(--ok)" },
+    { name: "Absents", value: Math.max(0, d.eleves.length - presents), fill: "var(--ink-soft)" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -105,6 +130,58 @@ export function Dashboard() {
               <StatusChip tone="ok">{d.ano?.detecteur ?? "—"}</StatusChip>
             </li>
           </ul>
+        </Panel>
+      </div>
+
+      {/* Graphiques */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Panel className="p-4">
+          <SectionTitle sub="Statut d'envoi">Notifications</SectionTitle>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={notifData} margin={{ top: 4, right: 8, bottom: 4, left: -16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                <XAxis dataKey="name" stroke="var(--ink-soft)" fontSize={11} />
+                <YAxis stroke="var(--ink-soft)" fontSize={11} allowDecimals={false} />
+                <RTooltip contentStyle={TT} cursor={{ fill: "color-mix(in oklab, var(--ink-soft) 8%, transparent)" }} />
+                <Bar dataKey="v" name="notifs" radius={[4, 4, 0, 0]}>
+                  {notifData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel className="p-4">
+          <SectionTitle sub="Par statut">Incidents</SectionTitle>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={incData} margin={{ top: 4, right: 8, bottom: 4, left: -16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                <XAxis dataKey="name" stroke="var(--ink-soft)" fontSize={11} />
+                <YAxis stroke="var(--ink-soft)" fontSize={11} allowDecimals={false} />
+                <RTooltip contentStyle={TT} cursor={{ fill: "color-mix(in oklab, var(--ink-soft) 8%, transparent)" }} />
+                <Bar dataKey="v" name="incidents" radius={[4, 4, 0, 0]}>
+                  {incData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel className="p-4">
+          <SectionTitle sub="Présence actuelle">Élèves à bord</SectionTitle>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={presData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                  {presData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                </Pie>
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <RTooltip contentStyle={TT} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </Panel>
       </div>
 

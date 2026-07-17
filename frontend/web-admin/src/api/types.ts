@@ -126,6 +126,14 @@ export interface User {
   telephone: string | null;
 }
 
+export interface UserInput {
+  nom: string;
+  email: string;
+  role: Role;
+  telephone?: string | null;
+  motDePasse?: string;
+}
+
 export interface EleveInput {
   nom: string;
   prenom: string;
