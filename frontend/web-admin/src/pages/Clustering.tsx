@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { Play, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Play, TrendingUp, Layers, MapPinned } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { runProduction, getPareto, getDiagnostics, type ParetoResult } from "../api/endpoints";
+import { runProduction, getPareto, getDiagnostics, getEleves, type ParetoResult } from "../api/endpoints";
 import type { ProductionResult } from "../api/types";
 import { useAsync } from "../hooks/useAsync";
-import { Panel, Stat, Button, StatusChip, SectionTitle } from "../components/ui";
+import { useTheme } from "../hooks/useTheme";
+import { Panel, Stat, Button, StatusChip, SectionTitle, Spinner } from "../components/ui";
+import { ClusterMap, computeGroups } from "../components/ClusterMap";
 import { useToast } from "../components/Toast";
 import { getPrefs } from "../lib/prefs";
 import { lineColor } from "../lib/colors";
@@ -17,6 +19,7 @@ const dpick = (o: any, ...ks: string[]) => { for (const k of ks) if (o?.[k] != n
 
 export function Clustering() {
   const toast = useToast();
+  const { theme } = useTheme();
   const prefs = getPrefs();
   const [capacity, setCapacity] = useState(prefs.capacity);
   const [rayon, setRayon] = useState(prefs.rayon);
@@ -28,6 +31,25 @@ export function Clustering() {
   const [err, setErr] = useState<string | null>(null);
   const [pareto, setPareto] = useState<ParetoResult | null>(null);
   const [busyP, setBusyP] = useState(false);
+
+  // Dernier résultat appliqué (depuis MS2) → carte des clusters
+  const { data: eleves, loading: loadingEl, refetch: refetchEleves } = useAsync(getEleves, []);
+  const groups = useMemo(() => computeGroups(eleves ?? []), [eleves]);
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [showHull, setShowHull] = useState(true);
+  const [showPts, setShowPts] = useState(true);
+  const toggleGroup = (g: number) =>
+    setHidden((prev) => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n; });
+
+  // Prévisualisation : élèves ré-étiquetés selon le résultat du dernier run (appliqué ou non)
+  const previewEleves = useMemo(() => {
+    if (!res?.assignments || !eleves) return null;
+    return eleves.map((e) => ({ ...e, groupeId: res.assignments![String(e.id)] ?? res.assignments![e.id] ?? null }));
+  }, [res, eleves]);
+  const previewGroups = useMemo(() => computeGroups(previewEleves ?? []), [previewEleves]);
+  const [previewHidden, setPreviewHidden] = useState<Set<number>>(new Set());
+  const togglePreview = (g: number) =>
+    setPreviewHidden((prev) => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n; });
 
   const runPareto = async () => {
     setBusyP(true);
@@ -46,6 +68,7 @@ export function Clustering() {
       if (appliquer) {
         if (v === "CRITIQUE") toast.warn(`Clustering appliqué mais qualité CRITIQUE — ${msg}`);
         else toast.success(`Clustering appliqué en base — ${msg}`);
+        refetchEleves(); // rafraîchit la carte des clusters
       } else {
         toast.info(`Simulation terminée (non appliquée) — ${msg}`);
       }
@@ -64,6 +87,49 @@ export function Clustering() {
         <h1 className="text-2xl">Clustering capacitaire</h1>
         <p className="text-ink-soft text-sm">k-médoïdes sur distance routière OSRM — affectation élèves → bus.</p>
       </div>
+
+      {/* Carte du dernier résultat appliqué (depuis la base) */}
+      <Panel className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <SectionTitle sub={`${groups.filter((g) => !g.noise).length} groupes · ${(eleves ?? []).filter((e) => e.groupeId != null).length} élèves affectés`}>
+            <span className="inline-flex items-center gap-2"><MapPinned size={18} /> Carte des groupes — dernier résultat</span>
+          </SectionTitle>
+          <div className="flex items-center gap-3 text-sm">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={showHull} onChange={(e) => setShowHull(e.target.checked)} className="accent-[var(--route)] size-4" />
+              <Layers size={14} /> Enveloppes
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={showPts} onChange={(e) => setShowPts(e.target.checked)} className="accent-[var(--route)] size-4" />
+              Points
+            </label>
+          </div>
+        </div>
+
+        {loadingEl ? <Spinner label="Chargement des groupes…" /> : (
+          <>
+            {/* Légende cliquable = filtres par cluster */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {groups.map((gr) => {
+                const off = hidden.has(gr.g);
+                return (
+                  <button key={gr.g} onClick={() => toggleGroup(gr.g)}
+                    aria-pressed={!off}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-mono border transition-opacity ${off ? "opacity-40" : ""}`}
+                    style={{ borderColor: gr.color, color: gr.color, background: `color-mix(in oklab, ${gr.color} 12%, transparent)` }}>
+                    <span className="size-2 rounded-full" style={{ background: gr.color }} />
+                    {gr.noise ? "dispersés" : `G${gr.g}`} · {gr.count}
+                  </button>
+                );
+              })}
+              {groups.length === 0 && <span className="text-sm text-ink-soft">Aucun groupe en base — lance un clustering (Appliquer) ci-dessous.</span>}
+            </div>
+            {groups.length > 0 && (
+              <ClusterMap eleves={eleves ?? []} hidden={hidden} showHull={showHull} showPts={showPts} dark={theme === "dark"} />
+            )}
+          </>
+        )}
+      </Panel>
 
       <Panel className="p-4 flex flex-wrap items-end gap-4">
         <label className="text-sm">
@@ -86,6 +152,39 @@ export function Clustering() {
         </Button>
         {err && <span className="text-alert text-sm">{err}</span>}
       </Panel>
+
+      {/* Carte de prévisualisation du dernier run (appliqué ou non) */}
+      {previewEleves && (
+        <Panel className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <SectionTitle sub={`${res!.k} bus · silhouette ${res!.silhouette?.toFixed(3) ?? "—"} · ${res!.quality?.niveau ?? "OK"}`}>
+              <span className="inline-flex items-center gap-2">
+                <MapPinned size={18} /> Prévisualisation — {res!.groupes_appliques === "non demandé" ? "nouveau clustering (non appliqué)" : "résultat appliqué"}
+              </span>
+            </SectionTitle>
+            <StatusChip tone={res!.groupes_appliques === "non demandé" ? "warn" : "ok"}>
+              {res!.groupes_appliques === "non demandé" ? "simulation" : "appliqué en base"}
+            </StatusChip>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {previewGroups.map((gr) => {
+              const off = previewHidden.has(gr.g);
+              return (
+                <button key={gr.g} onClick={() => togglePreview(gr.g)} aria-pressed={!off}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-mono border transition-opacity ${off ? "opacity-40" : ""}`}
+                  style={{ borderColor: gr.color, color: gr.color, background: `color-mix(in oklab, ${gr.color} 12%, transparent)` }}>
+                  <span className="size-2 rounded-full" style={{ background: gr.color }} />
+                  {gr.noise ? "dispersés" : `G${gr.g}`} · {gr.count}
+                </button>
+              );
+            })}
+          </div>
+          <ClusterMap eleves={previewEleves} hidden={previewHidden} showHull={showHull} showPts={showPts} dark={theme === "dark"} />
+          {res!.groupes_appliques === "non demandé" && (
+            <p className="text-xs text-ink-soft mt-2">Aperçu non enregistré. Coche « Appliquer » puis relance pour écrire en base (met aussi à jour la carte du haut).</p>
+          )}
+        </Panel>
+      )}
 
       {diag && (
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -151,7 +250,7 @@ export function Clustering() {
               <SectionTitle sub="Garde-fou dynamique">Verdict qualité</SectionTitle>
               <div className="flex items-center gap-2 mb-3">
                 <StatusChip tone={tone(res.quality?.niveau)}>{res.quality?.niveau ?? "OK"}</StatusChip>
-                {res.bus_binding && <StatusChip tone="route">{res.bus_binding.n_lies} élèves liés</StatusChip>}
+                {typeof res.bus_binding === "object" && res.bus_binding && <StatusChip tone="route">{res.bus_binding.n_lies} élèves liés</StatusChip>}
               </div>
               {res.quality?.raisons?.length ? (
                 <ul className="text-sm text-ink-soft list-disc pl-4 space-y-1">

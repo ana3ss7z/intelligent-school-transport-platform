@@ -211,6 +211,7 @@ async def clustering_production(appliquer: bool = True,
             "quality": verdict,
             "pareto": result.extra["pareto"],
             "distribution": _distribution(result.labels),
+            "assignments": result.labels,   # {eleveId: groupe} → prévisualisation carte (même non appliqué)
         }
     except Exception as e:
         raise HTTPException(500, str(e))

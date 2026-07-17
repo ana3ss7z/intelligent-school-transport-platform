@@ -70,8 +70,10 @@ export interface ProductionResult {
   n_non_affectes: number;
   metrics: Record<string, number | null>;
   quality: QualityVerdict;
-  bus_binding?: { n_lies: number; n_bus_actifs: number; k: number; manque_bus: number };
+  bus_binding?: { n_lies: number; n_bus_actifs: number; k: number; manque_bus: number } | string;
   distribution: Record<string, number>;
+  assignments?: Record<string, number>; // {eleveId: groupe} — prévisualisation carte
+  groupes_appliques?: string | number;   // "non demandé" si simulation, sinon nb écrits
 }
 
 export interface LiveAnomaly {
