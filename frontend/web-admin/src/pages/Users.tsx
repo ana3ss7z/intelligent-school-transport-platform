@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, Shield, Bus as BusIcon, User as UserIcon, Plus, Pencil, Trash2, Download } from "lucide-react";
 import { useAsync } from "../hooks/useAsync";
 import { useTableView } from "../hooks/useTableView";
-import { getUsers, createUser, updateUser, deleteUser } from "../api/endpoints";
+import { getUsers, createUser, updateUser, deleteUser, getEleves, getBus } from "../api/endpoints";
 import type { Role, User, UserInput } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/Toast";
@@ -22,7 +22,26 @@ export function Users() {
   const { user } = useAuth();
   const toast = useToast();
   const { confirm } = useConfirm();
-  const { data, loading, error, refetch } = useAsync(() => getUsers(), []);
+  const { data, loading, error, refetch } = useAsync(async () => {
+    const [users, eleves, bus] = await Promise.all([
+      getUsers(), getEleves().catch(() => []), getBus().catch(() => []),
+    ]);
+    return { users, eleves, bus };
+  }, []);
+  const childrenByParent = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const e of data?.eleves ?? []) if (e.parentId != null) m.set(e.parentId, (m.get(e.parentId) ?? 0) + 1);
+    return m;
+  }, [data]);
+  const busByChauffeur = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const b of data?.bus ?? []) if (b.chauffeurId != null) m.set(b.chauffeurId, b.matricule);
+    return m;
+  }, [data]);
+  const liaison = (u: User) =>
+    u.role === "PARENT" ? `${childrenByParent.get(u.id) ?? 0} enfant(s)`
+    : u.role === "CHAUFFEUR" ? (busByChauffeur.get(u.id) ?? "—")
+    : "—";
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
 
@@ -31,7 +50,7 @@ export function Users() {
   const [form, setForm] = useState<UserInput>(EMPTY);
   const [saving, setSaving] = useState(false);
 
-  const all = data ?? [];
+  const all = data?.users ?? [];
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return all.filter((u) => {
@@ -132,6 +151,7 @@ export function Users() {
                 <SortTh label="Email" active={sortKey === "email"} dir={sortDir} onClick={() => toggleSort("email")} />
                 <th className="py-2 pr-3">Téléphone</th>
                 <SortTh label="Rôle" active={sortKey === "role"} dir={sortDir} onClick={() => toggleSort("role")} />
+                <th className="py-2 pr-3">Liaison</th>
                 <th className="py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -143,6 +163,7 @@ export function Users() {
                   <td className="py-2 pr-3 text-ink-soft">{u.email}</td>
                   <td className="py-2 pr-3 tabular text-ink-soft">{u.telephone ?? "—"}</td>
                   <td className="py-2 pr-3"><StatusChip tone={roleTone(u.role)}><RoleIcon r={u.role} /> {u.role}</StatusChip></td>
+                  <td className="py-2 pr-3 tabular text-ink-soft">{liaison(u)}</td>
                   <td className="py-2 text-right whitespace-nowrap">
                     <button onClick={() => openEdit(u)} aria-label={`Éditer ${u.nom}`} className="text-ink-soft hover:text-route transition-colors p-1"><Pencil size={15} /></button>
                     {u.email !== user?.email && (

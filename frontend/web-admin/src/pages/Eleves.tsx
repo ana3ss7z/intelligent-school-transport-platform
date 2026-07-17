@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, X, Plus, Pencil, Trash2, Download } from "lucide-react";
 import { useAsync } from "../hooks/useAsync";
 import { useTableView } from "../hooks/useTableView";
-import { getEleves, assignEleveBus, createEleve, updateEleve, deleteEleve } from "../api/endpoints";
+import { getEleves, assignEleveBus, createEleve, updateEleve, deleteEleve, getUsers } from "../api/endpoints";
 import type { Eleve, EleveInput } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../hooks/useTheme";
@@ -27,6 +27,7 @@ export function Eleves() {
   const toast = useToast();
   const { confirm } = useConfirm();
   const { data, loading, error, refetch } = useAsync(getEleves, []);
+  const { data: parents } = useAsync(() => getUsers("PARENT").catch(() => []), []);
 
   const affecterBus = async (eleveId: number, busId: number) => {
     try { await assignEleveBus(eleveId, busId); toast.success(`Élève ${eleveId} → bus ${busId}`); refetch(); }
@@ -215,6 +216,15 @@ export function Eleves() {
               <input id="el-nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })}
                 className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route" />
             </div>
+          </div>
+          <div>
+            <label htmlFor="el-parent" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Parent</label>
+            <select id="el-parent" value={form.parentId ?? ""}
+              onChange={(e) => setForm({ ...form, parentId: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route">
+              <option value="">— aucun —</option>
+              {(parents ?? []).map((p) => <option key={p.id} value={p.id}>{p.nom} · {p.email}</option>)}
+            </select>
           </div>
           <div>
             <div className="text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">

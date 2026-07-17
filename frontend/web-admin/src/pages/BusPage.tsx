@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Circle, Plus, Trash2, Pencil } from "lucide-react";
 import { useAsync } from "../hooks/useAsync";
-import { getBus, getElevesParBus, setPresence, createBus, updateBus, setBusStatut, deleteBus } from "../api/endpoints";
+import { getBus, getElevesParBus, setPresence, createBus, updateBus, setBusStatut, deleteBus, getUsers } from "../api/endpoints";
 import type { Bus, Eleve } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { Panel, StatusChip, SectionTitle, Button } from "../components/ui";
@@ -22,6 +22,11 @@ export function BusPage() {
   const { role } = useAuth();
   const isAdmin = role === "ADMIN";
   const { data: bus, loading, error, refetch } = useAsync(getBus, []);
+  const { data: chauffeurs } = useAsync(() => getUsers("CHAUFFEUR").catch(() => []), []);
+  const chauffeurNom = (id: number | null) => {
+    const c = (chauffeurs ?? []).find((u) => u.id === id);
+    return c ? c.nom : id != null ? `#${id}` : "—";
+  };
   const [sel, setSel] = useState<number | null>(null);
   const [eleves, setEleves] = useState<Eleve[]>([]);
   const [loadingEl, setLoadingEl] = useState(false);
@@ -135,7 +140,7 @@ export function BusPage() {
                         </select>
                       ) : <StatusChip tone={statutTone(b.statut)}>{b.statut}</StatusChip>}
                     </td>
-                    <td className="py-2 pr-3 tabular text-ink-soft">{b.chauffeurId ?? "—"}</td>
+                    <td className="py-2 pr-3 text-ink-soft">{chauffeurNom(b.chauffeurId)}</td>
                     {isAdmin && (
                       <td className="py-2 text-right whitespace-nowrap">
                         <button onClick={(e) => { e.stopPropagation(); openEdit(b); }} aria-label={`Éditer le bus ${b.id}`}
@@ -210,10 +215,13 @@ export function BusPage() {
             </div>
           </div>
           <div>
-            <label htmlFor="bus-chauf" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Chauffeur (ID, optionnel)</label>
-            <input id="bus-chauf" type="number" min={1} value={form.chauffeurId} placeholder="—"
+            <label htmlFor="bus-chauf" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Chauffeur (optionnel)</label>
+            <select id="bus-chauf" value={form.chauffeurId}
               onChange={(e) => setForm({ ...form, chauffeurId: e.target.value })}
-              className="w-full rounded-lg border border-line bg-panel px-3 py-2 tabular text-sm outline-none focus:border-route" />
+              className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route">
+              <option value="">— aucun —</option>
+              {(chauffeurs ?? []).map((c) => <option key={c.id} value={c.id}>{c.nom} · {c.email}</option>)}
+            </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button onClick={() => setShowForm(false)} tone="neutral" variant="ghost">Annuler</Button>
