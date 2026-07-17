@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 16 juillet 2026 — briques IA livrées (MS6/MS12/MS5/MS11) + couche d'intégration temps réel validée e2e
+## État au 17 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + intégration temps réel (e2e) + **console d'administration web (React/Vite)** livrée
 
 ---
 
@@ -21,7 +21,22 @@ Système de transport scolaire intelligent basé sur une architecture **microser
 **validée e2e (8/8)** : **G1** pipeline ETA→notif parents, **G3** monitor anomalies GPS live, **G5** présence
 « enfant à bord », **B1** liaison groupe↔bus (busId propagé), **garde-fou qualité** clustering, déclencheur
 « nouveau bus » MS1→MS6. **Données réalistes générées** (216 parents/fratries, 10 chauffeurs, flotte de bus ;
-`generer_comptes.py` idempotent). **Prochaine grande brique : MS9 chatbot LLM (S9).**
+`generer_comptes.py` idempotent).
+
+**NOUVEAU — Console d'administration web (`frontend/web-admin/`, React 18 + Vite + TS + Bun + Tailwind v4)** :
+dashboard (KPIs + graphiques Recharts + auto-refresh), carte live (bus interpolés, traînées, flèches, arrêts
+numérotés, pulse anomalie, ETA live→école, tournées OSRM), clustering (Pareto, diagnostics, verdict qualité,
+**carte des clusters** enveloppes+filtres = dernier résultat DB **+ carte de prévisualisation** d'une simulation),
+prévisions ETA par arrêt, incidents (MS10), analytique anomalies (MS11 scan), notifications, **CRUD élèves/bus/
+utilisateurs** + **liaisons parent↔enfant & chauffeur↔bus**, présence, pagination/tri, export CSV, paramètres.
+Infra pro : toasts, ErrorBoundary, skeletons, dialogues de confirmation, command palette ⌘K, nav mobile, code-splitting, RBAC.
+
+**Deltas backend liés à l'UI** : MS7 `GET/POST/PUT/DELETE /api/auth/users` (ADMIN, mot de passe jamais exposé,
+anti-auto-suppression) ; MS3 fix WebSocket (`ConcurrentWebSocketSessionDecorator` — écritures concurrentes) ;
+MS5 `/tournees` parallélisé (`asyncio.gather` + OR-Tools en thread, ~43 s→9 s) ; MS6 `/production` renvoie
+`assignments` (affectation par élève, pour prévisualisation carte même non appliquée) ; `bus_simulator.py` v2 data-driven.
+
+**Prochaine grande brique : MS9 chatbot LLM (S9).**
 
 ---
 
@@ -36,8 +51,10 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 ├── osrm-data/                       ← Données OSM Maroc pré-processées (OSRM)
 ├── seed_eleves_meknes.py            ← Script seeding 300 élèves
 ├── seed_eleves_meknes.sql           ← SQL généré : 300 élèves Meknès
-├── simulateur-bus/
-│   └── bus_simulator.py            ← Simulateur 3 bus Python (OSRM + WebSocket)
+├── bus_simulator.py                 ← Simulateur v2 DATA-DRIVEN (vraies tournées OSRM, présence G5, anomalies G3)
+├── frontend/
+│   └── web-admin/                   ← Console admin React 18 + Vite + TS + Bun + Tailwind v4 (port 5173) ← NOUVEAU
+│       └── src/ (api · auth · components · hooks · layout · lib · pages)
 ├── ws-test/
 │   ├── test-gps.html               ← Test WebSocket GPS MS3
 │   ├── map-gps.html                ← Carte Leaflet temps réel (GPS + OSRM routes)
@@ -99,8 +116,13 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 
 ---
 
-### MS7 — AuthService (port 8087) ✅
+### MS7 — AuthService (port 8087) ✅ mis à jour (gestion utilisateurs)
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/validate`
+- **Gestion des utilisateurs (ADMIN)** ← NOUVEAU : `GET /api/auth/users?role=` (liste, **sans `motDePasse`**),
+  `POST /api/auth/users` (créer, ne renvoie **pas** de token, ≠ register), `PUT /api/auth/users/{id}`
+  (modifier ; `motDePasse` vide = inchangé), `DELETE /api/auth/users/{id}` (**refuse l'auto-suppression**, 409).
+  DTO `UserResponse` (jamais de mot de passe) + `UserUpsertRequest`. Sécurité : `SecurityConfig` matcher
+  `/api/auth/users/**` → `hasRole('ADMIN')` (MS7 valide déjà le JWT via `JwtAuthFilter`, autorités `ROLE_*`).
 - Réponse login : `{ token, userId, nom, email, role }`
 - Token JWT contient : `sub` (email), `role`, `userId`, `nom`, `iat`, `exp` (24h)
 - CORS supprimé (géré uniquement MS8)
@@ -171,12 +193,16 @@ List<Eleve> findByGroupeIdIsNull();
 
 ---
 
-### MS3 — LocalisationService (port 8083) ✅
+### MS3 — LocalisationService (port 8083) ✅ (fix WebSocket concurrent)
 - WebSocket : `ws://localhost:8083/ws/gps`
 - Abonnement : `{"subscribe": "ALL"}` ou `{"subscribe": "BUS:5"}`
 - Cache Redis : clé `gps:BUS:5` (TTL 2h)
 - RabbitMQ publie : `gps.bus.updated`, `gps.eleve.updated`
 - OSRM routing intégré
+- **FIX critique ← NOUVEAU** : `GpsWebSocketHandler` enveloppe chaque session dans un
+  **`ConcurrentWebSocketSessionDecorator`**. `sendMessage()` n'est **pas** thread-safe ; avec plusieurs bus
+  publiant en même temps, les écritures concurrentes déclenchaient `TEXT_PARTIAL_WRITING` → la session était
+  supprimée → la carte ne bougeait **qu'au refresh**. Corrigé (envois sérialisés par session, buffer 512 Ko, DROP).
 
 ---
 
@@ -302,7 +328,7 @@ PyJWT==2.8, cryptography==42.0.8
 | GET `/api/clustering/sans-groupe` | Public | Élèves sans groupeId |
 | GET `/api/clustering/diagnostics` | Public | Stats EDA + `k` recommandé (⌈N/capacité⌉) |
 | GET `/api/clustering/quality` | Public | **Garde-fou qualité** : baseline dynamique + seuils + dernier verdict (dashboard admin) ← **NOUVEAU** |
-| POST `/api/clustering/production?appliquer=&capacity=&rayon=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier (+ contrainte `rayon` optionnelle) + bulk update MS2 (+ `quality` dans la réponse) |
+| POST `/api/clustering/production?appliquer=&capacity=&rayon=&road=` | **JWT ADMIN** | **Modèle final** : k-médoïdes capacitaire routier (+ contrainte `rayon` optionnelle) + bulk update MS2 (+ `quality` dans la réponse). Renvoie aussi **`assignments`** `{eleveId: groupe}` ← NOUVEAU → **carte de prévisualisation** web-admin même sans `appliquer` (DB intacte) |
 | POST `/api/clustering/pareto?capacity=&road=` | **JWT ADMIN** | Courbe Pareto qualité vs nb de bus (sans écrire) |
 | POST `/api/clustering/kmeans?appliquer=` | **JWT ADMIN** | *(legacy)* K-Means projeté mètres |
 | POST `/api/clustering/dbscan?appliquer=` | **JWT ADMIN** | *(legacy)* DBSCAN projeté mètres, bruit → 999 |
@@ -520,6 +546,11 @@ Preuve : `ms5-planification/verify_sens.py`.
 **Résultat mesuré (9 bus, données v2) :** distance totale ~108 km · durée ~224 min · **gain moyen ~12.6 %**
 vs l'ordre naïf (variable par bus : 0 % si le glouton est déjà optimal).
 
+**Perf `/tournees` ← NOUVEAU :** calcul **parallèle** des tournées (`asyncio.gather`) + solve OR-Tools exécuté
+dans un **thread** (`asyncio.to_thread`, le GIL est libéré) → **~43 s → ~9 s** pour toute la flotte (le goulot
+était le time-limit OR-Tools bloquant l'event loop en série). *(Côté web-admin, ces appels lourds ont un timeout
+axios dédié de 120 s + feedback.)*
+
 **Fichiers :** `main.py`, `config.py`, `ms2_client.py` (élèves par groupe, **filtré depuis `/api/eleves`** —
 MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géométrie `/route` GeoJSON),
 `vrp.py` (OR-Tools TSP + baseline), `planner.py` (orchestrateur), `notebooks/05_vrp_study.ipynb`, Dockerfile, `.env`.
@@ -625,6 +656,9 @@ cd ms12-prediction && uvicorn main:app --port 8088 --reload   # env conda "nlp" 
 cd ms11-analytique && uvicorn main:app --port 8091 --reload   # anomalies (env "nlp")
 cd ms5-planification && uvicorn main:app --port 8085 --reload  # VRP tournées (env "nlp" + ortools)
 # (raccourci : start-all-ms.bat lance tout, chaque MS dans son terminal)
+
+# 4. Console d'administration web (React + Vite, gestionnaire Bun)
+cd frontend/web-admin && bun install && bun run dev   # http://localhost:5173 (admin@transport.ma / Admin123!)
 ```
 
 ---
@@ -643,9 +677,9 @@ cd ms5-planification && uvicorn main:app --port 8085 --reload  # VRP tournées (
 | **S8** | **01-07/07** | **✅** | **MS12 Prédiction ETA (dataset 180j ancré OSRM, benchmark → elasticnet, service :8088). Déclencheurs clustering : ajout élève / déménagement / nouveau bus (MS1→MS6) ✅ ; silhouette dégradée = garde-fou informatif (pas trigger)** |
 | **S8-S12** | **08-16/07** | **✅** | **Couche d'intégration temps réel (validée e2e 8/8) : G1 ETA→notif (MS3→MS12→MS4), G3 anomalies GPS live (MS11), G5 présence→notif, B1 liaison groupe↔bus, garde-fou qualité dynamique. Données comptes générées (parents/fratries/flotte)** |
 | S9 | 08-14/07 | ⏳ | **Chatbot LLM (MS9) Mistral/Groq + LangChain, FR/AR** — prochaine grande brique |
-| S10 | 15-21/07 | 🔄 | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085). Reste : Flutter parent v1** |
-| S11 | 22-28/07 | ⏳ | Dashboard admin (UC-13), Flutter notifications, benchmark CVRP |
-| S12 | 29/07-04/08 | 🔄 | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. Reste : KPIs dashboard, Flutter** |
+| S10 | 15-21/07 | ✅ | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085 ; `/tournees` parallélisé ~9 s)** |
+| **S11** | **22-28/07** | **✅** | **Console d'administration web (UC-13) — React 18 + Vite + TS + Bun + Tailwind v4 (`frontend/web-admin/`, :5173) : dashboard+graphiques, carte live (bus interpolés/ETA/anomalies/tournées), clustering (cartes clusters DB + prévisualisation), CRUD élèves/bus/utilisateurs + liaisons parent↔enfant & chauffeur↔bus, incidents, anomalies, prévisions ETA par arrêt, pagination/tri/CSV, ⌘K, nav mobile. Deltas back : MS7 users CRUD, MS3 fix WS, MS6 `assignments`** |
+| S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
 | S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 

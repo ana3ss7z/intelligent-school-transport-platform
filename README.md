@@ -41,7 +41,7 @@ L'architecture repose sur **12 microservices** répartis en deux écosystèmes c
 
 ```mermaid
 flowchart TB
-    Client["📱 Client (Flutter / Console web)"]
+    Client["🖥️ Console admin React :5173<br/>📱 App mobile Flutter (à venir)"]
     GW["🚪 MS8 — API Gateway :8080<br/>(JWT · Rate-limiting Redis · CORS)"]
     Client --> GW
 
@@ -89,7 +89,7 @@ flowchart TB
 
 | # | Service | Port | Rôle |
 |---|---------|:----:|------|
-| **MS7** | **AuthService** | `8087` | Authentification JWT (register / login / validate), RBAC `ADMIN·CHAUFFEUR·PARENT` |
+| **MS7** | **AuthService** | `8087` | Authentification JWT (register / login / validate), **gestion des utilisateurs** (CRUD ADMIN, sans exposer les mots de passe), RBAC `ADMIN·CHAUFFEUR·PARENT` |
 | **MS1** | **BusService** | `8081` | CRUD flotte, statut (`ACTIF·INACTIF·EN_PANNE`), position |
 | **MS2** | **EleveService** | `8082` | CRUD élèves, affectation bus/groupe, présence, événements RabbitMQ |
 | **MS3** | **LocalisationService** | `8083` | GPS temps réel via **WebSocket**, cache Redis, routage OSRM |
@@ -107,6 +107,26 @@ flowchart TB
 | **MS11** | **AnalytiqueService (Anomalies)** | `8091` | **Détection d'anomalies** de trajet : Isolation Forest curé, feature `surprise` contextuelle, évaluation PR-AUC/ROC |
 
 > `MS9` (`:8089`) est réservé au **chatbot LLM** (jalon S9). `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring.
+
+---
+
+## 🖥️ Console d'administration (web-admin)
+
+Application **React 18 + Vite + TypeScript** (gestionnaire **Bun**, **Tailwind CSS v4**, react-leaflet, Recharts),
+consommant exclusivement la **Gateway** (JWT) et le **WebSocket GPS**. Design **« signalétique / plan de transport »**
+distinctif (thème clair/sombre), code-splitting par route, RBAC par rôle. Dossier [`frontend/web-admin/`](frontend/web-admin/).
+
+| Page | Contenu |
+|------|---------|
+| **Tableau de bord** | KPIs temps réel, anomalies live, santé des briques IA, **graphiques** (Recharts), auto-refresh |
+| **Carte live** | Bus en temps réel (**mouvement interpolé**, traînées, flèches de sens, arrêts numérotés, **pulse d'anomalie**, **ETA live → école**), tournées OSRM |
+| **Clustering** | Lancer/appliquer, **Pareto**, diagnostics, verdict qualité, **carte des clusters** (enveloppes convexes + filtres) : dernier résultat DB **+ carte de prévisualisation** d'une simulation |
+| **Prévisions ETA** | Heure d'arrivée estimée **à chaque arrêt** d'une tournée (ramassage / dépose) |
+| **Incidents · Analytique · Notifications** | Suivi des incidents (MS10), scan d'anomalies (MS11), journal des notifications |
+| **Élèves · Bus · Utilisateurs** | **CRUD complet** ; liaison **parent↔enfant** et **chauffeur↔bus** ; présence ; pagination/tri ; export **CSV** |
+| **Paramètres** | Préférences (défauts clustering) + seuils backend |
+
+> Finition « produit » : toasts, error boundary, skeletons, modales de confirmation, **command palette ⌘K**, navigation mobile.
 
 ---
 
@@ -147,6 +167,7 @@ et une **documentation dédiée** dans [`docs/`](docs/).
 
 | Domaine | Technologies |
 |---------|--------------|
+| **Frontend web** | React 18 · Vite · TypeScript · **Bun** · Tailwind CSS v4 · react-leaflet · Recharts · Axios |
 | **Backend Java** | Java 21 · Spring Boot 3.5 · Spring Security 6 · Spring Cloud Gateway (WebFlux) · Maven multi-module |
 | **Services IA** | Python 3.11 · FastAPI · Uvicorn · scikit-learn · NumPy/pandas · SciPy (LP) · OR-Tools · pyproj (UTM) · XGBoost/LightGBM |
 | **Données** | PostgreSQL 15 + PostGIS |
@@ -200,7 +221,15 @@ cd ms11-analytique   && uvicorn main:app --port 8091 --reload
 ```
 </details>
 
-### 3. Vérification
+### 3. Console d'administration (web-admin)
+
+```bash
+cd frontend/web-admin
+bun install
+bun run dev          # http://localhost:5173  (login admin@transport.ma / Admin123!)
+```
+
+### 4. Vérification
 
 ```bash
 curl http://localhost:8080/api/auth/health      # Gateway → Auth
@@ -271,8 +300,9 @@ transport-scolaire/
 ├── start-all-ms.bat         # lancement de tous les services
 ├── ms-common/               # module Java partagé (JWT, rôles)
 ├── ms1-bus/ … ms12-prediction/   # 12 microservices
+├── frontend/web-admin/      # console d'administration React + Vite + TS (Bun)
 ├── html_tests/              # console de test unifiée + cartes Leaflet
-├── simulateur-bus/          # simulateur de bus (OSRM + WebSocket)
+├── bus_simulator.py         # simulateur data-driven (vraies tournées OSRM, présence, anomalies)
 ├── osrm-data/               # données OSM Maroc pré-traitées
 └── docs/                    # documentation détaillée + rapport + planning
 ```
@@ -289,10 +319,11 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S7 | **MS6 Clustering** (refonte experte : UTM, k-médoïdes capacitaire routier, Pareto) | ✅ |
 | S8 | **MS12 Prédiction ETA** + déclencheurs clustering + **garde-fou qualité** | ✅ |
 | — | **Intégration temps réel** : ETA→notif, anomalies GPS live, présence, liaison groupe↔bus (validé e2e 8/8) | ✅ |
+| S10 | **MS5 VRP** (TSP OR-Tools, tournées) | ✅ |
+| S11 | **Console d'administration web (UC-13)** — React/Vite : dashboard, carte live, clustering (cartes clusters + prévisualisation), CRUD élèves/bus/utilisateurs & liaisons, incidents, anomalies, ETA par arrêt | ✅ |
+| S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
 | S9 | **Chatbot LLM (MS9)** — prochaine grande brique | ⏳ |
-| S10 | **MS5 VRP** (TSP OR-Tools, tournées) · application Flutter parent | 🔄 |
-| S11 | Dashboard admin (UC-13) · benchmark CVRP global | ⏳ |
-| S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | 🔄 |
+| — | Application Flutter parent/chauffeur · réaffectation dynamique (UC-9) | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 
 ---
