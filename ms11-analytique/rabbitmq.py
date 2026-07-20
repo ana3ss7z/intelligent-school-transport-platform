@@ -11,7 +11,7 @@ import logging
 import aio_pika
 
 from config import settings
-from live_monitor import observer
+from live_monitor import observer, set_route, clear_route
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,40 @@ async def _on_message(message: aio_pika.IncomingMessage) -> None:
             await _publier_anomalie(a)                  # canal admin (D1)
 
 
+async def _on_trajet(message: aio_pika.IncomingMessage) -> None:
+    """Fige (démarrage) ou purge (fin) la route de référence d'un bus pour la déviation."""
+    async with message.process():
+        try:
+            node = json.loads(message.body.decode())
+        except Exception:
+            return
+        bus_id = node.get("busId")
+        statut = node.get("statut", "")
+        if bus_id is None:
+            return
+        try:
+            bus_id = int(bus_id)
+        except Exception:
+            return
+        if statut == "EN_COURS":
+            geo = node.get("geometrie")
+            pts: list[tuple[float, float]] = []
+            if geo:
+                try:
+                    raw = json.loads(geo) if isinstance(geo, str) else geo
+                    pts = [(float(p[0]), float(p[1])) for p in raw if p and len(p) >= 2]
+                except Exception as exc:
+                    logger.warning("[MS11] Géométrie de trajet illisible (bus %s) : %s", bus_id, exc)
+            if pts:
+                set_route(bus_id, pts)
+                logger.info("[MS11] Route figée pour bus %s (%d points) → surveillance déviation active", bus_id, len(pts))
+            else:
+                logger.info("[MS11] Trajet démarré bus %s sans géométrie → déviation inactive", bus_id)
+        else:  # TERMINE (ou autre)
+            clear_route(bus_id)
+            logger.info("[MS11] Route purgée pour bus %s → surveillance déviation arrêtée", bus_id)
+
+
 async def start_consumer() -> None:
     global _exchange
     try:
@@ -66,6 +100,13 @@ async def start_consumer() -> None:
         queue = await channel.declare_queue("ms11.gps.queue", durable=True)
         await queue.bind(exchange, routing_key="gps.bus.updated")
         await queue.consume(_on_message)
-        logger.info("[MS11] Consumer RabbitMQ démarré (gps.bus.updated → monitor anomalies live)")
+
+        # Cycle de vie des trajets (MS1) → fige/purge la route de référence (déviation UC-8)
+        tq = await channel.declare_queue("ms11.trajet.queue", durable=True)
+        await tq.bind(exchange, routing_key="trajet.demarre")
+        await tq.bind(exchange, routing_key="trajet.termine")
+        await tq.consume(_on_trajet)
+
+        logger.info("[MS11] Consumer RabbitMQ démarré (gps.bus.updated + trajet.* → monitor anomalies live)")
     except Exception as exc:
         logger.error("[MS11] RabbitMQ inaccessible : %s — monitor GPS live désactivé", exc)

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms4notifications.entity.Notification.TypeNotification;
+import ma.transport.ms4notifications.service.BusLookupService;
 import ma.transport.ms4notifications.service.FcmService;
 import ma.transport.ms4notifications.service.ParentLookupService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -25,6 +26,7 @@ public class NotificationListener {
 
     private final FcmService          fcmService;
     private final ParentLookupService parentLookup;
+    private final BusLookupService    busLookup;
     private final ObjectMapper        objectMapper;
 
     // Coordonnées de l'école (à adapter selon le projet)
@@ -75,6 +77,15 @@ public class NotificationListener {
                 fcmService.envoyerAuParent(parentId, TypeNotification.INCIDENT_RESOLU,
                                            titre, corps, incidentId, "INCIDENT")
             );
+
+            // Notifier aussi le chauffeur du bus (il peut reprendre)
+            Long chauffeurId = busLookup.getChauffeurParBus(busId);
+            if (chauffeurId != null) {
+                fcmService.envoyerAuParent(chauffeurId, TypeNotification.INCIDENT_RESOLU,
+                        "✅ Incident résolu — bus en route",
+                        "L'incident sur votre bus est résolu, vous pouvez reprendre.",
+                        incidentId, "CHAUFFEUR");
+            }
 
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement incident.resolu : {}", e.getMessage());
@@ -149,13 +160,20 @@ public class NotificationListener {
             Long eleveId    = node.get("eleveId").asLong();
             Long parentId   = node.hasNonNull("parentId") ? node.get("parentId").asLong() : null;
             String nom      = node.hasNonNull("nom") ? node.get("nom").asText() : "Votre enfant";
+            boolean present = node.path("present").asBoolean(true);
             if (parentId == null) return;
 
-            String titre = "🎒 Enfant à bord";
-            String corps = String.format("%s est bien monté dans le bus.", nom);
-
-            fcmService.envoyerAuParent(parentId, TypeNotification.ENFANT_A_BORD,
-                                       titre, corps, eleveId, "ELEVE");
+            String titre; String corps; TypeNotification type;
+            if (present) {   // montée (matin)
+                titre = "🎒 Enfant à bord";
+                corps = String.format("%s est bien monté dans le bus.", nom);
+                type = TypeNotification.ENFANT_A_BORD;
+            } else {         // dépose (soir)
+                titre = "🏡 Enfant déposé";
+                corps = String.format("%s a été déposé à son arrêt.", nom);
+                type = TypeNotification.ENFANT_DEPOSE;
+            }
+            fcmService.envoyerAuParent(parentId, type, titre, corps, eleveId, "ELEVE");
 
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement eleve.presence.updated : {}", e.getMessage());
@@ -195,6 +213,29 @@ public class NotificationListener {
             fcmService.envoyerAuParent(null, TypeNotification.ANOMALIE_DETECTEE, titre, corps, busId, "ADMIN");
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement anomalie.detectee : {}", e.getMessage());
+        }
+    }
+
+    // ─── 8. Canal admin — trajets démarrés/terminés par les chauffeurs (MS1) ──
+
+    @RabbitListener(queues = "ms4.trajet.queue")
+    public void onTrajet(String message) {
+        log.info("[MS4] 📨 trajet.* reçu");
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            String statut = node.path("statut").asText("EN_COURS");
+            String sens = node.path("sens").asText("");
+            Long busId = node.hasNonNull("busId") ? node.get("busId").asLong() : null;
+            String matricule = node.path("matricule").asText("?");
+            Long chauffeurId = node.hasNonNull("chauffeurId") ? node.get("chauffeurId").asLong() : null;
+            boolean demarre = "EN_COURS".equals(statut);
+            String titre = demarre ? "🚌 Trajet démarré" : "🏁 Trajet terminé";
+            String corps = String.format("Trajet %s %s — chauffeur #%s, bus %s.",
+                    sens.toLowerCase(), demarre ? "démarré" : "terminé", chauffeurId, matricule);
+            TypeNotification type = demarre ? TypeNotification.TRAJET_DEMARRE : TypeNotification.TRAJET_TERMINE;
+            fcmService.envoyerAuParent(null, type, titre, corps, busId, "ADMIN");
+        } catch (Exception e) {
+            log.error("[MS4] Erreur traitement trajet.* : {}", e.getMessage());
         }
     }
 

@@ -1,7 +1,8 @@
 import { api } from "./client";
 import type {
   AuthResponse, Bus, Eleve, EleveInput, Incident, IncidentStats, LiveAnomaly,
-  NotifStats, NotificationItem, ProductionResult, StatutIncident, User, UserInput,
+  IncidentInput, NotifStats, NotificationItem, ProductionResult, StatutIncident,
+  Trajet, SensTrajet, User, UserInput,
 } from "./types";
 
 // Endpoints lourds (OSRM + clustering) : le timeout global de 20 s ne suffit pas.
@@ -36,10 +37,23 @@ export const deleteEleve = (id: number) => api.delete(`/api/eleves/${id}`).then(
 
 // ── Incidents (MS10) ─────────────────────────────────────────
 export const getIncidents = () => api.get<Incident[]>("/api/incidents").then((r) => r.data);
+export const getIncidentsByBus = (busId: number) => api.get<Incident[]>(`/api/incidents/bus/${busId}`).then((r) => r.data);
+export const createIncident = (p: IncidentInput) => api.post<Incident>("/api/incidents", p).then((r) => r.data);
 export const getIncidentStats = () => api.get<IncidentStats>("/api/incidents/stats").then((r) => r.data);
 export const changeIncidentStatut = (id: number, statut: StatutIncident, notesResolution?: string) =>
   api.patch<Incident>(`/api/incidents/${id}/statut`, { statut, notesResolution }).then((r) => r.data);
 export const deleteIncident = (id: number) => api.delete(`/api/incidents/${id}`).then((r) => r.data);
+
+// ── Trajets (MS1) ────────────────────────────────────────────
+// geometrie [[lat,lng],…] = tournée planifiée figée au démarrage (référence de déviation MS11)
+export const demarrerTrajet = (busId: number, sens: SensTrajet, groupeId?: number | null, geometrie?: [number, number][]) =>
+  api.post<Trajet>("/api/trajets/demarrer", { busId, sens, groupeId, geometrie }).then((r) => r.data);
+export const terminerTrajet = (id: number) =>
+  api.post<Trajet>(`/api/trajets/${id}/terminer`).then((r) => r.data);
+export const getMonTrajetActif = () =>
+  api.get<Trajet | "">("/api/trajets/mon-actif").then((r) => (r.status === 204 ? null : r.data) as Trajet | null);
+export const getTrajetsActifs = () => api.get<Trajet[]>("/api/trajets/actifs").then((r) => r.data);
+export const getMesTrajets = () => api.get<Trajet[]>("/api/trajets/mes-trajets").then((r) => r.data);
 
 // ── GPS (MS3) ────────────────────────────────────────────────
 export const getPositionsBus = () =>
@@ -73,6 +87,10 @@ export const getTournees = (sens: "matin" | "soir" = "matin") =>
 export const getNotifications = () =>
   api.get<NotificationItem[]>("/api/notifications").then((r) => r.data);
 export const getNotifStats = () => api.get<NotifStats>("/api/notifications/stats").then((r) => r.data);
+export const getMesNotifications = () =>
+  api.get<NotificationItem[]>("/api/notifications/mes-notifications").then((r) => r.data);
+export const sendMessageChauffeur = (p: { destinataireId: number; titre: string; message: string }) =>
+  api.post("/api/notifications/message", p).then((r) => r.data);
 
 // ── Analytique / anomalies (MS11) ────────────────────────────
 export const getLiveAnomalies = (limit = 20) =>
@@ -100,3 +118,4 @@ export const getUsers = (role?: string) =>
 export const createUser = (p: UserInput) => api.post<User>("/api/auth/users", p).then((r) => r.data);
 export const updateUser = (id: number, p: UserInput) => api.put<User>(`/api/auth/users/${id}`, p).then((r) => r.data);
 export const deleteUser = (id: number) => api.delete(`/api/auth/users/${id}`).then((r) => r.data);
+

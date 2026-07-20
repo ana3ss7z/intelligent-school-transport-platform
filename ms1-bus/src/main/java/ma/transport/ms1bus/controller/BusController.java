@@ -47,6 +47,12 @@ public class BusController {
         return ResponseEntity.ok(service.listerParStatut(StatutBus.ACTIF));
     }
 
+    /** Route interne (MS4 → MS1, sans JWT) : chauffeur d'un bus (notif chauffeur sur incident). */
+    @GetMapping("/{id}/chauffeur")
+    public ResponseEntity<Long> chauffeurDuBus(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id).getChauffeurId());
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
 

@@ -55,6 +55,12 @@ public class RabbitMQConfig {
         return new Queue("ms4.anomalie.queue", true);
     }
 
+    // Canal admin : trajets démarrés/terminés par les chauffeurs (MS1)
+    @Bean
+    public Queue ms4TrajetQueue() {
+        return new Queue("ms4.trajet.queue", true);
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -90,6 +96,16 @@ public class RabbitMQConfig {
                                         TopicExchange transportExchange) {
         return BindingBuilder.bind(ms4ElevePresenceQueue)
                 .to(transportExchange).with("eleve.presence.updated");
+    }
+
+    @Bean
+    public Binding bindingTrajetDemarre(Queue ms4TrajetQueue, TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4TrajetQueue).to(transportExchange).with("trajet.demarre");
+    }
+
+    @Bean
+    public Binding bindingTrajetTermine(Queue ms4TrajetQueue, TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4TrajetQueue).to(transportExchange).with("trajet.termine");
     }
 
     @Bean

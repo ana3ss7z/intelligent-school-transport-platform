@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     seuil_vitesse_kmh: float = 90.0   # vitesse anormale au-delà (bus scolaire urbain)
     arret_rayon_m: float = 30.0       # déplacement en deçà duquel le bus est considéré immobile
 
+    # ── Déviation d'itinéraire (UC-8, 3ᵉ signal) : nécessite la route figée au démarrage du trajet (MS1) ──
+    seuil_deviation_m: float = 250.0          # écart max toléré entre la position et la tournée planifiée
+    deviation_pings_consecutifs: int = 2      # nb de pings hors couloir avant de déclencher (anti-faux positif)
+
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", protected_namespaces=()
     )

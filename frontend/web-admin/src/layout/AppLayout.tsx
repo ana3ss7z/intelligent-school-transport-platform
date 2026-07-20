@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Map, Network, Bell, GraduationCap, Bus as BusIcon,
-  Siren, ShieldAlert, Users as UsersIcon, Clock, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
+  Siren, ShieldAlert, Users as UsersIcon, Clock, Route as RouteIcon, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
 } from "lucide-react";
 import type { Role } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
@@ -13,14 +13,21 @@ interface NavItem { to: string; label: string; Icon: typeof Map; roles: Role[]; 
 
 const NAV: NavItem[] = [
   { to: "/", label: "Tableau de bord", Icon: LayoutDashboard, roles: ["ADMIN"] },
-  { to: "/carte", label: "Carte live", Icon: Map, roles: ["ADMIN", "CHAUFFEUR", "PARENT"] },
+  { to: "/chauffeur", label: "Ma tournée", Icon: RouteIcon, roles: ["CHAUFFEUR"] },
+  { to: "/chauffeur/carte", label: "Carte", Icon: Map, roles: ["CHAUFFEUR"] },
+  { to: "/chauffeur/eta", label: "ETA tournée", Icon: Clock, roles: ["CHAUFFEUR"] },
+  { to: "/chauffeur/incidents", label: "Mes incidents", Icon: Siren, roles: ["CHAUFFEUR"] },
+  { to: "/chauffeur/notifications", label: "Mes notifications", Icon: Bell, roles: ["CHAUFFEUR"] },
+  { to: "/chauffeur/historique", label: "Mes trajets", Icon: Clock, roles: ["CHAUFFEUR"] },
+  { to: "/carte", label: "Carte live", Icon: Map, roles: ["ADMIN", "PARENT"] },
   { to: "/clustering", label: "Clustering", Icon: Network, roles: ["ADMIN"] },
-  { to: "/eta", label: "Prévisions ETA", Icon: Clock, roles: ["ADMIN", "CHAUFFEUR"] },
+  { to: "/trajets", label: "Trajets en cours", Icon: RouteIcon, roles: ["ADMIN"] },
+  { to: "/eta", label: "Prévisions ETA", Icon: Clock, roles: ["ADMIN"] },
   { to: "/incidents", label: "Incidents", Icon: Siren, roles: ["ADMIN"] },
   { to: "/anomalies", label: "Analytique", Icon: ShieldAlert, roles: ["ADMIN"] },
-  { to: "/notifications", label: "Notifications", Icon: Bell, roles: ["ADMIN", "CHAUFFEUR", "PARENT"] },
-  { to: "/eleves", label: "Élèves", Icon: GraduationCap, roles: ["ADMIN", "CHAUFFEUR"] },
-  { to: "/bus", label: "Bus & tournées", Icon: BusIcon, roles: ["ADMIN", "CHAUFFEUR"] },
+  { to: "/notifications", label: "Notifications", Icon: Bell, roles: ["ADMIN"] },
+  { to: "/eleves", label: "Élèves", Icon: GraduationCap, roles: ["ADMIN"] },
+  { to: "/bus", label: "Bus & tournées", Icon: BusIcon, roles: ["ADMIN"] },
   { to: "/users", label: "Utilisateurs", Icon: UsersIcon, roles: ["ADMIN"] },
   { to: "/settings", label: "Paramètres", Icon: SettingsIcon, roles: ["ADMIN"] },
 ];

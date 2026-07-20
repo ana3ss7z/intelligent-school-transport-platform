@@ -88,6 +88,13 @@ spring:
           filters:
             - JwtAuthFilter
 
+        - id: ms1-trajets
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/trajets/**
+          filters:
+            - JwtAuthFilter
+
         - id: ms2-eleves
           uri: http://localhost:8082
           predicates:

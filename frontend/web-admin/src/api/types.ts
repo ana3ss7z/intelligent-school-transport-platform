@@ -111,6 +111,28 @@ export interface Incident {
   notesResolution: string | null;
 }
 
+export type SensTrajet = "MATIN" | "SOIR";
+export type StatutTrajet = "EN_COURS" | "TERMINE";
+export interface Trajet {
+  id: number;
+  busId: number;
+  matricule: string;
+  chauffeurId: number;
+  sens: SensTrajet;
+  statut: StatutTrajet;
+  heureDebut: string;
+  heureFin: string | null;
+  groupeId?: number | null;
+}
+
+export interface IncidentInput {
+  type: TypeIncident;
+  busId: number;
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface IncidentStats {
   total?: number;
   signale?: number;

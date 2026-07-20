@@ -159,18 +159,19 @@ public class EleveService {
         eleve.setStatutPresence(present);
         repo.save(eleve);
 
-        // Montée confirmée → notifier le parent (« enfant à bord »). MS4 consomme eleve.presence.updated.
-        if (Boolean.TRUE.equals(present) && eleve.getParentId() != null) {
+        // Changement de présence → notifier le parent : montée (matin, present=true) OU dépose (soir, present=false).
+        // MS4 consomme eleve.presence.updated et choisit le message selon `present`.
+        if (eleve.getParentId() != null) {
             try {
                 Map<String, Object> payload = new java.util.HashMap<>();
                 payload.put("eleveId", eleve.getId());
                 payload.put("parentId", eleve.getParentId());
                 payload.put("busId", eleve.getBusId());
                 payload.put("nom", eleve.getPrenom() + " " + eleve.getNom());
-                payload.put("present", true);
+                payload.put("present", Boolean.TRUE.equals(present));
                 rabbitTemplate.convertAndSend("transport.exchange", "eleve.presence.updated",
                         objectMapper.writeValueAsString(payload));
-                log.info("[MS2] Présence publiée — élève={} parent={}", eleve.getId(), eleve.getParentId());
+                log.info("[MS2] Présence publiée — élève={} parent={} present={}", eleve.getId(), eleve.getParentId(), present);
             } catch (Exception e) {
                 log.warn("[MS2] Publication eleve.presence.updated échouée : {}", e.getMessage());
             }
