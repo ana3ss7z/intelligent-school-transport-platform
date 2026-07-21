@@ -110,11 +110,14 @@ flowchart TB
 
 ---
 
-## 🖥️ Console d'administration (web-admin)
+## 🖥️ Interfaces web — 3 rôles (web-admin)
 
 Application **React 18 + Vite + TypeScript** (gestionnaire **Bun**, **Tailwind CSS v4**, react-leaflet, Recharts),
 consommant exclusivement la **Gateway** (JWT) et le **WebSocket GPS**. Design **« signalétique / plan de transport »**
-distinctif (thème clair/sombre), code-splitting par route, RBAC par rôle. Dossier [`frontend/web-admin/`](frontend/web-admin/).
+distinctif (thème clair/sombre), code-splitting par route, **RBAC par rôle : ADMIN · CHAUFFEUR · PARENT** (menu et
+routes filtrés). Dossier [`frontend/web-admin/`](frontend/web-admin/).
+
+**Espace ADMIN**
 
 | Page | Contenu |
 |------|---------|
@@ -122,11 +125,26 @@ distinctif (thème clair/sombre), code-splitting par route, RBAC par rôle. Doss
 | **Carte live** | Bus en temps réel (**mouvement interpolé**, traînées, flèches de sens, arrêts numérotés, **pulse d'anomalie**, **ETA live → école**), tournées OSRM |
 | **Clustering** | Lancer/appliquer, **Pareto**, diagnostics, verdict qualité, **carte des clusters** (enveloppes convexes + filtres) : dernier résultat DB **+ carte de prévisualisation** d'une simulation |
 | **Prévisions ETA** | Heure d'arrivée estimée **à chaque arrêt** d'une tournée (ramassage / dépose) |
+| **Trajets en cours** | Tableau live des chauffeurs en tournée (temps réel) |
 | **Incidents · Analytique · Notifications** | Suivi des incidents (MS10), scan d'anomalies (MS11), journal des notifications |
+| **Messagerie** | Conversations **admin ↔ chauffeurs** (chat + non-lus) |
 | **Élèves · Bus · Utilisateurs** | **CRUD complet** ; liaison **parent↔enfant** et **chauffeur↔bus** ; présence ; pagination/tri ; export **CSV** |
 | **Paramètres** | Préférences (défauts clustering) + seuils backend |
 
-> Finition « produit » : toasts, error boundary, skeletons, modales de confirmation, **command palette ⌘K**, navigation mobile.
+**Espace CHAUFFEUR** — Ma tournée (cycle de vie **Trajet** démarrer/terminer, **pointage** montée/dépose, **arrêt
+courant** + distance, ETA), Carte/ETA de son bus, Mes incidents, **Messagerie** (↔ admin + **diffusion aux parents**
+de son groupe), Mes notifications, **Mes trajets** (historique).
+
+**Espace PARENT** — Mon espace (enfants + bus + présence + **compte à rebours « bus arrive dans ~N min »** vers
+l'école le matin / le domicile le soir, **si un trajet est démarré**), Carte de mon enfant (bus filtré + ETA),
+Messagerie (**réception** des diffusions), Notifications.
+
+**Déviation d'itinéraire (UC-8)** : au démarrage d'un trajet, la tournée (géométrie OSRM) est figée ; **MS11**
+surveille l'écart position ↔ route et lève une anomalie `DEVIATION_ITINERAIRE`.
+
+> Finition « produit » : toasts, error boundary, skeletons, modales de confirmation, **command palette ⌘K**,
+> navigation mobile. Panneau de tests e2e : [`html_tests/simulation-control.html`](html_tests/simulation-control.html)
+> (pilote tous les scénarios ciblés sur un chauffeur/bus et s'observe dans les pages React).
 
 ---
 

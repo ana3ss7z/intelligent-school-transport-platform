@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 17 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + intégration temps réel (e2e) + **console d'administration web (React/Vite)** livrée
+## État au 21 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** livrés
 
 ---
 
@@ -35,6 +35,35 @@ Infra pro : toasts, ErrorBoundary, skeletons, dialogues de confirmation, command
 anti-auto-suppression) ; MS3 fix WebSocket (`ConcurrentWebSocketSessionDecorator` — écritures concurrentes) ;
 MS5 `/tournees` parallélisé (`asyncio.gather` + OR-Tools en thread, ~43 s→9 s) ; MS6 `/production` renvoie
 `assignments` (affectation par élève, pour prévisualisation carte même non appliquée) ; `bus_simulator.py` v2 data-driven.
+
+**NOUVEAU (21/07) — Espace CHAUFFEUR + espace PARENT + messagerie + déviation (web-admin RBAC, 3 rôles) :**
+- **Espace chauffeur** (`ChauffeurHome` + pages) : cycle de vie **Trajet** (entité MS1 `trajets`, démarrer/terminer),
+  **pointage** montée/dépose (→ notif parent), **arrêt courant** surligné + distance, carte/ETA de son bus,
+  incidents, **historique** (`GET /api/trajets/mes-trajets`), notifs entrantes (incident résolu de son bus + messages).
+  Tableau admin **« Trajets en cours »** (`GET /api/trajets/actifs`).
+- **Déviation d'itinéraire (UC-8 3/3)** : au démarrage, le front envoie `groupeId` + `geometrie` (tournée MS5) ;
+  MS1 les persiste sur le `Trajet` et les diffuse (`trajet.demarre`) ; **MS11** (queue `ms11.trajet.queue`) fige la
+  route et détecte `DEVIATION_ITINERAIRE` (distance point→polyligne > seuil) → `anomalie.detectee` + `/live`.
+  Purge à `trajet.termine`. Seuils `.env` MS11 : `SEUIL_DEVIATION_M`, `DEVIATION_PINGS_CONSECUTIFS`.
+- **Messagerie (MS4, entité `Message` dédiée)** : **chauffeur ↔ administration** en conversation/chat avec
+  historique + lu/non-lu + badge (`/api/messages` : envoyer, ma-conversation, conversations, conversation/{id},
+  non-lus). Route gateway `ms4-messages` (`/api/messages/**`). *(Remplace l'ancien POST /notifications/message.)*
+- **Espace PARENT** : **Mon espace** (enfants + bus + présence + **compte à rebours** « bus arrive dans ~N min »
+  vers école (matin) ou domicile (soir), **seulement si trajet démarré** via `GET /api/trajets/bus/{id}/actif`),
+  **Carte de mon enfant** (bus filtré + ETA), **Messagerie réception seule** (`GET /api/messages/parent`),
+  **Notifications**. **Diffusion chauffeur → tous les parents du groupe** (`POST /api/messages/diffusion?busId=`,
+  flag `Message.diffusion`, isolée des fils). MS12 `/api/eta/predict` ouvert au rôle **PARENT**.
+- **Deltas back** : MS1 `Trajet` (+`groupeId`,`geometrie`) + `/api/trajets/{mon-actif,mes-trajets,bus/{id}/actif,demarrer,{id}/terminer}` + route interne `/api/bus/{id}/chauffeur` (permitAll) ; MS2 présence publiée aussi sur `false` (dépose soir) ; MS4 `BusLookupService`, listener incident→chauffeur, enum `ENFANT_DEPOSE/TRAJET_*/MESSAGE_ADMIN`.
+- **Panneau de simulation** `html_tests/simulation-control.html` : pilote **tous les scénarios** ciblés sur un
+  chauffeur/bus (trajet, mouvement GPS, présence, anomalies, déviation, incident, diffusion, message) en HTTP via la
+  Gateway, connecté comme admin+chauffeur+parent, avec journal live + liens vers les pages React à observer.
+- **Fix** : `usePolling` n'utilise plus `useTransition` (rendu concurrent) → un simple booléen `refreshing` (élimine
+  l'erreur récupérable React #520 sur dashboard/incidents/notifications, même UX).
+- **Migration DB** (base existante) : `ALTER TABLE messages ADD COLUMN IF NOT EXISTS diffusion boolean NOT NULL
+  DEFAULT false;` et `ALTER TABLE notifications` CHECK complété (`ENFANT_DEPOSE, TRAJET_DEMARRE, TRAJET_TERMINE,
+  MESSAGE_ADMIN`) — Hibernate `ddl-auto=update` n'ajoute pas une colonne NOT NULL sur table peuplée ni ne met à jour un CHECK.
+- **Validation navigateur (Chrome réel, puppeteer)** : admin (13 pages), chauffeur (7), parent (4) — rendus OK,
+  0 erreur bloquante. Briques IA re-vérifiées UP + résultats conformes (MS6 k=6/silhouette 0.52, MS12 elasticnet +52.7 %, MS11 iforest_curated PR-AUC 0.91, MS5 TSP OSRM).
 
 **Prochaine grande brique : MS9 chatbot LLM (S9).**
 
@@ -587,9 +616,13 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | `eta.bus.arriving` | **MS12** | MS4 | `ms4.eta.arriving.queue` ← **NOUVEAU** |
 | `eleve.presence.updated` | **MS2** | MS4 | `ms4.eleve.presence.queue` ← **NOUVEAU (G5 « enfant à bord »)** |
 | `clustering.quality.low` | **MS6** | MS4 | `ms4.quality.queue` ← **NOUVEAU (canal admin D1 — alerte qualité)** |
-| `anomalie.detectee` | **MS11** | MS4 | `ms4.anomalie.queue` ← **NOUVEAU (canal admin D1 — anomalie GPS)** |
+| `anomalie.detectee` | **MS11** | MS4 | `ms4.anomalie.queue` ← **NOUVEAU (canal admin D1 — anomalie GPS + déviation)** |
 | `incident.signale` | MS10 | MS4 | `ms4.incident.signale.queue` |
 | `incident.resolu` | MS10 | MS4 | `ms4.incident.resolu.queue` |
+| `trajet.demarre` | **MS1** | MS4 | `ms4.trajet.queue` ← **NOUVEAU (alerte admin trajet démarré)** |
+| `trajet.termine` | **MS1** | MS4 | `ms4.trajet.queue` ← **NOUVEAU (alerte admin trajet terminé)** |
+| `trajet.demarre` | **MS1** | **MS11** | `ms11.trajet.queue` ← **NOUVEAU (fige la route → surveillance déviation UC-8)** |
+| `trajet.termine` | **MS1** | **MS11** | `ms11.trajet.queue` ← **NOUVEAU (purge la route de référence)** |
 
 > **Pipeline ETA temps réel (G1) :** `MS3 gps.bus.updated → MS12` calcule l'ETA bus→école (modèle + OSRM),
 > et dès que l'ETA ≤ `ETA_ALERT_MIN` (10 min) publie `eta.bus.arriving → MS4` qui pousse la notification
@@ -623,6 +656,7 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 
 | Fichier | Service(s) | Statut |
 |---------|-----------|--------|
+| **`html_tests/simulation-control.html`** | **TOUS rôles** — panneau de simulation e2e : choisir chauffeur/parent, démarrer trajet, animer le GPS, présence, anomalies, **déviation**, incident+résolution, diffusion, message ; observer dans les pages React | ✅ **tests finaux** |
 | **`html_tests/test-console.html`** | **TOUS** (Auth/Bus/Élèves/GPS/Clustering/Incidents/Notif) — console unifiée + cartes Leaflet (nuages de clusters + bus temps réel) | ✅ **principal** |
 | `html_tests/test-gps.html` | MS3 WebSocket GPS | ✅ |
 | `html_tests/map-gps.html` | MS3 + OSRM Leaflet | ✅ |
