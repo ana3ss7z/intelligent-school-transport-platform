@@ -35,18 +35,25 @@ export function ParentHome() {
     return () => { alive = false; clearInterval(t); };
   }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ETA par enfant vers la destination selon le sens (école le matin, domicile le soir) — SI trajet démarré
+  // ETA par enfant vers la destination selon le sens (école le matin, domicile le soir) — SI trajet démarré.
+  // Deps = clés PRIMITIVES stables (pas d'objets) + lecture via refs → pas de boucle de rendu.
   const [etas, setEtas] = useState<Record<number, number>>({});
-  const posRef = useRef(positions);
-  posRef.current = positions;
+  const enfantsRef = useRef(enfants); enfantsRef.current = enfants;
+  const busByIdRef = useRef(busById); busByIdRef.current = busById;
+  const trajetsRef = useRef(trajets); trajetsRef.current = trajets;
+  const posRef = useRef(positions); posRef.current = positions;
+
+  const enfantsKey = enfants.map((e) => `${e.id}:${e.busId}`).join("|");
+  const trajetsKey = busIds.map((id) => `${id}:${trajets[id]?.sens ?? "-"}`).join("|");
+
   useEffect(() => {
     let alive = true;
     const compute = async () => {
-      const res = await Promise.all(enfants.map(async (e) => {
+      const res = await Promise.all(enfantsRef.current.map(async (e) => {
         const busId = e.busId;
-        const trajet = busId != null ? trajets[busId] : null;
+        const trajet = busId != null ? trajetsRef.current[busId] : null;
         if (busId == null || !trajet) return [e.id, null] as const;
-        const bus = busById.get(busId);
+        const bus = busByIdRef.current.get(busId);
         const live = posRef.current[busId];
         const lat = live?.latitude ?? bus?.latitude;
         const lng = live?.longitude ?? bus?.longitude;
@@ -63,7 +70,7 @@ export function ParentHome() {
     compute();
     const t = setInterval(compute, 30000);
     return () => { alive = false; clearInterval(t); };
-  }, [enfants, trajets, busById]);
+  }, [enfantsKey, trajetsKey]);
 
   if (loading) return <Spinner label="Chargement de vos enfants…" />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
