@@ -116,6 +116,13 @@ spring:
           filters:
             - JwtAuthFilter
 
+        - id: ms4-messages
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/messages/**
+          filters:
+            - JwtAuthFilter
+
         - id: ms5-planification
           uri: http://localhost:8085
           predicates:

@@ -1,7 +1,7 @@
 import { api } from "./client";
 import type {
-  AuthResponse, Bus, Eleve, EleveInput, Incident, IncidentStats, LiveAnomaly,
-  IncidentInput, NotifStats, NotificationItem, ProductionResult, StatutIncident,
+  AuthResponse, Bus, Conversation, Eleve, EleveInput, Incident, IncidentStats, LiveAnomaly,
+  IncidentInput, Message, NotifStats, NotificationItem, ProductionResult, StatutIncident,
   Trajet, SensTrajet, User, UserInput,
 } from "./types";
 
@@ -16,6 +16,8 @@ export const login = (email: string, motDePasse: string) =>
 export const getEleves = () => api.get<Eleve[]>("/api/eleves").then((r) => r.data);
 export const getElevesParBus = (busId: number) =>
   api.get<Eleve[]>(`/api/eleves/bus/${busId}`).then((r) => r.data); // ordonné par ordrePassage
+export const getElevesParParent = (parentId: number) =>
+  api.get<Eleve[]>(`/api/eleves/parent/${parentId}`).then((r) => r.data);
 export const setPresence = (id: number, present: boolean) =>
   api.patch(`/api/eleves/${id}/presence?present=${present}`).then((r) => r.data);
 
@@ -89,8 +91,22 @@ export const getNotifications = () =>
 export const getNotifStats = () => api.get<NotifStats>("/api/notifications/stats").then((r) => r.data);
 export const getMesNotifications = () =>
   api.get<NotificationItem[]>("/api/notifications/mes-notifications").then((r) => r.data);
-export const sendMessageChauffeur = (p: { destinataireId: number; titre: string; message: string }) =>
-  api.post("/api/notifications/message", p).then((r) => r.data);
+
+// ── Messagerie (MS4) — chauffeur ↔ administration ────────────
+export const sendMessage = (p: { destinataireId?: number; contenu: string }) =>
+  api.post<Message>("/api/messages", p).then((r) => r.data);
+export const getMaConversation = () =>
+  api.get<Message[]>("/api/messages/ma-conversation").then((r) => r.data);
+export const getConversationsAdmin = () =>
+  api.get<Conversation[]>("/api/messages/conversations").then((r) => r.data);
+export const getConversation = (chauffeurId: number) =>
+  api.get<Message[]>(`/api/messages/conversation/${chauffeurId}`).then((r) => r.data);
+export const getUnreadMessages = () =>
+  api.get<{ count: number }>("/api/messages/non-lus").then((r) => r.data.count);
+export const diffuserParents = (busId: number, contenu: string) =>
+  api.post<{ parents: number }>(`/api/messages/diffusion?busId=${busId}`, { contenu }).then((r) => r.data);
+export const getParentInbox = () =>
+  api.get<Message[]>("/api/messages/parent").then((r) => r.data);
 
 // ── Analytique / anomalies (MS11) ────────────────────────────
 export const getLiveAnomalies = (limit = 20) =>

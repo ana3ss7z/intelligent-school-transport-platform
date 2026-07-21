@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Map, Network, Bell, GraduationCap, Bus as BusIcon,
-  Siren, ShieldAlert, Users as UsersIcon, Clock, Route as RouteIcon, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
+  Siren, ShieldAlert, Users as UsersIcon, Clock, Route as RouteIcon, MessageSquare, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
 } from "lucide-react";
 import type { Role } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../hooks/useTheme";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { CommandPalette } from "../components/CommandPalette";
 
 interface NavItem { to: string; label: string; Icon: typeof Map; roles: Role[]; }
@@ -19,7 +20,12 @@ const NAV: NavItem[] = [
   { to: "/chauffeur/incidents", label: "Mes incidents", Icon: Siren, roles: ["CHAUFFEUR"] },
   { to: "/chauffeur/notifications", label: "Mes notifications", Icon: Bell, roles: ["CHAUFFEUR"] },
   { to: "/chauffeur/historique", label: "Mes trajets", Icon: Clock, roles: ["CHAUFFEUR"] },
-  { to: "/carte", label: "Carte live", Icon: Map, roles: ["ADMIN", "PARENT"] },
+  { to: "/messages", label: "Messagerie", Icon: MessageSquare, roles: ["ADMIN", "CHAUFFEUR"] },
+  { to: "/parent", label: "Mon espace", Icon: LayoutDashboard, roles: ["PARENT"] },
+  { to: "/parent/carte", label: "Carte de mon enfant", Icon: Map, roles: ["PARENT"] },
+  { to: "/parent/messages", label: "Messagerie", Icon: MessageSquare, roles: ["PARENT"] },
+  { to: "/parent/notifications", label: "Notifications", Icon: Bell, roles: ["PARENT"] },
+  { to: "/carte", label: "Carte live", Icon: Map, roles: ["ADMIN"] },
   { to: "/clustering", label: "Clustering", Icon: Network, roles: ["ADMIN"] },
   { to: "/trajets", label: "Trajets en cours", Icon: RouteIcon, roles: ["ADMIN"] },
   { to: "/eta", label: "Prévisions ETA", Icon: Clock, roles: ["ADMIN"] },
@@ -33,7 +39,7 @@ const NAV: NavItem[] = [
 ];
 
 /** Contenu du rail « ligne + stations » — partagé entre le rail desktop et le drawer mobile. */
-function NavContent({ items, role, nom }: { items: NavItem[]; role: Role | null; nom?: string }) {
+function NavContent({ items, role, nom, unread }: { items: NavItem[]; role: Role | null; nom?: string; unread?: number }) {
   return (
     <>
       <div className="px-5 h-16 flex items-center gap-2.5 border-b border-line shrink-0">
@@ -61,6 +67,10 @@ function NavContent({ items, role, nom }: { items: NavItem[]; role: Role | null;
                     </span>
                     <Icon size={17} />
                     <span>{label}</span>
+                    {(to === "/messages" || to === "/parent/messages") && !!unread && (
+                      <span className="ml-auto grid place-items-center min-w-5 h-5 px-1 rounded-full text-white text-[10px] tabular"
+                        style={{ background: "var(--route)" }}>{unread}</span>
+                    )}
                   </>
                 )}
               </NavLink>
@@ -84,6 +94,7 @@ export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const items = NAV.filter((i) => (role ? i.roles.includes(role) : false));
+  const unread = useUnreadMessages(role === "ADMIN" || role === "CHAUFFEUR" || role === "PARENT");
 
   // Fermer le drawer au changement de route + sur Escape
   useEffect(() => { setDrawer(false); }, [location.pathname]);
@@ -98,7 +109,7 @@ export function AppLayout() {
     <div className="min-h-svh grid grid-cols-[248px_1fr] max-md:grid-cols-1">
       {/* Rail desktop */}
       <aside className="bg-panel border-r border-line flex flex-col max-md:hidden">
-        <NavContent items={items} role={role} nom={user?.nom} />
+        <NavContent items={items} role={role} nom={user?.nom} unread={unread} />
       </aside>
 
       {/* Drawer mobile */}
@@ -106,7 +117,7 @@ export function AppLayout() {
         <div className="fixed inset-0 z-[1050] md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <aside className="absolute left-0 top-0 h-full w-[264px] bg-panel border-r border-line flex flex-col toast-in">
-            <NavContent items={items} role={role} nom={user?.nom} />
+            <NavContent items={items} role={role} nom={user?.nom} unread={unread} />
           </aside>
         </div>
       )}

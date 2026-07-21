@@ -37,11 +37,11 @@ def _hhmm(heure_decimale: float) -> str:
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Vérifie le JWT émis par MS7 (même secret). ADMIN ou CHAUFFEUR autorisés."""
+    """Vérifie le JWT émis par MS7 (même secret). ADMIN, CHAUFFEUR ou PARENT autorisés (ETA lecture)."""
     try:
         payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=["HS256"])
-        if payload.get("role", "") not in ("ADMIN", "CHAUFFEUR"):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Accès réservé ADMIN/CHAUFFEUR")
+        if payload.get("role", "") not in ("ADMIN", "CHAUFFEUR", "PARENT"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Accès réservé ADMIN/CHAUFFEUR/PARENT")
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token expiré")

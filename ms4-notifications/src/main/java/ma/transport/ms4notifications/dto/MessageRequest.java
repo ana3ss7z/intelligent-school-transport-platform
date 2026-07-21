@@ -1,16 +1,16 @@
 package ma.transport.ms4notifications.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-/** Message libre envoyé par l'admin à un utilisateur (chauffeur). */
+/**
+ * Envoi d'un message de messagerie.
+ * - Admin : destinataireId = le chauffeur (requis).
+ * - Chauffeur : destinataireId ignoré (adressé à l'administration).
+ */
 @Data
 public class MessageRequest {
-    @NotNull
     private Long destinataireId;
     @NotBlank
-    private String titre;
-    @NotBlank
-    private String message;
+    private String contenu;
 }

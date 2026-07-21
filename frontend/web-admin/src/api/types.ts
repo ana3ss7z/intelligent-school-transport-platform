@@ -158,6 +158,27 @@ export interface UserInput {
   motDePasse?: string;
 }
 
+export interface Message {
+  id: number;
+  conversationChauffeurId: number;
+  expediteurId: number;
+  expediteurNom: string | null;
+  expediteurRole: Role;
+  destinataireId: number | null;
+  destinataireRole: Role;
+  contenu: string;
+  lu: boolean;
+  dateEnvoi: string;
+}
+
+export interface Conversation {
+  chauffeurId: number;
+  chauffeurNom: string | null;
+  dernierMessage: string;
+  dateDernier: string;
+  nonLus: number;
+}
+
 export interface EleveInput {
   nom: string;
   prenom: string;

@@ -3,9 +3,7 @@ package ma.transport.ms4notifications.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.transport.ms4notifications.dto.DeviceTokenRequest;
-import ma.transport.ms4notifications.dto.MessageRequest;
 import ma.transport.ms4notifications.dto.NotificationResponse;
-import ma.transport.ms4notifications.entity.Notification.TypeNotification;
 import ma.transport.ms4notifications.service.NotificationService;
 import ma.transport.mscommon.security.UserPrincipal;
 import org.springframework.http.ResponseEntity;
@@ -57,18 +55,6 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponse>> getMesNotifications(
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.getMesNotifications(principal.getUserId()));
-    }
-
-    /**
-     * POST /api/notifications/message
-     * L'admin envoie un message libre à un utilisateur (chauffeur). ADMIN seulement.
-     */
-    @PostMapping("/message")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> envoyerMessage(@Valid @RequestBody MessageRequest req) {
-        service.envoyerAuParent(req.getDestinataireId(), TypeNotification.MESSAGE_ADMIN,
-                req.getTitre(), req.getMessage(), null, "MESSAGE");
-        return ResponseEntity.ok().build();
     }
 
     /**

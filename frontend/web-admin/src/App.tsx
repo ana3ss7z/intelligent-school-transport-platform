@@ -25,12 +25,16 @@ const ChauffeurEta = lazy(() => import("./pages/ChauffeurEta").then((m) => ({ de
 const ChauffeurNotifs = lazy(() => import("./pages/ChauffeurNotifs").then((m) => ({ default: m.ChauffeurNotifs })));
 const ChauffeurHistorique = lazy(() => import("./pages/ChauffeurHistorique").then((m) => ({ default: m.ChauffeurHistorique })));
 const TrajetsEnCours = lazy(() => import("./pages/TrajetsEnCours").then((m) => ({ default: m.TrajetsEnCours })));
+const Messagerie = lazy(() => import("./pages/Messagerie").then((m) => ({ default: m.Messagerie })));
+const ParentHome = lazy(() => import("./pages/ParentHome").then((m) => ({ default: m.ParentHome })));
+const ParentCarte = lazy(() => import("./pages/ParentCarte").then((m) => ({ default: m.ParentCarte })));
+const ParentMessagerie = lazy(() => import("./pages/ParentMessagerie").then((m) => ({ default: m.ParentMessagerie })));
 
 /** Accueil selon le rôle (évite la boucle de redirection pour CHAUFFEUR/PARENT). */
 function RoleHome() {
   const { role } = useAuth();
   if (role === "CHAUFFEUR") return <Navigate to="/chauffeur" replace />;
-  if (role === "PARENT") return <Navigate to="/carte" replace />;
+  if (role === "PARENT") return <Navigate to="/parent" replace />;
   return <Suspense fallback={<Spinner />}><Dashboard /></Suspense>; // ADMIN
 }
 
@@ -46,6 +50,11 @@ export default function App() {
         <Route path="chauffeur/incidents" element={<RequireAuth roles={["CHAUFFEUR", "ADMIN"]}><Suspense fallback={<Spinner />}><ChauffeurIncidents /></Suspense></RequireAuth>} />
         <Route path="chauffeur/notifications" element={<RequireAuth roles={["CHAUFFEUR", "ADMIN"]}><Suspense fallback={<Spinner />}><ChauffeurNotifs /></Suspense></RequireAuth>} />
         <Route path="chauffeur/historique" element={<RequireAuth roles={["CHAUFFEUR", "ADMIN"]}><Suspense fallback={<Spinner />}><ChauffeurHistorique /></Suspense></RequireAuth>} />
+        <Route path="messages" element={<RequireAuth roles={["ADMIN", "CHAUFFEUR"]}><Suspense fallback={<Spinner />}><Messagerie /></Suspense></RequireAuth>} />
+        <Route path="parent" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentHome /></Suspense></RequireAuth>} />
+        <Route path="parent/carte" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentCarte /></Suspense></RequireAuth>} />
+        <Route path="parent/messages" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentMessagerie /></Suspense></RequireAuth>} />
+        <Route path="parent/notifications" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ChauffeurNotifs /></Suspense></RequireAuth>} />
         <Route path="carte" element={<Suspense fallback={<Spinner />}><CarteLive /></Suspense>} />
         <Route path="clustering" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Clustering /></Suspense></RequireAuth>} />
         <Route path="notifications" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Notifications /></Suspense></RequireAuth>} />

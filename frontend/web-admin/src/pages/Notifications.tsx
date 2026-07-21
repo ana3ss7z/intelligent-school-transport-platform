@@ -1,68 +1,14 @@
 import { useState } from "react";
-import { RefreshCw, Download, Send } from "lucide-react";
+import { RefreshCw, Download } from "lucide-react";
 import { usePolling } from "../hooks/usePolling";
-import { useAsync } from "../hooks/useAsync";
 import { useTableView } from "../hooks/useTableView";
-import { getNotifications, getNotifStats, getUsers, sendMessageChauffeur } from "../api/endpoints";
+import { getNotifications, getNotifStats } from "../api/endpoints";
 import type { NotificationItem } from "../api/types";
-import { Panel, Stat, StatusChip, SectionTitle, Button } from "../components/ui";
+import { Panel, Stat, StatusChip, SectionTitle } from "../components/ui";
 import { Pager, SortTh } from "../components/Pager";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
-import { useToast } from "../components/Toast";
 import { exportCsv } from "../lib/csv";
-
-/** Formulaire admin → message libre à un chauffeur. */
-function MessageChauffeur() {
-  const toast = useToast();
-  const { data: chauffeurs } = useAsync(() => getUsers("CHAUFFEUR"), []);
-  const [destinataireId, setDest] = useState<number | "">("");
-  const [titre, setTitre] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const envoyer = async () => {
-    if (destinataireId === "" || !titre.trim() || !message.trim()) {
-      toast.error("Choisis un chauffeur et remplis le titre + message."); return;
-    }
-    setBusy(true);
-    try {
-      await sendMessageChauffeur({ destinataireId: Number(destinataireId), titre: titre.trim(), message: message.trim() });
-      toast.success("Message envoyé au chauffeur.");
-      setTitre(""); setMessage("");
-    } catch (e: unknown) {
-      toast.error((e as { message?: string })?.message ?? "Échec de l'envoi");
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <Panel className="p-4">
-      <SectionTitle sub="notification directe">Message à un chauffeur</SectionTitle>
-      <div className="grid gap-3 sm:grid-cols-[220px_1fr_auto] items-end mt-2">
-        <div>
-          <label htmlFor="msg-dest" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Chauffeur</label>
-          <select id="msg-dest" value={destinataireId} onChange={(e) => setDest(e.target.value === "" ? "" : Number(e.target.value))}
-            className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route">
-            <option value="">— choisir —</option>
-            {(chauffeurs ?? []).map((c) => <option key={c.id} value={c.id}>{c.nom} (#{c.id})</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="msg-titre" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Titre</label>
-          <input id="msg-titre" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. Consigne du jour"
-            className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route" />
-        </div>
-        <Button onClick={envoyer} disabled={busy}><Send size={16} /> {busy ? "Envoi…" : "Envoyer"}</Button>
-      </div>
-      <div className="mt-3">
-        <label htmlFor="msg-corps" className="block text-[11px] font-mono uppercase tracking-wider text-ink-soft mb-1">Message</label>
-        <textarea id="msg-corps" value={message} onChange={(e) => setMessage(e.target.value)} rows={2}
-          placeholder="Texte du message…"
-          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-route resize-none" />
-      </div>
-    </Panel>
-  );
-}
 
 const ADMIN_TYPES = ["ALERTE_QUALITE", "ANOMALIE_DETECTEE"];
 const typeTone = (t: string) =>
@@ -109,8 +55,6 @@ export function Notifications() {
         <Stat label="Échecs" value={data!.stats?.echecs ?? 0} tone="alert" />
         <Stat label="Alertes admin" value={items.filter((n) => ADMIN_TYPES.includes(n.type)).length} tone="warn" />
       </div>
-
-      <MessageChauffeur />
 
       <Panel className="p-4">
         <div className="flex items-center justify-between mb-3 gap-2">
