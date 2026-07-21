@@ -56,4 +56,12 @@ public class TrajetController {
     public ResponseEntity<List<TrajetResponse>> mesTrajets(@AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(service.mesTrajets(user.getUserId()));
     }
+
+    /** Trajet EN_COURS d'un bus (suivi parent : ETA selon le sens). 204 si aucun. */
+    @GetMapping("/bus/{busId}/actif")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
+    public ResponseEntity<TrajetResponse> actifParBus(@PathVariable Long busId) {
+        TrajetResponse t = service.actifParBus(busId);
+        return t == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(t);
+    }
 }

@@ -56,6 +56,8 @@ export const getMonTrajetActif = () =>
   api.get<Trajet | "">("/api/trajets/mon-actif").then((r) => (r.status === 204 ? null : r.data) as Trajet | null);
 export const getTrajetsActifs = () => api.get<Trajet[]>("/api/trajets/actifs").then((r) => r.data);
 export const getMesTrajets = () => api.get<Trajet[]>("/api/trajets/mes-trajets").then((r) => r.data);
+export const getTrajetActifBus = (busId: number) =>
+  api.get<Trajet | "">(`/api/trajets/bus/${busId}/actif`).then((r) => (r.status === 204 ? null : r.data) as Trajet | null);
 
 // ── GPS (MS3) ────────────────────────────────────────────────
 export const getPositionsBus = () =>

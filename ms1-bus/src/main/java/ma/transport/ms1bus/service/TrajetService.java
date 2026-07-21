@@ -83,6 +83,12 @@ public class TrajetService {
                 .map(this::toResponse).orElse(null);
     }
 
+    /** Trajet EN_COURS d'un bus (pour le suivi parent : compte à rebours ETA selon le sens). */
+    public TrajetResponse actifParBus(Long busId) {
+        return repo.findFirstByBusIdAndStatut(busId, StatutTrajet.EN_COURS)
+                .map(this::toResponse).orElse(null);
+    }
+
     /** Historique des trajets terminés du chauffeur (les plus récents d'abord). */
     public List<TrajetResponse> mesTrajets(Long chauffeurId) {
         return repo.findByChauffeurIdAndStatutOrderByHeureDebutDesc(chauffeurId, StatutTrajet.TERMINE)
