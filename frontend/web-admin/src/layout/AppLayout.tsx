@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Map, Network, Bell, GraduationCap, Bus as BusIcon,
-  Siren, ShieldAlert, Users as UsersIcon, Clock, Route as RouteIcon, MessageSquare, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
+  Siren, ShieldAlert, Users as UsersIcon, Clock, Route as RouteIcon, MessageSquare, Sparkles, Settings as SettingsIcon, Sun, Moon, LogOut, Search, Menu,
 } from "lucide-react";
 import type { Role } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { to: "/chauffeur/historique", label: "Mes trajets", Icon: Clock, roles: ["CHAUFFEUR"] },
   { to: "/messages", label: "Messagerie", Icon: MessageSquare, roles: ["ADMIN", "CHAUFFEUR"] },
   { to: "/parent", label: "Mon espace", Icon: LayoutDashboard, roles: ["PARENT"] },
+  { to: "/parent/assistant", label: "Assistant", Icon: Sparkles, roles: ["PARENT"] },
   { to: "/parent/carte", label: "Carte de mon enfant", Icon: Map, roles: ["PARENT"] },
   { to: "/parent/messages", label: "Messagerie", Icon: MessageSquare, roles: ["PARENT"] },
   { to: "/parent/notifications", label: "Notifications", Icon: Bell, roles: ["PARENT"] },

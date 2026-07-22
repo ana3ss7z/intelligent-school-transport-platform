@@ -38,6 +38,7 @@ start "MS6 - Clustering (8086)"       cmd /k "cd /d %ROOT%ms6-clustering && %NLP
 start "MS12 - Prediction ETA (8088)"  cmd /k "cd /d %ROOT%ms12-prediction && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8088 --reload"
 start "MS11 - Analytique/Anomalies (8091)" cmd /k "cd /d %ROOT%ms11-analytique && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8091 --reload"
 start "MS5 - Planification/VRP (8085)" cmd /k "cd /d %ROOT%ms5-planification && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8085 --reload"
+start "MS9 - Assistant LLM (8089)"     cmd /k "cd /d %ROOT%ms9-llm && %NLP_PY% -m uvicorn main:app --host 0.0.0.0 --port 8089 --reload"
 echo.
 
 REM ---------- 4) API Gateway (en DERNIER) ----------
@@ -51,7 +52,7 @@ echo   Tous les services ont ete lances dans des terminaux
 echo   separes. Fermez une fenetre pour arreter le service.
 echo ============================================================
 echo   Java   : MS7:8087  MS1:8081  MS2:8082  MS3:8083  MS10:8090  MS4:8084  MS8(GW):8080
-echo   Python : MS6:8086  MS12:8088  MS11:8091  MS5:8085   (env nlp)
+echo   Python : MS6:8086  MS12:8088  MS11:8091  MS5:8085  MS9:8089   (env nlp)
 echo   ---------------------------------------------------------
 echo   Gateway : http://localhost:8080
 echo   Console : html_tests\test-console.html

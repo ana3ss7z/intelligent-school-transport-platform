@@ -110,6 +110,12 @@ export const diffuserParents = (busId: number, contenu: string) =>
 export const getParentInbox = () =>
   api.get<Message[]>("/api/messages/parent").then((r) => r.data);
 
+// ── Assistant LLM (MS9) ──────────────────────────────────────
+export interface ChatTurn { role: "user" | "assistant"; content: string }
+export interface ChatReply { reply: string; used_tools?: string[]; degraded?: boolean }
+export const chatLLM = (message: string, history: ChatTurn[] = []) =>
+  api.post<ChatReply>("/api/llm/chat", { message, history }, LONG).then((r) => r.data);
+
 // ── Analytique / anomalies (MS11) ────────────────────────────
 export const getLiveAnomalies = (limit = 20) =>
   api.get<{ n: number; anomalies: LiveAnomaly[] }>(`/api/analytique/live?limit=${limit}`).then((r) => r.data);

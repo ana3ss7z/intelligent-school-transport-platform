@@ -64,8 +64,9 @@ public class IncidentController {
      * Incidents d'un bus spécifique.
      */
     @GetMapping("/bus/{busId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
     public ResponseEntity<List<IncidentResponse>> getParBus(@PathVariable Long busId) {
+        // PARENT : la portée (bus de son enfant) est appliquée en amont par MS9 (assistant LLM).
         return ResponseEntity.ok(service.getParBus(busId));
     }
 
