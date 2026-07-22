@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     ecole_lat: float = 33.893
     ecole_lng: float = -5.5455
 
+    # ── Reverse geocoding (coordonnées → rue/quartier), OSM/Nominatim (gratuit, sans clé) ──
+    reverse_geocode: bool = True
+    nominatim_url: str = "https://nominatim.openstreetmap.org/reverse"
+    geo_lang: str = "fr"
+    geo_user_agent: str = "transport-scolaire-meknes/1.0 (PFE)"
+
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"
 

@@ -28,6 +28,41 @@ def _headers(ctx: ToolContext) -> dict:
     return {"Authorization": f"Bearer {ctx.bearer}"}
 
 
+# ── Reverse geocoding (coordonnées → rue/quartier) via Nominatim/OSM ──
+_geo_cache: dict[tuple[float, float], str] = {}
+
+
+async def reverse_geocode(lat: float, lng: float) -> str | None:
+    """Retourne un lieu lisible (rue, quartier, ville) pour des coordonnées. None si indisponible."""
+    if not settings.reverse_geocode or lat is None or lng is None:
+        return None
+    key = (round(lat, 4), round(lng, 4))          # cache (respecte les limites Nominatim)
+    if key in _geo_cache:
+        return _geo_cache[key]
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as c:
+            r = await c.get(settings.nominatim_url, headers={"User-Agent": settings.geo_user_agent}, params={
+                "lat": lat, "lon": lng, "format": "jsonv2", "accept-language": settings.geo_lang, "zoom": 16,
+            })
+        if r.status_code != 200:
+            return None
+        adr = (r.json() or {}).get("address", {}) or {}
+        rue = adr.get("road") or adr.get("pedestrian")
+        quartier = adr.get("neighbourhood") or adr.get("suburb") or adr.get("quarter") or adr.get("city_district")
+        ville = adr.get("city") or adr.get("town") or adr.get("village") or adr.get("municipality")
+        parts, seen = [], set()
+        for x in (rue, quartier, ville):
+            if x and x not in seen:
+                parts.append(x); seen.add(x)
+        lieu = ", ".join(parts) if parts else None
+        if lieu:
+            _geo_cache[key] = lieu
+        return lieu
+    except Exception as exc:
+        logger.warning("[MS9] reverse geocode échoué : %s", exc)
+        return None
+
+
 async def prefetch_children(ctx: ToolContext) -> list[dict]:
     """Récupère les enfants du parent (MS2) — appelé UNE fois par requête /chat."""
     async with httpx.AsyncClient(timeout=settings.http_timeout) as c:
@@ -111,7 +146,8 @@ async def execute_tool(ctx: ToolContext, name: str, args: dict) -> dict:
                         return {"position": None, "info": "Aucune position GPS récente pour ce bus."}
                     r.raise_for_status()
                     p = r.json()
-                    return {"busId": bid, "latitude": p.get("latitude"), "longitude": p.get("longitude"),
+                    lieu = await reverse_geocode(p.get("latitude"), p.get("longitude"))
+                    return {"busId": bid, "lieu": lieu, "latitude": p.get("latitude"), "longitude": p.get("longitude"),
                             "vitesse": p.get("vitesse"), "horodatage": p.get("horodatage")}
 
                 if name == "get_trajet_actif":
