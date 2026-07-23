@@ -105,8 +105,9 @@ flowchart TB
 | **MS5** | **PlanificationService (VRP)** | `8085` | **Ordre de tournée optimal** par bus : **TSP OR-Tools**, dépôt = école, distances OSRM réelles, gain mesuré vs baseline |
 | **MS12** | **PredictionService (ETA)** | `8088` | **Prédiction du temps d'arrivée** : benchmark multi-modèles, dataset semi-réel ancré OSRM (180 j), split temporel |
 | **MS11** | **AnalytiqueService (Anomalies)** | `8091` | **Détection d'anomalies** de trajet : Isolation Forest curé, feature `surprise` contextuelle, évaluation PR-AUC/ROC |
+| **MS9** | **Assistant LLM (chatbot parent)** | `8089` | **Agent tool-calling** (sans LangChain), **agnostique** (cascade Groq 70b→8b→Gemini) : le parent demande position/ETA/présence/incidents ; outils scopés à ses enfants (JWT), reverse geocoding OSM, **FR/AR/darija** |
 
-> `MS9` (`:8089`) est réservé au **chatbot LLM** (jalon S9). `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring.
+> `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring. MS9 Phase B (NL2SQL admin) à venir.
 
 ---
 
@@ -266,7 +267,7 @@ Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](htm
 | API Gateway (MS8) | `8080` | | Clustering (MS6) | `8086` |
 | Bus (MS1) | `8081` | | Auth (MS7) | `8087` |
 | Élèves (MS2) | `8082` | | Prédiction ETA (MS12) | `8088` |
-| Localisation (MS3) | `8083` | | *(Chatbot MS9 — réservé)* | `8089` |
+| Localisation (MS3) | `8083` | | **Assistant LLM (MS9)** | `8089` |
 | Notifications (MS4) | `8084` | | Incidents (MS10) | `8090` |
 | Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
 | PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
@@ -340,7 +341,7 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S10 | **MS5 VRP** (TSP OR-Tools, tournées) | ✅ |
 | S11 | **Console d'administration web (UC-13)** — React/Vite : dashboard, carte live, clustering (cartes clusters + prévisualisation), CRUD élèves/bus/utilisateurs & liaisons, incidents, anomalies, ETA par arrêt | ✅ |
 | S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
-| S9 | **Chatbot LLM (MS9)** — prochaine grande brique | ⏳ |
+| S9 | **Assistant LLM parent (MS9, Phase A)** — agent tool-calling, cascade Groq/Gemini, FR/AR/darija ✅ · NL2SQL admin (Phase B) ⏳ | ✅ |
 | — | Application Flutter parent/chauffeur · réaffectation dynamique (UC-9) | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 

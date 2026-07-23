@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 21 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** livrés
+## État au 22 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** livrés
 
 ---
 
@@ -65,7 +65,21 @@ MS5 `/tournees` parallélisé (`asyncio.gather` + OR-Tools en thread, ~43 s→9 
 - **Validation navigateur (Chrome réel, puppeteer)** : admin (13 pages), chauffeur (7), parent (4) — rendus OK,
   0 erreur bloquante. Briques IA re-vérifiées UP + résultats conformes (MS6 k=6/silhouette 0.52, MS12 elasticnet +52.7 %, MS11 iforest_curated PR-AUC 0.91, MS5 TSP OSRM).
 
-**Prochaine grande brique : MS9 chatbot LLM (S9).**
+**NOUVEAU — MS9 Assistant LLM (chatbot parent, Phase A) :** microservice `ms9-llm/` (FastAPI :8089, env `nlp`,
+route gateway `ms9-llm → /api/llm/**` déjà présente). **Agent tool-calling « maison »** (sans LangChain) **agnostique**
+(client OpenAI-compatible interchangeable). Le parent pose des questions opérationnelles (« où est le bus ? »,
+« dans combien de temps ? », « est-il monté ? ») ; le LLM appelle des **outils Python** qui interrogent les MS
+**avec le JWT du parent**, strictement **limité à ses enfants** (garde de portée : `parentId` du JWT, `busId ∈ enfants` ;
+jamais confiance aux ids du modèle). Outils : `get_mes_enfants` (MS2), `get_position_bus` (MS3, + **reverse geocoding
+Nominatim/OSM** → rue/quartier), `get_eta_ecole` (MS12), `get_trajet_actif` (MS1), `get_incidents_bus` (MS10).
+Robustesse : **pré-fetch enfants (1×)** + injection contexte au prompt, **tool calls en parallèle** (`asyncio.gather`),
+**historique propre** (user/assistant seulement → évite le 400 OpenAI), **cascade providers 70b → 8b → Gemini**
+(`llama-3.3-70b` qualité → `llama-3.1-8b-instant` repli budget séparé → Gemini) avec **retry+backoff** sur 429/5xx,
+mode dégradé si aucune clé. Endpoints : `GET /api/llm/health|model-info`, **`POST /api/llm/chat`** (JWT **PARENT**).
+Front : page **Assistant** (`/parent/assistant`, widget chat + suggestions). Delta MS10 : `GET /api/incidents/bus/{id}`
+ouvert au **PARENT** (portée gardée par MS9) ; MS12 `/predict` ouvert au **PARENT**. **Validé e2e** (FR/AR/darija,
+injection de prompt refusée, scope inter-parents refusé, écriture refusée). *(Clés Groq/Gemini gratuites sans CB dans
+`ms9-llm/.env`, gitignoré.)* **Prochaine étape : Phase B — NL2SQL admin** (read-only + garde SELECT-only).
 
 ---
 
@@ -710,7 +724,7 @@ cd frontend/web-admin && bun install && bun run dev   # http://localhost:5173 (a
 | **S7** | **24-30/06** | **✅** | **MS6 Clustering refonte expert v3 (UTM, k-médoïdes capacitaire routier OSRM, Pareto, 3 notebooks CRISP-DM), données v2, console de test unifiée + cartes, fix CORS** |
 | **S8** | **01-07/07** | **✅** | **MS12 Prédiction ETA (dataset 180j ancré OSRM, benchmark → elasticnet, service :8088). Déclencheurs clustering : ajout élève / déménagement / nouveau bus (MS1→MS6) ✅ ; silhouette dégradée = garde-fou informatif (pas trigger)** |
 | **S8-S12** | **08-16/07** | **✅** | **Couche d'intégration temps réel (validée e2e 8/8) : G1 ETA→notif (MS3→MS12→MS4), G3 anomalies GPS live (MS11), G5 présence→notif, B1 liaison groupe↔bus, garde-fou qualité dynamique. Données comptes générées (parents/fratries/flotte)** |
-| S9 | 08-14/07 | ⏳ | **Chatbot LLM (MS9) Mistral/Groq + LangChain, FR/AR** — prochaine grande brique |
+| S9 | 08-14/07 | ✅ | **MS9 chatbot LLM parent (Phase A)** — agent tool-calling maison (sans LangChain), agnostique Groq/Gemini (cascade 70b→8b→Gemini), FR/AR/darija, outils scopés parent, reverse geocoding OSM, widget Assistant. NL2SQL admin = Phase B |
 | S10 | 15-21/07 | ✅ | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085 ; `/tournees` parallélisé ~9 s)** |
 | **S11** | **22-28/07** | **✅** | **Console d'administration web (UC-13) — React 18 + Vite + TS + Bun + Tailwind v4 (`frontend/web-admin/`, :5173) : dashboard+graphiques, carte live (bus interpolés/ETA/anomalies/tournées), clustering (cartes clusters DB + prévisualisation), CRUD élèves/bus/utilisateurs + liaisons parent↔enfant & chauffeur↔bus, incidents, anomalies, prévisions ETA par arrêt, pagination/tri/CSV, ⌘K, nav mobile. Deltas back : MS7 users CRUD, MS3 fix WS, MS6 `assignments`** |
 | S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
@@ -719,11 +733,12 @@ cd frontend/web-admin && bun install && bun run dev   # http://localhost:5173 (a
 
 ---
 
-## 🔜 Prochaine étape : S9 — Chatbot LLM (MS9)
+## 🔜 Prochaine étape : MS9 Phase B — NL2SQL admin
 
-1. **MS9 — Chatbot LLM parents (UC-10)** : Mistral/Groq (free tier) + LangChain, FastAPI :8089, FR/AR, context
-   injection depuis MS3 (GPS), MS12 (ETA), MS2 (présence/enfants), MS10 (incidents). Route Gateway `ms9-llm` déjà présente.
-2. **NL2SQL admin (UC-11)** — question langage naturel → SQL PostgreSQL → réponse (extension MS9).
+1. **MS9 — Chatbot LLM parents (UC-10)** : ✅ **livré (Phase A)** — agent tool-calling maison, agnostique Groq/Gemini
+   (cascade 70b→8b→Gemini), FR/AR/darija, outils MS2/MS3/MS12/MS1/MS10 scopés au parent, reverse geocoding OSM.
+2. **NL2SQL admin (UC-11)** — ⏳ **Phase B** : question langage naturel → SQL PostgreSQL (schéma DDL en prompt) →
+   exécution **read-only** (rôle Postgres SELECT-only + garde anti-DDL/DML) → synthèse. Widget chat admin.
 
 **Puis (CDC restant) :** Dashboard admin (UC-13), réaffectation dynamique (UC-9), app Flutter parent/chauffeur.
 

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "llama-3.3-70b-versatile"
+    # Repli Groq (budget journalier séparé) : modèle plus léger si le principal est saturé
+    groq_fallback_model: str = "llama-3.1-8b-instant"
 
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
@@ -57,15 +59,28 @@ class Settings(BaseSettings):
         return None
 
     def providers_order(self) -> list[dict]:
-        """Liste ordonnée des providers configurés (primary puis fallback)."""
-        out = []
-        for name in (self.primary_provider, self.fallback_provider):
-            if not name:
-                continue
+        """Cascade ordonnée : primaire → repli Groq (modèle léger) → fallback provider.
+
+        Chaque modèle Groq a son propre quota journalier ; le repli 8b prend donc le relais
+        automatiquement quand le 70b est saturé (au lieu d'échouer)."""
+        out: list[dict] = []
+
+        def add(name: str, model_override: str | None = None):
             conf = self.provider_conf(name)
-            if conf and conf not in out:
-                conf = {**conf, "name": name}
-                out.append(conf)
+            if not conf:
+                return
+            entry = {**conf, "name": name}
+            if model_override:
+                entry["model"] = model_override
+            if entry not in out:
+                out.append(entry)
+
+        add(self.primary_provider)
+        # repli Groq (budget séparé) si le primaire est Groq
+        if self.primary_provider == "groq" and self.groq_fallback_model:
+            add("groq", self.groq_fallback_model)
+        if self.fallback_provider:
+            add(self.fallback_provider)
         return out
 
 
