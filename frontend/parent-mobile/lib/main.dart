@@ -1,0 +1,44 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+import 'api/api.dart';
+import 'services/auth_store.dart';
+import 'screens/login_screen.dart';
+import 'screens/shell.dart';
+import 'state/providers.dart';
+import 'theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('fr_FR', null);
+
+  // Restaure la session avant de démarrer l'UI.
+  final store = AuthStore();
+  final user = await store.load();
+  if (user != null) Api.instance.token = user.token;
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        initialUserProvider.overrideWithValue(user),
+      ],
+      child: const ParentApp(),
+    ),
+  );
+}
+
+class ParentApp extends ConsumerWidget {
+  const ParentApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    return MaterialApp(
+      title: 'Transport Scolaire — Parent',
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(),
+      home: user == null ? const LoginScreen() : const ParentShell(),
+    );
+  }
+}
