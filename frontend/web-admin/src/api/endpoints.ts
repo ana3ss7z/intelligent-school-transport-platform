@@ -116,6 +116,17 @@ export interface ChatReply { reply: string; used_tools?: string[]; degraded?: bo
 export const chatLLM = (message: string, history: ChatTurn[] = []) =>
   api.post<ChatReply>("/api/llm/chat", { message, history }, LONG).then((r) => r.data);
 
+export interface AdminQueryReply {
+  reply: string;
+  sql: string | null;
+  colonnes: string[];
+  lignes: unknown[][];
+  tronque?: boolean;
+  degraded?: boolean;
+}
+export const adminQuery = (question: string, history: ChatTurn[] = []) =>
+  api.post<AdminQueryReply>("/api/llm/admin/query", { question, history }, LONG).then((r) => r.data);
+
 // ── Analytique / anomalies (MS11) ────────────────────────────
 export const getLiveAnomalies = (limit = 20) =>
   api.get<{ n: number; anomalies: LiveAnomaly[] }>(`/api/analytique/live?limit=${limit}`).then((r) => r.data);

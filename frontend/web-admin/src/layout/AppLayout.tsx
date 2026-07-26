@@ -14,6 +14,7 @@ interface NavItem { to: string; label: string; Icon: typeof Map; roles: Role[]; 
 
 const NAV: NavItem[] = [
   { to: "/", label: "Tableau de bord", Icon: LayoutDashboard, roles: ["ADMIN"] },
+  { to: "/assistant", label: "Assistant", Icon: Sparkles, roles: ["ADMIN"] },
   { to: "/chauffeur", label: "Ma tournée", Icon: RouteIcon, roles: ["CHAUFFEUR"] },
   { to: "/chauffeur/carte", label: "Carte", Icon: Map, roles: ["CHAUFFEUR"] },
   { to: "/chauffeur/eta", label: "ETA tournée", Icon: Clock, roles: ["CHAUFFEUR"] },

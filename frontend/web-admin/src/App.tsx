@@ -30,6 +30,7 @@ const ParentHome = lazy(() => import("./pages/ParentHome").then((m) => ({ defaul
 const ParentCarte = lazy(() => import("./pages/ParentCarte").then((m) => ({ default: m.ParentCarte })));
 const ParentMessagerie = lazy(() => import("./pages/ParentMessagerie").then((m) => ({ default: m.ParentMessagerie })));
 const ParentAssistant = lazy(() => import("./pages/ParentAssistant").then((m) => ({ default: m.ParentAssistant })));
+const AdminAssistant = lazy(() => import("./pages/AdminAssistant").then((m) => ({ default: m.AdminAssistant })));
 
 /** Accueil selon le rôle (évite la boucle de redirection pour CHAUFFEUR/PARENT). */
 function RoleHome() {
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="incidents" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Incidents /></Suspense></RequireAuth>} />
         <Route path="anomalies" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Anomalies /></Suspense></RequireAuth>} />
         <Route path="users" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Users /></Suspense></RequireAuth>} />
+        <Route path="assistant" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><AdminAssistant /></Suspense></RequireAuth>} />
         <Route path="settings" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Settings /></Suspense></RequireAuth>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

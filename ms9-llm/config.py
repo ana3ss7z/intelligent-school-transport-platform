@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"
 
+    # ── NL2SQL admin (Phase B) : connexion Postgres READ-ONLY dédiée ──
+    db_ro_host: str = "localhost"
+    db_ro_port: int = 5432
+    db_ro_name: str = "transport_scolaire"
+    db_ro_user: str = "ms9_readonly"
+    db_ro_password: str = ""          # = mot de passe du rôle ms9_readonly (.env)
+    sql_max_rows: int = 200           # cap de lignes renvoyées
+    sql_default_limit: int = 200      # LIMIT ajouté si absent
+    sql_timeout_ms: int = 5000        # statement_timeout côté requête
+
     # ── Fournisseurs LLM (OpenAI-compatible, interchangeables) ───────
     primary_provider: str = "groq"       # groq | gemini
     fallback_provider: str = "gemini"    # groq | gemini | "" (aucun)
