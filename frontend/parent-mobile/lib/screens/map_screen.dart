@@ -19,8 +19,17 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with SingleTickerProviderStateMixin {
   final _controller = MapController();
+  late final AnimationController _anim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  GpsSocket? _gps; // instance écoutée
+  final Map<int, LatLng> _from = {};
+  final Map<int, LatLng> _to = {};
   final Map<int, double> _etas = {}; // busId -> minutes (→ école)
   Timer? _etaTimer;
 
@@ -33,13 +42,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _etaTimer?.cancel();
+    _gps?.removeListener(_onGps);
+    _anim.dispose();
     super.dispose();
+  }
+
+  /// Lie l'écoute au ChangeNotifier GPS (re-lie si l'instance change).
+  void _bind(GpsSocket gps) {
+    if (identical(gps, _gps)) return;
+    _gps?.removeListener(_onGps);
+    _gps = gps;
+    gps.addListener(_onGps);
+  }
+
+  /// Nouvelle position GPS → prépare l'interpolation puis anime.
+  void _onGps() {
+    final data = ref.read(childrenProvider).value;
+    final gps = _gps;
+    if (data == null || gps == null) return;
+    for (final id in data.busIds) {
+      final p = gps.positions[id];
+      if (p == null) continue;
+      final target = LatLng(p.latitude, p.longitude);
+      _from[id] = _to[id] ?? target; // point de départ = ancienne cible
+      _to[id] = target;
+    }
+    if (mounted) {
+      _anim.forward(from: 0);
+      setState(() {}); // maj puce connecté
+    }
   }
 
   Future<void> _loadEtas() async {
     final data = ref.read(childrenProvider).value;
-    if (data == null) return;
     final gps = ref.read(gpsSocketProvider);
+    if (data == null) return;
     for (final b in data.mesBus) {
       final live = gps.positions[b.id];
       final lat = live?.latitude ?? b.latitude;
@@ -54,32 +91,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           moment: 'matin',
         );
         _etas[b.id] = r.etaMinutes;
-      } catch (_) {/* ignore */}
+      } catch (_) {
+        /* ignore */
+      }
     }
     if (mounted) setState(() {});
   }
 
-  /// Positions bus filtrées aux bus des enfants (+ repli dernière position connue).
-  Map<int, LatLng> _busPositions(ChildrenData data, GpsSocket gps) {
+  LatLng _lerp(LatLng a, LatLng b, double t) => LatLng(
+    a.latitude + (b.latitude - a.latitude) * t,
+    a.longitude + (b.longitude - a.longitude) * t,
+  );
+
+  /// Positions interpolées des bus des enfants (repli dernière position connue).
+  Map<int, LatLng> _busPositions(ChildrenData data) {
     final out = <int, LatLng>{};
-    final idSet = data.busIds.toSet();
-    for (final entry in gps.positions.entries) {
-      if (idSet.contains(entry.key)) {
-        out[entry.key] = LatLng(entry.value.latitude, entry.value.longitude);
-      }
-    }
     for (final b in data.mesBus) {
-      if (!out.containsKey(b.id) && b.latitude != null && b.longitude != null) {
+      if (b.latitude != null && b.longitude != null) {
         out[b.id] = LatLng(b.latitude!, b.longitude!);
       }
+    }
+    for (final id in data.busIds) {
+      final to = _to[id];
+      if (to == null) continue;
+      final from = _from[id] ?? to;
+      out[id] = _lerp(from, to, _anim.value);
     }
     return out;
   }
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(childrenProvider);
     final gps = ref.watch(gpsSocketProvider);
+    _bind(gps);
+    final async = ref.watch(childrenProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -94,163 +140,193 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             text: 'Aucun bus assigné à vos enfants pour le moment.',
           );
         }
-        // Redessine à chaque mise à jour GPS.
-        return ListenableBuilder(
-          listenable: gps,
-          builder: (context, _) {
-            final busPos = _busPositions(data, gps);
-            final etaMax = _etas.values.isEmpty
-                ? null
-                : _etas.values.reduce((a, b) => a < b ? a : b);
-            return Stack(
-              children: [
-                FlutterMap(
-                  mapController: _controller,
-                  options: const MapOptions(
-                    initialCenter: LatLng(Env.ecoleLat, Env.ecoleLng),
-                    initialZoom: 13,
-                    minZoom: 9,
-                    maxZoom: 18,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'ma.transport.parent_app',
+        final etaMin = _etas.values.isEmpty
+            ? null
+            : _etas.values.reduce((a, b) => a < b ? a : b);
+        return Stack(
+          children: [
+            RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _anim,
+                builder: (context, _) {
+                  final busPos = _busPositions(data);
+                  return FlutterMap(
+                    mapController: _controller,
+                    options: const MapOptions(
+                      initialCenter: LatLng(Env.ecoleLat, Env.ecoleLng),
+                      initialZoom: 13,
+                      minZoom: 9,
+                      maxZoom: 18,
                     ),
-                    // Trails des bus.
-                    PolylineLayer(
-                      polylines: [
-                        for (final id in data.busIds)
-                          if ((gps.trails[id]?.length ?? 0) > 1)
-                            Polyline(
-                              points: gps.trails[id]!,
-                              strokeWidth: 3,
-                              color: AppColors.route.withValues(alpha: 0.5),
-                            ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        // École
-                        const Marker(
-                          point: LatLng(Env.ecoleLat, Env.ecoleLng),
-                          width: 40,
-                          height: 40,
-                          child: _PinIcon(
-                              icon: Icons.school, color: AppColors.danger),
-                        ),
-                        // Enfants (domicile)
-                        for (final e in data.enfants)
-                          if (e.latitude != null && e.longitude != null)
-                            Marker(
-                              point: LatLng(e.latitude!, e.longitude!),
-                              width: 30,
-                              height: 30,
-                              child: const _PinIcon(
-                                  icon: Icons.home, color: AppColors.ok, size: 16),
-                            ),
-                        // Bus
-                        for (final entry in busPos.entries)
-                          Marker(
-                            point: entry.value,
-                            width: 44,
-                            height: 44,
-                            child: _BusMarker(
-                              id: entry.key,
-                              matricule: data.busById[entry.key]?.matricule,
-                              eta: _etas[entry.key],
+                    children: [
+                      TileLayer(
+                        urlTemplate: isDark
+                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+                            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'ma.transport.parent_app',
+                      ),
+                      PolylineLayer(
+                        polylines: [
+                          for (final id in data.busIds)
+                            if ((gps.trails[id]?.length ?? 0) > 1)
+                              Polyline(
+                                points: gps.trails[id]!,
+                                strokeWidth: 3,
+                                color: AppColors.brand.withValues(alpha: 0.45),
+                              ),
+                        ],
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          const Marker(
+                            point: LatLng(Env.ecoleLat, Env.ecoleLng),
+                            width: 42,
+                            height: 42,
+                            child: _Pin(
+                              icon: Icons.school_rounded,
+                              color: AppColors.danger,
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-                // Bandeau haut : statut GPS + ETA.
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  right: 10,
-                  child: Row(
-                    children: [
-                      _pill(
-                        gps.connected ? 'GPS connecté' : 'hors ligne',
-                        gps.connected ? AppColors.ok : AppColors.inkSoft,
-                        gps.connected ? Icons.gps_fixed : Icons.gps_off,
+                          for (final e in data.enfants)
+                            if (e.latitude != null && e.longitude != null)
+                              Marker(
+                                point: LatLng(e.latitude!, e.longitude!),
+                                width: 30,
+                                height: 30,
+                                child: const _Pin(
+                                  icon: Icons.home_rounded,
+                                  color: AppColors.ok,
+                                  size: 15,
+                                ),
+                              ),
+                          for (final entry in busPos.entries)
+                            Marker(
+                              point: entry.value,
+                              width: 46,
+                              height: 46,
+                              child: _BusMarker(
+                                matricule:
+                                    data.busById[entry.key]?.matricule ??
+                                    '${entry.key}',
+                                eta: _etas[entry.key],
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      if (etaMax != null)
-                        _pill('ETA ~${etaMax.round()} min → école',
-                            AppColors.route, Icons.access_time),
                     ],
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: AppSpacing.md,
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              child: Row(
+                children: [
+                  _pill(
+                    gps.connected ? 'GPS en direct' : 'hors ligne',
+                    gps.connected ? AppColors.ok : context.softColor,
+                    gps.connected
+                        ? Icons.gps_fixed_rounded
+                        : Icons.gps_off_rounded,
                   ),
-                ),
-                // Recentrer
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    heroTag: 'recenter',
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.route,
-                    onPressed: () {
-                      final first = busPos.values.isNotEmpty
-                          ? busPos.values.first
-                          : const LatLng(Env.ecoleLat, Env.ecoleLng);
-                      _controller.move(first, 14);
-                    },
-                    child: const Icon(Icons.my_location),
-                  ),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(width: AppSpacing.sm),
+                  if (etaMin != null)
+                    _pill(
+                      '~${etaMin.round()} min → école',
+                      AppColors.brand,
+                      Icons.schedule_rounded,
+                    ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: AppSpacing.lg,
+              bottom: AppSpacing.lg,
+              child: FloatingActionButton.small(
+                heroTag: 'recenter',
+                tooltip: 'Recentrer la carte sur le bus',
+                backgroundColor: context.scheme.surface,
+                foregroundColor: AppColors.brand,
+                elevation: 2,
+                onPressed: () {
+                  final pos = _busPositions(data).values;
+                  _controller.move(
+                    pos.isNotEmpty
+                        ? pos.first
+                        : const LatLng(Env.ecoleLat, Env.ecoleLng),
+                    14.5,
+                  );
+                },
+                child: const Icon(Icons.my_location_rounded),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
   Widget _pill(String text, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(text,
+    return Semantics(
+      label: text,
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: context.scheme.surface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: context.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(
+              text,
               style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-        ],
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PinIcon extends StatelessWidget {
+class _Pin extends StatelessWidget {
   final IconData icon;
   final Color color;
   final double size;
-  const _PinIcon({required this.icon, required this.color, this.size = 22});
+  const _Pin({required this.icon, required this.color, this.size = 22});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.scheme.surface,
         shape: BoxShape.circle,
-        border: Border.all(color: color, width: 2),
+        border: Border.all(color: color, width: 2.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Icon(icon, color: color, size: size),
     );
@@ -258,29 +334,38 @@ class _PinIcon extends StatelessWidget {
 }
 
 class _BusMarker extends StatelessWidget {
-  final int id;
-  final String? matricule;
+  final String matricule;
   final double? eta;
-  const _BusMarker({required this.id, this.matricule, this.eta});
+  const _BusMarker({required this.matricule, this.eta});
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Bus ${matricule ?? id}'
+      message:
+          'Bus $matricule'
           '${eta != null ? ' · ~${eta!.round()} min → école' : ''}',
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.route,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white, width: 2),
+          gradient: const LinearGradient(
+            colors: [AppColors.brand, Color(0xFF4F46E5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white, width: 2.5),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 1)),
+              color: AppColors.brand.withValues(alpha: 0.45),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-        child: const Icon(Icons.directions_bus, color: Colors.white, size: 22),
+        child: const Icon(
+          Icons.directions_bus_rounded,
+          color: Colors.white,
+          size: 22,
+        ),
       ),
     );
   }

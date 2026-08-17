@@ -53,7 +53,8 @@ pip-delete-this-directory.txt
 *.iml
 *.ipr
 *.iws
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .settings/
 .classpath
 .project
@@ -64,6 +65,14 @@ pip-delete-this-directory.txt
 graphify-out/
 .graphifyignore
 *.png
+
+# Exceptions : icônes de l'app Flutter parent. `*.png` est ignoré globalement
+# ci-dessus (dumps/captures), mais ces PNG sont des SOURCES du projet — sans eux
+# un clone frais n'a aucune icône d'application.
+!frontend/parent-mobile/assets/icon/*.png
+!frontend/parent-mobile/android/app/src/main/res/mipmap-*/*.png
+!frontend/parent-mobile/web/icons/*.png
+!frontend/parent-mobile/web/favicon.png
 
 
 # Comptes générés (mots de passe en clair — ne jamais committer)

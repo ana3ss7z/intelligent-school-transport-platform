@@ -5,13 +5,13 @@ class Env {
   /// API Gateway (tout le REST passe par là).
   static const String gateway = String.fromEnvironment(
     'GATEWAY',
-    defaultValue: 'http://192.168.0.5:8080',
+    defaultValue: 'http://localhost:8080',
   );
 
   /// WebSocket GPS (direct vers MS3, non proxifié par la Gateway).
   static const String wsGps = String.fromEnvironment(
     'WS_GPS',
-    defaultValue: 'ws://192.168.0.5:8083/ws/gps',
+    defaultValue: 'ws://localhost:8083/ws/gps',
   );
 
   /// École Al Massira (destination des tournées) — comme le web.

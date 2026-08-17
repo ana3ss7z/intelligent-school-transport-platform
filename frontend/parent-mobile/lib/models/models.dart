@@ -20,20 +20,20 @@ class AuthUser {
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
-        token: j['token'] as String,
-        userId: (j['userId'] as num).toInt(),
-        nom: (j['nom'] ?? '') as String,
-        email: (j['email'] ?? '') as String,
-        role: (j['role'] ?? '') as String,
-      );
+    token: j['token'] as String,
+    userId: (j['userId'] as num).toInt(),
+    nom: (j['nom'] ?? '') as String,
+    email: (j['email'] ?? '') as String,
+    role: (j['role'] ?? '') as String,
+  );
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'userId': userId,
-        'nom': nom,
-        'email': email,
-        'role': role,
-      };
+    'token': token,
+    'userId': userId,
+    'nom': nom,
+    'email': email,
+    'role': role,
+  };
 }
 
 class Eleve {
@@ -64,17 +64,17 @@ class Eleve {
   String get nomComplet => '$prenom $nom'.trim();
 
   factory Eleve.fromJson(Map<String, dynamic> j) => Eleve(
-        id: (j['id'] as num).toInt(),
-        nom: (j['nom'] ?? '') as String,
-        prenom: (j['prenom'] ?? '') as String,
-        latitude: _toD(j['latitude']),
-        longitude: _toD(j['longitude']),
-        parentId: _toI(j['parentId']),
-        groupeId: _toI(j['groupeId']),
-        busId: _toI(j['busId']),
-        statutPresence: (j['statutPresence'] ?? false) as bool,
-        ordrePassage: _toI(j['ordrePassage']),
-      );
+    id: (j['id'] as num).toInt(),
+    nom: (j['nom'] ?? '') as String,
+    prenom: (j['prenom'] ?? '') as String,
+    latitude: _toD(j['latitude']),
+    longitude: _toD(j['longitude']),
+    parentId: _toI(j['parentId']),
+    groupeId: _toI(j['groupeId']),
+    busId: _toI(j['busId']),
+    statutPresence: (j['statutPresence'] ?? false) as bool,
+    ordrePassage: _toI(j['ordrePassage']),
+  );
 }
 
 class Bus {
@@ -97,14 +97,14 @@ class Bus {
   });
 
   factory Bus.fromJson(Map<String, dynamic> j) => Bus(
-        id: (j['id'] as num).toInt(),
-        matricule: (j['matricule'] ?? '') as String,
-        capacite: _toI(j['capacite']),
-        statut: (j['statut'] ?? 'INACTIF') as String,
-        chauffeurId: _toI(j['chauffeurId']),
-        latitude: _toD(j['latitude']),
-        longitude: _toD(j['longitude']),
-      );
+    id: (j['id'] as num).toInt(),
+    matricule: (j['matricule'] ?? '') as String,
+    capacite: _toI(j['capacite']),
+    statut: (j['statut'] ?? 'INACTIF') as String,
+    chauffeurId: _toI(j['chauffeurId']),
+    latitude: _toD(j['latitude']),
+    longitude: _toD(j['longitude']),
+  );
 }
 
 class Trajet {
@@ -133,16 +133,16 @@ class Trajet {
   bool get isSoir => sens.toUpperCase() == 'SOIR';
 
   factory Trajet.fromJson(Map<String, dynamic> j) => Trajet(
-        id: (j['id'] as num).toInt(),
-        busId: _toI(j['busId']),
-        matricule: j['matricule'] as String?,
-        chauffeurId: _toI(j['chauffeurId']),
-        sens: (j['sens'] ?? 'MATIN') as String,
-        statut: (j['statut'] ?? 'EN_COURS') as String,
-        heureDebut: j['heureDebut']?.toString(),
-        heureFin: j['heureFin']?.toString(),
-        groupeId: _toI(j['groupeId']),
-      );
+    id: (j['id'] as num).toInt(),
+    busId: _toI(j['busId']),
+    matricule: j['matricule'] as String?,
+    chauffeurId: _toI(j['chauffeurId']),
+    sens: (j['sens'] ?? 'MATIN') as String,
+    statut: (j['statut'] ?? 'EN_COURS') as String,
+    heureDebut: j['heureDebut']?.toString(),
+    heureFin: j['heureFin']?.toString(),
+    groupeId: _toI(j['groupeId']),
+  );
 }
 
 class GpsPosition {
@@ -167,15 +167,15 @@ class GpsPosition {
   });
 
   factory GpsPosition.fromJson(Map<String, dynamic> j) => GpsPosition(
-        id: _toI(j['id']),
-        cibleType: (j['cibleType'] ?? '') as String,
-        cibleId: (j['cibleId'] as num).toInt(),
-        latitude: (j['latitude'] as num).toDouble(),
-        longitude: (j['longitude'] as num).toDouble(),
-        vitesse: _toD(j['vitesse']),
-        cap: _toD(j['cap']),
-        horodatage: j['horodatage']?.toString(),
-      );
+    id: _toI(j['id']),
+    cibleType: (j['cibleType'] ?? '') as String,
+    cibleId: (j['cibleId'] as num).toInt(),
+    latitude: (j['latitude'] as num).toDouble(),
+    longitude: (j['longitude'] as num).toDouble(),
+    vitesse: _toD(j['vitesse']),
+    cap: _toD(j['cap']),
+    horodatage: j['horodatage']?.toString(),
+  );
 }
 
 class NotificationItem {
@@ -200,15 +200,15 @@ class NotificationItem {
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
-        id: (j['id'] as num).toInt(),
-        type: (j['type'] ?? '') as String,
-        statutEnvoi: j['statutEnvoi'] as String?,
-        titre: j['titre'] as String?,
-        message: j['message'] as String?,
-        sourceId: _toI(j['sourceId']),
-        sourceType: j['sourceType'] as String?,
-        dateEnvoi: j['dateEnvoi']?.toString(),
-      );
+    id: (j['id'] as num).toInt(),
+    type: (j['type'] ?? '') as String,
+    statutEnvoi: j['statutEnvoi'] as String?,
+    titre: j['titre'] as String?,
+    message: j['message'] as String?,
+    sourceId: _toI(j['sourceId']),
+    sourceType: j['sourceType'] as String?,
+    dateEnvoi: j['dateEnvoi']?.toString(),
+  );
 }
 
 class MessageItem {
@@ -231,14 +231,14 @@ class MessageItem {
   });
 
   factory MessageItem.fromJson(Map<String, dynamic> j) => MessageItem(
-        id: (j['id'] as num).toInt(),
-        expediteurId: _toI(j['expediteurId']),
-        expediteurNom: j['expediteurNom'] as String?,
-        expediteurRole: j['expediteurRole'] as String?,
-        contenu: (j['contenu'] ?? '') as String,
-        lu: (j['lu'] ?? false) as bool,
-        dateEnvoi: j['dateEnvoi']?.toString(),
-      );
+    id: (j['id'] as num).toInt(),
+    expediteurId: _toI(j['expediteurId']),
+    expediteurNom: j['expediteurNom'] as String?,
+    expediteurRole: j['expediteurRole'] as String?,
+    contenu: (j['contenu'] ?? '') as String,
+    lu: (j['lu'] ?? false) as bool,
+    dateEnvoi: j['dateEnvoi']?.toString(),
+  );
 }
 
 /// Réponse de POST /api/eta/predict (on lit surtout eta_minutes).
@@ -249,9 +249,9 @@ class EtaResult {
   EtaResult({required this.etaMinutes, this.heureArrivee});
 
   factory EtaResult.fromJson(Map<String, dynamic> j) => EtaResult(
-        etaMinutes: (j['eta_minutes'] as num).toDouble(),
-        heureArrivee: j['heure_arrivee_estimee'] as String?,
-      );
+    etaMinutes: (j['eta_minutes'] as num).toDouble(),
+    heureArrivee: j['heure_arrivee_estimee'] as String?,
+  );
 }
 
 /// Tour de conversation pour l'assistant LLM.
@@ -268,11 +268,17 @@ class ChatReply {
   final List<String> usedTools;
   final bool degraded;
 
-  ChatReply({required this.reply, this.usedTools = const [], this.degraded = false});
+  ChatReply({
+    required this.reply,
+    this.usedTools = const [],
+    this.degraded = false,
+  });
 
   factory ChatReply.fromJson(Map<String, dynamic> j) => ChatReply(
-        reply: (j['reply'] ?? '') as String,
-        usedTools: (j['used_tools'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-        degraded: (j['degraded'] ?? false) as bool,
-      );
+    reply: (j['reply'] ?? '') as String,
+    usedTools:
+        (j['used_tools'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    degraded: (j['degraded'] ?? false) as bool,
+  );
 }

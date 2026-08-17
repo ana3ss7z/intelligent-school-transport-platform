@@ -18,11 +18,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// Trajet actif par busId (null = aucun trajet démarré).
-  final Map<int, Trajet?> _trajets = {};
-
-  /// ETA (minutes) par eleveId.
-  final Map<int, double?> _etas = {};
+  final Map<int, Trajet?> _trajets = {}; // par busId
+  final Map<int, double?> _etas = {}; // par eleveId
 
   Timer? _trajetTimer;
   Timer? _etaTimer;
@@ -34,10 +31,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _trajetTimer = Timer.periodic(Env.pollTrajet, (_) => _loadTrajets());
     _etaTimer = Timer.periodic(Env.pollEta, (_) => _loadEtas());
-    // Rafraîchit enfants/présence périodiquement.
-    _childrenTimer = Timer.periodic(Env.pollEta, (_) {
-      ref.invalidate(childrenProvider);
-    });
+    _childrenTimer = Timer.periodic(
+      Env.pollEta,
+      (_) => ref.invalidate(childrenProvider),
+    );
   }
 
   @override
@@ -56,7 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     for (final busId in data.busIds) {
       try {
         _trajets[busId] = await Api.instance.getTrajetActifBus(busId);
-      } catch (_) {/* garde la valeur précédente */}
+      } catch (_) {
+        /* garde la valeur précédente */
+      }
     }
     if (mounted) setState(() {});
   }
@@ -105,7 +104,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Démarre le chargement dès que « mes enfants » sont disponibles.
     ref.listen(childrenProvider, (prev, next) {
       if (next.hasValue && next.value!.enfants.isNotEmpty && !_kicked) {
         _kicked = true;
@@ -117,7 +115,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = ref.watch(authProvider);
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonCards(count: 3),
       error: (e, _) => ErrorRetry(
         message: friendlyError(e),
         onRetry: () => ref.invalidate(childrenProvider),
@@ -125,7 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       data: (data) {
         if (data.enfants.isEmpty) {
           return const EmptyState(
-            icon: Icons.family_restroom,
+            icon: Icons.family_restroom_rounded,
             text: 'Aucun enfant associé à votre compte.',
           );
         }
@@ -137,80 +135,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await _loadEtas();
           },
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text(
-                'Bonjour ${user?.nom ?? ''}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Bonjour 👋',
+                style: TextStyle(fontSize: 14, color: context.softColor),
               ),
-              const SizedBox(height: 12),
+              Text(
+                user?.nom ?? '',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
-                  _StatTile(
-                      label: 'Mes enfants',
-                      value: '${data.enfants.length}',
-                      icon: Icons.child_care,
-                      color: AppColors.route),
-                  const SizedBox(width: 10),
-                  _StatTile(
-                      label: 'À bord',
-                      value: '$aBord',
-                      icon: Icons.event_seat,
-                      color: AppColors.ok),
-                  const SizedBox(width: 10),
-                  _StatTile(
-                      label: 'Bus',
-                      value: '${data.busIds.length}',
-                      icon: Icons.directions_bus,
-                      color: AppColors.warn),
+                  StatTile(
+                    label: 'Mes enfants',
+                    value: '${data.enfants.length}',
+                    icon: Icons.child_care_rounded,
+                    color: AppColors.brand,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  StatTile(
+                    label: 'À bord',
+                    value: '$aBord',
+                    icon: Icons.event_seat_rounded,
+                    color: AppColors.ok,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  StatTile(
+                    label: 'Bus',
+                    value: '${data.busIds.length}',
+                    icon: Icons.directions_bus_rounded,
+                    color: AppColors.warn,
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              ...data.enfants.map((e) => _ChildCard(
+              const SizedBox(height: AppSpacing.xl),
+              const SectionHeader('Mes enfants'),
+              ...data.enfants.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: _ChildCard(
                     eleve: e,
                     bus: e.busId != null ? data.busById[e.busId] : null,
                     trajet: e.busId != null ? _trajets[e.busId] : null,
                     eta: _etas[e.id],
-                  )),
+                  ),
+                ),
+              ),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 6),
-              Text(value,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, color: AppColors.inkSoft)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -227,90 +207,172 @@ class _ChildCard extends StatelessWidget {
     required this.eta,
   });
 
+  /// Résumé vocalisé d'un bloc (lecteurs d'écran) au lieu de fragments épars.
+  String _semanticSummary() {
+    final buf = StringBuffer(eleve.nomComplet);
+    buf.write(present ? ', à bord du bus' : ', pas encore à bord');
+    if (bus != null) buf.write(', bus ${bus!.matricule}');
+    if (trajet == null) {
+      buf.write('. Aucun trajet en cours.');
+    } else if (eta != null) {
+      buf.write(
+        '. Le bus arrive dans environ ${eta!.round()} minutes '
+        '${trajet!.isSoir ? "chez vous" : "à l'école"}.',
+      );
+    } else {
+      buf.write(
+        '. Trajet ${trajet!.isSoir ? "du soir" : "du matin"} en cours, '
+        'calcul de l\'arrivée en cours.',
+      );
+    }
+    return buf.toString();
+  }
+
+  bool get present => eleve.statutPresence;
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    eleve.nomComplet,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    final present = this.present;
+    return Semantics(
+      label: _semanticSummary(),
+      excludeSemantics: true,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppColors.brand.withValues(alpha: 0.13),
+                    child: Text(
+                      eleve.prenom.isNotEmpty
+                          ? eleve.prenom[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: AppColors.brand,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
                   ),
-                ),
-                Chip2(
-                  eleve.statutPresence ? 'à bord' : 'pas à bord',
-                  color: eleve.statutPresence ? AppColors.ok : AppColors.inkSoft,
-                  icon: eleve.statutPresence ? Icons.check_circle : Icons.circle_outlined,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if (eleve.groupeId != null) ...[
-                  Chip2('Groupe ${eleve.groupeId}', color: AppColors.inkSoft),
-                  const SizedBox(width: 6),
-                ],
-                if (bus != null)
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          eleve.nomComplet,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (eleve.groupeId != null)
+                              Chip2(
+                                'Groupe ${eleve.groupeId}',
+                                color: context.softColor,
+                              ),
+                            if (bus != null)
+                              Chip2(
+                                'Bus ${bus!.matricule}',
+                                color: busStatusColor(bus!.statut),
+                                icon: Icons.directions_bus_rounded,
+                              )
+                            else
+                              Chip2('Aucun bus', color: context.softColor),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   Chip2(
-                    'Bus ${bus!.matricule}',
-                    color: busStatusColor(bus!.statut),
-                    icon: Icons.directions_bus,
-                  )
-                else
-                  const Chip2('Aucun bus', color: AppColors.inkSoft),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _countdown(),
-          ],
+                    present ? 'à bord' : 'à quai',
+                    color: present ? AppColors.ok : context.softColor,
+                    icon: present
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AnimatedSwitcher(
+                duration: AppDurations.medium,
+                transitionBuilder: (child, anim) =>
+                    FadeTransition(opacity: anim, child: child),
+                child: _countdown(context),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _countdown() {
+  Widget _countdown(BuildContext context) {
     if (trajet == null) {
-      return const Text('Aucun trajet en cours.',
-          style: TextStyle(fontSize: 12, color: AppColors.inkSoft));
+      return Row(
+        key: const ValueKey('none'),
+        children: [
+          Icon(Icons.bedtime_outlined, size: 15, color: context.softColor),
+          const SizedBox(width: 6),
+          Text(
+            'Aucun trajet en cours',
+            style: TextStyle(fontSize: 12.5, color: context.softColor),
+          ),
+        ],
+      );
     }
     final soir = trajet!.isSoir;
+    final hasEta = eta != null;
+    final color = hasEta ? AppColors.brand : AppColors.warn;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      key: ValueKey('trajet-${trajet!.id}-$hasEta'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: AppColors.route.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, size: 16, color: AppColors.route),
-          const SizedBox(width: 8),
+          Icon(
+            hasEta
+                ? Icons.directions_bus_filled_rounded
+                : Icons.schedule_rounded,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(width: 10),
           Expanded(
-            child: eta != null
+            child: hasEta
                 ? Text.rich(
-                    TextSpan(children: [
-                      const TextSpan(text: 'Le bus arrive dans '),
-                      TextSpan(
-                        text: '~${eta!.round()} min',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextSpan(
-                        text: soir ? ' chez vous' : ' à l\'école',
-                        style: const TextStyle(color: AppColors.inkSoft),
-                      ),
-                    ]),
-                    style: const TextStyle(fontSize: 13),
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: 'Le bus arrive dans '),
+                        TextSpan(
+                          text: '~${eta!.round()} min',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        TextSpan(
+                          text: soir ? ' chez vous' : ' à l\'école',
+                          style: TextStyle(color: context.softColor),
+                        ),
+                      ],
+                    ),
+                    style: const TextStyle(fontSize: 13.5),
                   )
                 : Text(
                     'Trajet ${soir ? "du soir" : "du matin"} en cours — calcul de l\'arrivée…',
-                    style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+                    style: TextStyle(fontSize: 13, color: context.softColor),
                   ),
           ),
         ],

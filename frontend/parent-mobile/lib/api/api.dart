@@ -20,48 +20,52 @@ class Api {
   late final Dio _dio = _build();
 
   Dio _build() {
-    final dio = Dio(BaseOptions(
-      baseUrl: Env.gateway,
-      connectTimeout: Env.httpTimeout,
-      receiveTimeout: Env.httpTimeout,
-      sendTimeout: Env.httpTimeout,
-      // On gère nous-mêmes 204/erreurs métier.
-      validateStatus: (s) => s != null && s < 500,
-    ));
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        if (token != null && token!.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onResponse: (response, handler) {
-        if (response.statusCode == 401) {
-          onUnauthorized?.call();
-        }
-        handler.next(response);
-      },
-      onError: (e, handler) {
-        if (e.response?.statusCode == 401) {
-          onUnauthorized?.call();
-        }
-        handler.next(e);
-      },
-    ));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: Env.gateway,
+        connectTimeout: Env.httpTimeout,
+        receiveTimeout: Env.httpTimeout,
+        sendTimeout: Env.httpTimeout,
+        // On gère nous-mêmes 204/erreurs métier.
+        validateStatus: (s) => s != null && s < 500,
+      ),
+    );
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (token != null && token!.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          if (response.statusCode == 401) {
+            onUnauthorized?.call();
+          }
+          handler.next(response);
+        },
+        onError: (e, handler) {
+          if (e.response?.statusCode == 401) {
+            onUnauthorized?.call();
+          }
+          handler.next(e);
+        },
+      ),
+    );
     return dio;
   }
 
   Options get _long => Options(
-        receiveTimeout: Env.httpLongTimeout,
-        sendTimeout: Env.httpLongTimeout,
-      );
+    receiveTimeout: Env.httpLongTimeout,
+    sendTimeout: Env.httpLongTimeout,
+  );
 
   // ---------------------------------------------------------------- Auth
   Future<AuthUser> login(String email, String motDePasse) async {
-    final r = await _dio.post('/api/auth/login', data: {
-      'email': email,
-      'motDePasse': motDePasse,
-    });
+    final r = await _dio.post(
+      '/api/auth/login',
+      data: {'email': email, 'motDePasse': motDePasse},
+    );
     if (r.statusCode == 200 && r.data is Map) {
       return AuthUser.fromJson(Map<String, dynamic>.from(r.data as Map));
     }
@@ -84,7 +88,9 @@ class Api {
   Future<Trajet?> getTrajetActifBus(int busId) async {
     final r = await _dio.get('/api/trajets/bus/$busId/actif');
     if (r.statusCode == 204 || r.data == null || r.data == '') return null;
-    if (r.data is Map) return Trajet.fromJson(Map<String, dynamic>.from(r.data as Map));
+    if (r.data is Map) {
+      return Trajet.fromJson(Map<String, dynamic>.from(r.data as Map));
+    }
     return null;
   }
 
@@ -156,13 +162,17 @@ class Api {
     if (r.statusCode == 200 && r.data is Map) {
       return ChatReply.fromJson(Map<String, dynamic>.from(r.data as Map));
     }
-    throw ApiException(_msg(r) ?? "L'assistant est momentanément indisponible.");
+    throw ApiException(
+      _msg(r) ?? "L'assistant est momentanément indisponible.",
+    );
   }
 
   // --------------------------------------------------------------- Helpers
   List<Map<String, dynamic>> _list(Response r) {
     if (r.data is List) {
-      return (r.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return (r.data as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
     }
     return const [];
   }
@@ -199,7 +209,8 @@ String friendlyError(Object e) {
     }
     final data = e.response?.data;
     if (data is Map) {
-      final m = (data['detail'] ?? data['error'] ?? data['message'])?.toString();
+      final m = (data['detail'] ?? data['error'] ?? data['message'])
+          ?.toString();
       if (m != null && m.isNotEmpty) return m;
     }
     if (data is String && data.trim().isNotEmpty) return data;

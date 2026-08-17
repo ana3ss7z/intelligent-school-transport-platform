@@ -3,18 +3,23 @@ import 'package:intl/intl.dart';
 
 import '../theme.dart';
 
-/// Formate une date ISO backend (`2026-07-26T10:30:00`) en `26 juil. 10:30`.
+/// Date ISO backend (`2026-07-26T10:30:00`) → texte relatif court, sinon date.
 String formatDateFr(String? iso) {
   if (iso == null || iso.isEmpty) return '';
   try {
     final dt = DateTime.parse(iso);
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'à l\'instant';
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
+    if (diff.inDays == 1) return 'hier ${DateFormat('HH:mm').format(dt)}';
     return DateFormat('d MMM HH:mm', 'fr_FR').format(dt);
   } catch (_) {
     return iso;
   }
 }
 
-/// Petite étiquette colorée.
+/// Étiquette colorée compacte, theme-aware.
 class Chip2 extends StatelessWidget {
   final String label;
   final Color color;
@@ -24,10 +29,10 @@ class Chip2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -38,7 +43,11 @@ class Chip2 extends StatelessWidget {
           ],
           Text(
             label,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -46,7 +55,87 @@ class Chip2 extends StatelessWidget {
   }
 }
 
-/// État vide générique (icône + texte).
+/// Tuile de statistique (icône + valeur + libellé).
+class StatTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  const StatTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      // Lu d'un bloc par les lecteurs d'écran : « 3, Mes enfants ».
+      child: Semantics(
+        label: '$value $label',
+        excludeSemantics: true,
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.13),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: context.softColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// En-tête de section.
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final Widget? trailing;
+  const SectionHeader(this.title, {super.key, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md, top: AppSpacing.xs),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          const Spacer(),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+/// État vide générique.
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -60,12 +149,19 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 44, color: AppColors.inkSoft.withValues(alpha: 0.5)),
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: context.softColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: context.softColor),
+            ),
+            const SizedBox(height: 14),
             Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.inkSoft),
+              style: TextStyle(color: context.softColor),
             ),
           ],
         ),
@@ -74,7 +170,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Affiche une erreur avec bouton réessayer.
+/// Erreur avec bouton réessayer.
 class ErrorRetry extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -88,11 +184,23 @@ class ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off, size: 40, color: AppColors.danger),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 40,
+              color: AppColors.danger,
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('Réessayer')),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.softColor),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.tonalIcon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+            ),
           ],
         ),
       ),
@@ -108,5 +216,95 @@ Color busStatusColor(String statut) {
       return AppColors.danger;
     default:
       return AppColors.inkSoft;
+  }
+}
+
+/// Bloc gris animé (shimmer) pour les chargements.
+class Skeleton extends StatefulWidget {
+  final double? width;
+  final double height;
+  final BorderRadius? radius;
+  const Skeleton({super.key, this.width, this.height = 14, this.radius});
+
+  @override
+  State<Skeleton> createState() => _SkeletonState();
+}
+
+class _SkeletonState extends State<Skeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = context.borderColor;
+    final highlight = context.softColor.withValues(alpha: 0.12);
+    // Purement décoratif : masqué aux lecteurs d'écran.
+    return ExcludeSemantics(
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) {
+            return Container(
+              width: widget.width,
+              height: widget.height,
+              decoration: BoxDecoration(
+                borderRadius:
+                    widget.radius ?? BorderRadius.circular(AppRadius.sm),
+                gradient: LinearGradient(
+                  begin: Alignment(-1 - 2 * _c.value, 0),
+                  end: Alignment(1 - 2 * _c.value, 0),
+                  colors: [base, highlight, base],
+                  stops: const [0.35, 0.5, 0.65],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Liste de cartes squelettes pour l'état de chargement.
+class SkeletonCards extends StatelessWidget {
+  final int count;
+  const SkeletonCards({super.key, this.count = 3});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: count,
+      itemBuilder: (context, i) => const Padding(
+        padding: EdgeInsets.only(bottom: AppSpacing.md),
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Skeleton(width: 160, height: 16),
+                SizedBox(height: 12),
+                Skeleton(width: 100, height: 12),
+                SizedBox(height: 16),
+                Skeleton(
+                  height: 36,
+                  radius: BorderRadius.all(Radius.circular(10)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

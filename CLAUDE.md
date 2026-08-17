@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 22 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** livrés
+## État au 27 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** + **app mobile PARENT Flutter** livrés
 
 ---
 
@@ -83,6 +83,42 @@ injection de prompt refusée, scope inter-parents refusé, écriture refusée). 
 
 ---
 
+**NOUVEAU (27/07) — App mobile PARENT Flutter (`frontend/parent-mobile/`, Flutter 3.44 / Dart 3.12) :**
+Vraie app parent multiplateforme (cible dev **Chrome web** `:5174`, code Android-ready) qui **reprend à
+l'identique les 5 écrans de l'espace parent web** en consommant le **même backend** (Gateway `:8080` + WebSocket
+GPS direct `:8083`) — **aucun delta backend** (tous les endpoints déjà ouverts au rôle PARENT ; CORS Gateway `*`).
+- **Écrans** : Login · **Mon espace** (enfants/présence/bus + **compte à rebours** ETA gaté sur trajet démarré,
+  matin→école / soir→domicile selon `sens`) · **Carte de mon enfant** (`flutter_map` OSM/CARTO, bus filtrés aux
+  enfants, **glisse interpolée** entre pings GPS, ETA→école, tuiles sombres) · **Messagerie** (réception diffusions,
+  poll 15 s) · **Notifications** (poll 15 s) · **Assistant** (chat MS9 `POST /api/llm/chat`) + badge non-lus (poll 20 s).
+- **Archi** : `dio` (Bearer + 401→logout, timeouts 20 s / 120 s pour ETA+LLM), `web_socket_channel` (auto-reconnect
+  2,5 s + throttle 1 s), `flutter_secure_storage` (JWT), `flutter_riverpod` (auth/enfants/GPS partagés), `intl`.
+- **UI/UX + perf** (skill `flutter-ui-ux`) : **Material 3 thème pro clair + sombre** (toggle), tokens 4/8 pt,
+  skeletons shimmer, countdown animé, `RepaintBoundary`, `const`, `ListView.builder`+keys, animations isolées + dispose.
+- **Config réseau multi-cible (sans jamais toucher au code)** : un fichier JSON par environnement dans
+  `config/` (`env.chrome.json` → `localhost`, `env.phone.json` → IP LAN), injecté via
+  **`--dart-define-from-file`**. Si l'IP du PC change, **seul le JSON est à éditer**. Pour le téléphone :
+  pare-feu 8080/8083 + `usesCleartextTraffic` (déjà dans le Manifest).
+- **Lancement** :
+  ```bash
+  cd frontend/parent-mobile
+  flutter run -d chrome --web-port 5174 --dart-define-from-file=config/env.chrome.json  # navigateur
+  flutter run --dart-define-from-file=config/env.phone.json                              # téléphone
+  ```
+  Ou **en 1 clic** depuis VS Code (`.vscode/launch.json`) : « Parent App — Chrome » / « — Téléphone ».
+- **Icône & branding** : icône bus sur dégradé bleu générée par `tool/generate_icon.py` (Pillow) puis
+  déclinée par `flutter_launcher_icons` (Android + web) ; titre/manifest web personnalisés.
+- **Qualité** : `flutter analyze` **0 issue** · `flutter test` **5/5** (login : rendu, validation, toggle
+  mot de passe, thème sombre) · `Semantics` sur tuiles stats, cartes enfants, listes, pastilles carte.
+- **Builds validés** : `flutter build web --release` ✅ · `flutter build apk --release` ✅ (**51,5 Mo**).
+- ⚠️ **Correctif build Android (`dependency_overrides` dans `pubspec.yaml`)** : le projet utilise
+  **AGP 9.0.1 / Gradle 9.1 / Kotlin 2.3.20**. `path_provider_android ≥ 2.3` (tiré transitivement par
+  `flutter_secure_storage` → `…_windows` → `path_provider`) embarque le package **`jni`**, dont le
+  `android/build.gradle` appelle l'ancienne méthode Groovy `kotlin()` → `assembleRelease` échoue avec
+  *« Could not find method kotlin() on project ':jni' »*. **Solution : épingler `path_provider_android: 2.2.17`**
+  (même service, sans `jni`). À retirer quand `jni` sera compatible AGP 9. *(N'affecte pas la cible web.)*
+- **Skills Flutter installées** (`.claude/skills/` + `.claude/agents/`) : `flutter-ui-ux`, `flutter-tester`, agent `flutter-expert`.
+
 ## 📁 Structure racine du projet
 
 ```
@@ -96,8 +132,10 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 ├── seed_eleves_meknes.sql           ← SQL généré : 300 élèves Meknès
 ├── bus_simulator.py                 ← Simulateur v2 DATA-DRIVEN (vraies tournées OSRM, présence G5, anomalies G3)
 ├── frontend/
-│   └── web-admin/                   ← Console admin React 18 + Vite + TS + Bun + Tailwind v4 (port 5173) ← NOUVEAU
-│       └── src/ (api · auth · components · hooks · layout · lib · pages)
+│   ├── web-admin/                   ← Console admin React 18 + Vite + TS + Bun + Tailwind v4 (port 5173) ← NOUVEAU
+│   │   └── src/ (api · auth · components · hooks · layout · lib · pages)
+│   └── parent-mobile/               ← App mobile PARENT Flutter 3.44 (Chrome :5174 / Android) ← NOUVEAU (27/07)
+│       └── lib/ (config · models · api · services · state · screens · widgets)
 ├── ws-test/
 │   ├── test-gps.html               ← Test WebSocket GPS MS3
 │   ├── map-gps.html                ← Carte Leaflet temps réel (GPS + OSRM routes)
@@ -707,6 +745,13 @@ cd ms5-planification && uvicorn main:app --port 8085 --reload  # VRP tournées (
 
 # 4. Console d'administration web (React + Vite, gestionnaire Bun)
 cd frontend/web-admin && bun install && bun run dev   # http://localhost:5173 (admin@transport.ma / Admin123!)
+
+# 5. App mobile PARENT (Flutter) — config par cible, aucun code à modifier
+cd frontend/parent-mobile && flutter pub get
+flutter run -d chrome --web-port 5174 --dart-define-from-file=config/env.chrome.json  # navigateur (localhost)
+flutter run --dart-define-from-file=config/env.phone.json                              # téléphone (IP LAN)
+# ⇒ si l'IP du PC change, éditer UNIQUEMENT config/env.phone.json (+ pare-feu 8080/8083)
+# ⇒ ou lancer en 1 clic via VS Code : .vscode/launch.json (« Parent App — Chrome » / « — Téléphone »)
 ```
 
 ---
@@ -729,6 +774,7 @@ cd frontend/web-admin && bun install && bun run dev   # http://localhost:5173 (a
 | **S11** | **22-28/07** | **✅** | **Console d'administration web (UC-13) — React 18 + Vite + TS + Bun + Tailwind v4 (`frontend/web-admin/`, :5173) : dashboard+graphiques, carte live (bus interpolés/ETA/anomalies/tournées), clustering (cartes clusters DB + prévisualisation), CRUD élèves/bus/utilisateurs + liaisons parent↔enfant & chauffeur↔bus, incidents, anomalies, prévisions ETA par arrêt, pagination/tri/CSV, ⌘K, nav mobile. Deltas back : MS7 users CRUD, MS3 fix WS, MS6 `assignments`** |
 | S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
 | S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |
+| **S13+** | **27/07** | **✅** | **App mobile PARENT Flutter (`frontend/parent-mobile/`, Chrome :5174 / Android) : 5 écrans miroir de l'espace parent web (login, Mon espace+countdown, carte live glisse GPS, messagerie, notifications, assistant MS9), Material 3 clair+sombre, skeletons, perf (RepaintBoundary/const/builder). Aucun delta backend. Skills `flutter-ui-ux`/`flutter-tester` + agent `flutter-expert` installés.** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---

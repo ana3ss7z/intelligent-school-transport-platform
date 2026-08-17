@@ -42,6 +42,13 @@ dependencies:
   web_socket_channel: ^3.0.3
   intl: ^0.20.3
 
+# Correctif build Android : path_provider_android >= 2.3 tire le package `jni`,
+# dont le build.gradle utilise l'ancienne syntaxe `kotlin()` — incompatible avec
+# AGP 9 / Gradle 9 (« Could not find method kotlin() on project ':jni' »).
+# La 2.2.x rend le même service sans jni. À retirer quand jni sera compatible.
+dependency_overrides:
+  path_provider_android: 2.2.17
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -52,6 +59,20 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Icône de l'app (source générée par `python tool/generate_icon.py`).
+# Régénérer les déclinaisons : `dart run flutter_launcher_icons`
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  adaptive_icon_background: "#2563EB"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#2563EB"
+    theme_color: "#2563EB"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

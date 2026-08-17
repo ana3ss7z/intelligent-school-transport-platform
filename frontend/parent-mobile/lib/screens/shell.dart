@@ -50,7 +50,9 @@ class _ParentShellState extends ConsumerState<ParentShell> {
     try {
       final n = await Api.instance.getUnreadCount();
       if (mounted) setState(() => _unread = n);
-    } catch (_) {/* silencieux */}
+    } catch (_) {
+      /* silencieux */
+    }
   }
 
   Future<void> _confirmLogout() async {
@@ -61,11 +63,13 @@ class _ParentShellState extends ConsumerState<ParentShell> {
         content: const Text('Voulez-vous vous déconnecter ?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Déconnexion')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Déconnexion'),
+          ),
         ],
       ),
     );
@@ -81,11 +85,26 @@ class _ParentShellState extends ConsumerState<ParentShell> {
       appBar: AppBar(
         title: Text(_titles[_index]),
         actions: [
+          Builder(
+            builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return IconButton(
+                tooltip: isDark ? 'Thème clair' : 'Thème sombre',
+                icon: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                ),
+                onPressed: () => ref
+                    .read(themeModeProvider.notifier)
+                    .toggle(Theme.of(context).brightness),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Déconnexion',
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: _confirmLogout,
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: IndexedStack(
@@ -102,33 +121,42 @@ class _ParentShellState extends ConsumerState<ParentShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) {
           setState(() => _index = i);
-          if (i == 2) _pollUnread(); // rafraîchit le badge en ouvrant la messagerie
+          // rafraîchit le badge en ouvrant la messagerie
+          if (i == 2) {
+            _pollUnread();
+          }
         },
         destinations: [
           const NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Accueil'),
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Accueil',
+          ),
           const NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map),
-              label: 'Carte'),
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Carte',
+          ),
           NavigationDestination(
             icon: _badge(const Icon(Icons.message_outlined)),
             selectedIcon: _badge(const Icon(Icons.message)),
             label: 'Messages',
           ),
           const NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications),
-              label: 'Notifs'),
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: 'Notifs',
+          ),
           const NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome),
-              label: 'Assistant'),
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Assistant',
+          ),
         ],
       ),
-      drawer: user == null ? null : _AccountDrawer(nom: user.nom, email: user.email),
+      drawer: user == null
+          ? null
+          : _AccountDrawer(nom: user.nom, email: user.email),
     );
   }
 
@@ -162,7 +190,9 @@ class _AccountDrawer extends StatelessWidget {
                 child: Text(
                   nom.isNotEmpty ? nom[0].toUpperCase() : 'P',
                   style: const TextStyle(
-                      color: AppColors.route, fontWeight: FontWeight.bold),
+                    color: AppColors.route,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

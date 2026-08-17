@@ -41,7 +41,7 @@ L'architecture repose sur **12 microservices** répartis en deux écosystèmes c
 
 ```mermaid
 flowchart TB
-    Client["🖥️ Console admin React :5173<br/>📱 App mobile Flutter (à venir)"]
+    Client["🖥️ Console web React :5173 (admin · chauffeur · parent)<br/>📱 App mobile PARENT Flutter :5174"]
     GW["🚪 MS8 — API Gateway :8080<br/>(JWT · Rate-limiting Redis · CORS)"]
     Client --> GW
 
@@ -146,6 +146,47 @@ surveille l'écart position ↔ route et lève une anomalie `DEVIATION_ITINERAIR
 > Finition « produit » : toasts, error boundary, skeletons, modales de confirmation, **command palette ⌘K**,
 > navigation mobile. Panneau de tests e2e : [`html_tests/simulation-control.html`](html_tests/simulation-control.html)
 > (pilote tous les scénarios ciblés sur un chauffeur/bus et s'observe dans les pages React).
+
+---
+
+## 📱 App mobile PARENT (Flutter)
+
+Application **Flutter 3.44 / Dart 3.12** ([`frontend/parent-mobile/`](frontend/parent-mobile/)) qui **reprend les 5
+écrans de l'espace parent web** en consommant le **même backend** (Gateway `:8080` + WebSocket GPS `:8083`) —
+**aucun delta backend** (endpoints déjà ouverts au rôle PARENT, CORS Gateway `*`). Cible dev **Chrome web** `:5174`,
+code **Android-ready** (`usesCleartextTraffic`, IP LAN via `--dart-define`).
+
+| Écran | Contenu |
+|-------|---------|
+| **Login** | JWT (`flutter_secure_storage`), 401 → déconnexion auto |
+| **Mon espace** | Enfants · présence · bus + **compte à rebours** ETA (gaté sur trajet démarré, matin→école / soir→domicile) |
+| **Carte de mon enfant** | `flutter_map` OSM/CARTO, bus filtrés aux enfants, **glisse interpolée** entre pings GPS, ETA→école, tuiles sombres |
+| **Messagerie** | Réception des diffusions chauffeur (poll 15 s) |
+| **Notifications** | Historique personnel (poll 15 s) |
+| **Assistant** | Chat MS9 `POST /api/llm/chat` (FR/AR) + badge non-lus |
+
+**Tech** : `dio` (Bearer, timeouts 20 s / 120 s ETA+LLM), `web_socket_channel` (auto-reconnect + throttle),
+`flutter_riverpod` (auth/enfants/GPS partagés). **UI/UX + perf** (skill `flutter-ui-ux`) : **Material 3 clair + sombre**
+avec toggle, tokens 4/8 pt, skeletons shimmer, countdown animé, `RepaintBoundary` / `const` / `ListView.builder`,
+`Semantics` (lecteurs d'écran). **Qualité** : `flutter analyze` 0 issue · `flutter test` 5/5.
+
+### Configuration multi-cible (sans jamais modifier le code)
+
+Un fichier JSON par environnement dans [`config/`](frontend/parent-mobile/config/), injecté via
+`--dart-define-from-file`. **Si l'IP du PC change, seul le JSON est à éditer.**
+
+```bash
+cd frontend/parent-mobile && flutter pub get
+
+# Navigateur (backend sur localhost)
+flutter run -d chrome --web-port 5174 --dart-define-from-file=config/env.chrome.json
+
+# Téléphone physique (backend sur l'IP LAN du PC + pare-feu 8080/8083 ouvert)
+flutter run --dart-define-from-file=config/env.phone.json
+```
+
+> Depuis VS Code, les deux cibles sont lançables **en un clic** via `.vscode/launch.json`
+> (« Parent App — Chrome » / « Parent App — Téléphone »).
 
 ---
 
@@ -271,6 +312,7 @@ Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](htm
 | Notifications (MS4) | `8084` | | Incidents (MS10) | `8090` |
 | Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
 | PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
+| **Front** : web-admin `5173` · app parent Flutter `5174` | | | | |
 
 ---
 
@@ -319,7 +361,8 @@ transport-scolaire/
 ├── start-all-ms.bat         # lancement de tous les services
 ├── ms-common/               # module Java partagé (JWT, rôles)
 ├── ms1-bus/ … ms12-prediction/   # 12 microservices
-├── frontend/web-admin/      # console d'administration React + Vite + TS (Bun)
+├── frontend/web-admin/      # console web React + Vite + TS (Bun) — admin · chauffeur · parent
+├── frontend/parent-mobile/  # app mobile PARENT Flutter (Chrome :5174 / Android)
 ├── html_tests/              # console de test unifiée + cartes Leaflet
 ├── bus_simulator.py         # simulateur data-driven (vraies tournées OSRM, présence, anomalies)
 ├── osrm-data/               # données OSM Maroc pré-traitées
@@ -342,7 +385,8 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S11 | **Console d'administration web (UC-13)** — React/Vite : dashboard, carte live, clustering (cartes clusters + prévisualisation), CRUD élèves/bus/utilisateurs & liaisons, incidents, anomalies, ETA par arrêt | ✅ |
 | S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
 | S9 | **Assistant LLM parent (MS9, Phase A)** — agent tool-calling, cascade Groq/Gemini, FR/AR/darija ✅ · NL2SQL admin (Phase B) ⏳ | ✅ |
-| — | Application Flutter parent/chauffeur · réaffectation dynamique (UC-9) | ⏳ |
+| S13+ | **App mobile PARENT Flutter** (`frontend/parent-mobile/`, Chrome :5174 / Android) — 5 écrans miroir de l'espace parent web, Material 3 clair+sombre, carte live glisse GPS, aucun delta backend | ✅ |
+| — | App Flutter **chauffeur** · réaffectation dynamique (UC-9) | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 
 ---

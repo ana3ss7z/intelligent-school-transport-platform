@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api.dart';
@@ -6,6 +7,20 @@ import '../services/auth_store.dart';
 import '../services/gps_socket.dart';
 
 final authStoreProvider = Provider<AuthStore>((ref) => AuthStore());
+
+/// Mode de thème (système par défaut, bascule clair/sombre).
+class ThemeModeController extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() => ThemeMode.system;
+
+  void toggle(Brightness current) {
+    state = current == Brightness.dark ? ThemeMode.light : ThemeMode.dark;
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
+  ThemeModeController.new,
+);
 
 /// Utilisateur chargé au démarrage (surchargé dans main() après lecture du storage).
 final initialUserProvider = Provider<AuthUser?>((ref) => null);
@@ -37,7 +52,9 @@ class AuthController extends Notifier<AuthUser?> {
   }
 }
 
-final authProvider = NotifierProvider<AuthController, AuthUser?>(AuthController.new);
+final authProvider = NotifierProvider<AuthController, AuthUser?>(
+  AuthController.new,
+);
 
 /// Données « mes enfants » partagées par l'accueil et la carte.
 class ChildrenData {
@@ -53,8 +70,12 @@ class ChildrenData {
     required this.mesBus,
   });
 
-  static ChildrenData empty() =>
-      ChildrenData(enfants: const [], busById: const {}, busIds: const [], mesBus: const []);
+  static ChildrenData empty() => ChildrenData(
+    enfants: const [],
+    busById: const {},
+    busIds: const [],
+    mesBus: const [],
+  );
 }
 
 final childrenProvider = FutureProvider.autoDispose<ChildrenData>((ref) async {
@@ -70,7 +91,12 @@ final childrenProvider = FutureProvider.autoDispose<ChildrenData>((ref) async {
   final busById = {for (final b in buses) b.id: b};
   final busIds = enfants.map((e) => e.busId).whereType<int>().toSet().toList();
   final mesBus = busIds.map((id) => busById[id]).whereType<Bus>().toList();
-  return ChildrenData(enfants: enfants, busById: busById, busIds: busIds, mesBus: mesBus);
+  return ChildrenData(
+    enfants: enfants,
+    busById: busById,
+    busIds: busIds,
+    mesBus: mesBus,
+  );
 });
 
 /// WebSocket GPS partagé (une seule connexion tant que le shell est monté).

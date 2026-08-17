@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Parent App — Chrome (localhost)",
+      "request": "launch",
+      "type": "dart",
+      "program": "frontend/parent-mobile/lib/main.dart",
+      "cwd": "frontend/parent-mobile",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5174",
+        "--dart-define-from-file=config/env.chrome.json"
+      ]
+    },
+    {
+      "name": "Parent App — Téléphone (IP LAN)",
+      "request": "launch",
+      "type": "dart",
+      "program": "frontend/parent-mobile/lib/main.dart",
+      "cwd": "frontend/parent-mobile",
+      "args": [
+        "--dart-define-from-file=config/env.phone.json"
+      ]
+    },
+    {
+      "name": "Parent App — Chrome (profile, perf)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "frontend/parent-mobile/lib/main.dart",
+      "cwd": "frontend/parent-mobile",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5174",
+        "--dart-define-from-file=config/env.chrome.json"
+      ]
+    }
+  ]
+}

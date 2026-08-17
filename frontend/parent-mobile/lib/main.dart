@@ -20,9 +20,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        initialUserProvider.overrideWithValue(user),
-      ],
+      overrides: [initialUserProvider.overrideWithValue(user)],
       child: const ParentApp(),
     ),
   );
@@ -34,10 +32,14 @@ class ParentApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       title: 'Transport Scolaire — Parent',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: themeMode,
+      themeAnimationDuration: const Duration(milliseconds: 300),
       home: user == null ? const LoginScreen() : const ParentShell(),
     );
   }
