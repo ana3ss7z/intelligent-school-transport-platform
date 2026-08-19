@@ -8,6 +8,7 @@ import java.util.Map;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms1bus.config.RabbitMQConfig;
 import ma.transport.ms1bus.dto.TrajetRequest;
 import ma.transport.ms1bus.dto.TrajetResponse;
+import ma.transport.ms1bus.dto.TrajetRouteResponse;
 import ma.transport.ms1bus.entity.Bus;
 import ma.transport.ms1bus.entity.Trajet;
 import ma.transport.ms1bus.entity.Trajet.StatutTrajet;
@@ -50,6 +52,8 @@ public class TrajetService {
                 .chauffeurId(chauffeurId)
                 .groupeId(req.getGroupeId())
                 .geometrie(geoJson)
+                .distancePlanM(req.getDistancePlanM())
+                .dureePlanMin(req.getDureePlanMin())
                 .sens(req.getSens())
                 .statut(StatutTrajet.EN_COURS)
                 .heureDebut(LocalDateTime.now())
@@ -89,6 +93,21 @@ public class TrajetService {
                 .map(this::toResponse).orElse(null);
     }
 
+    /**
+     * Tournée figée du trajet EN_COURS d'un bus (polyligne + totaux OSRM), pour l'ETA
+     * « distance restante le long du circuit ». null si aucun trajet en cours.
+     */
+    public TrajetRouteResponse routeParBus(Long busId) {
+        return repo.findFirstByBusIdAndStatut(busId, StatutTrajet.EN_COURS)
+                .map(t -> TrajetRouteResponse.builder()
+                        .trajetId(t.getId()).busId(t.getBusId()).groupeId(t.getGroupeId())
+                        .sens(t.getSens())
+                        .geometrie(parseGeometrie(t.getGeometrie()))
+                        .distancePlanM(t.getDistancePlanM()).dureePlanMin(t.getDureePlanMin())
+                        .build())
+                .orElse(null);
+    }
+
     /** Historique des trajets terminés du chauffeur (les plus récents d'abord). */
     public List<TrajetResponse> mesTrajets(Long chauffeurId) {
         return repo.findByChauffeurIdAndStatutOrderByHeureDebutDesc(chauffeurId, StatutTrajet.TERMINE)
@@ -96,6 +115,18 @@ public class TrajetService {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
+
+    /** Relit la polyligne stockée en JSON ; liste vide si absente ou illisible. */
+    private List<List<Double>> parseGeometrie(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<List<Double>>>() {});
+        } catch (Exception e) {
+            log.warn("[MS1] Géométrie de tournée illisible : {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     private String matricule(Long busId) {
         return busRepo.findById(busId).map(Bus::getMatricule).orElse("?");
     }
@@ -123,7 +154,8 @@ public class TrajetService {
     private TrajetResponse toResponse(Trajet t) {
         return TrajetResponse.builder()
                 .id(t.getId()).busId(t.getBusId()).matricule(matricule(t.getBusId()))
-                .chauffeurId(t.getChauffeurId()).sens(t.getSens()).statut(t.getStatut())
+                .chauffeurId(t.getChauffeurId()).groupeId(t.getGroupeId())
+                .sens(t.getSens()).statut(t.getStatut())
                 .heureDebut(t.getHeureDebut()).heureFin(t.getHeureFin())
                 .build();
     }

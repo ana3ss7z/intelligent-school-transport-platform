@@ -128,6 +128,13 @@ def main():
         "mae_minutes": gagnant["test_MAE"],
         "n_lignes": len(df),
         "n_features": len(feat_cols),
+        # Bornes de validité : le service refuse d'extrapoler au-delà (une tournée restante est
+        # bien plus longue qu'un tronçon) et bascule sur le facteur de contexte.
+        "domaine_entrainement": {
+            col: {"min": float(df[col].min()), "max": float(df[col].max()),
+                  "median": float(df[col].median())}
+            for col in ("distance_routiere_m", "duree_base_s")
+        },
         "importances": importances,
         "dateCalcul": datetime.now(timezone.utc).isoformat(),
     }

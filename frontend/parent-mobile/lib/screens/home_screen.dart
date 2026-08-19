@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api.dart';
 import '../config/env.dart';
 import '../models/models.dart';
+import '../services/route_eta.dart';
 import '../state/providers.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -19,6 +20,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Map<int, Trajet?> _trajets = {}; // par busId
+  final Map<int, TrajetRoute?> _routes = {}; // tournée figée, par busId
   final Map<int, double?> _etas = {}; // par eleveId
 
   Timer? _trajetTimer;
@@ -52,7 +54,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (data == null) return;
     for (final busId in data.busIds) {
       try {
-        _trajets[busId] = await Api.instance.getTrajetActifBus(busId);
+        final avant = _trajets[busId]?.id;
+        final t = await Api.instance.getTrajetActifBus(busId);
+        _trajets[busId] = t;
+        // La tournée (polyligne, plusieurs dizaines de Ko) ne change qu'au
+        // démarrage/fin d'un trajet — on ne la recharge pas à chaque sondage.
+        if (t == null) {
+          _routes.remove(busId);
+        } else if (t.id != avant || _routes[busId] == null) {
+          _routes[busId] = await Api.instance.getTrajetRoute(busId);
+        }
       } catch (_) {
         /* garde la valeur précédente */
       }
@@ -80,18 +91,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         continue;
       }
       final soir = trajet.isSoir;
-      final destLat = soir ? e.latitude : Env.ecoleLat;
-      final destLng = soir ? e.longitude : Env.ecoleLng;
+      // La tournée part de l'école, ramasse, puis y revient. Deux choses à corriger :
+      //  1. la CIBLE : enfant pas encore à bord → son domicile (le bus vient le
+      //     chercher) ; à bord le matin → l'école ; le soir → son domicile (dépose).
+      //  2. le CHEMIN : distance restante SUR LA TOURNÉE. À vol d'oiseau, l'ETA→école
+      //     remonte (3→4→7→9) tant que le bus s'écarte pour les arrêts suivants.
+      final versDomicile = soir || !e.statutPresence;
+      final destLat = versDomicile ? e.latitude : Env.ecoleLat;
+      final destLng = versDomicile ? e.longitude : Env.ecoleLng;
       if (destLat == null || destLng == null) {
         _etas[e.id] = null;
         continue;
       }
+      final route = _routes[busId];
+      // Cible « fin de polyligne » pour l'école : la boucle y revient, donc viser ses
+      // coordonnées la projetterait sur le DÉPART du circuit.
+      final inputs = route != null && route.hasGeometrie
+          ? etaInputsRestants(
+              route.geometrie,
+              lat,
+              lng,
+              cibleLat: versDomicile ? destLat : null,
+              cibleLng: versDomicile ? destLng : null,
+              distancePlanM: route.distancePlanM,
+              dureePlanMin: route.dureePlanMin,
+            )
+          : null;
       try {
         final r = await Api.instance.predictEta(
-          busLat: lat,
-          busLng: lng,
-          destLat: destLat,
-          destLng: destLng,
+          // Repli point-à-point si la tournée n'est pas disponible.
+          busLat: inputs == null ? lat : null,
+          busLng: inputs == null ? lng : null,
+          destLat: inputs == null ? destLat : null,
+          destLng: inputs == null ? destLng : null,
+          distanceRoutiereM: inputs?.distanceM,
+          dureeBaseS: inputs?.dureeBaseS,
+          // `moment` = contexte trafic du modèle, pas la destination.
           moment: soir ? 'soir' : 'matin',
         );
         _etas[e.id] = r.etaMinutes;
@@ -105,10 +140,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(childrenProvider, (prev, next) {
-      if (next.hasValue && next.value!.enfants.isNotEmpty && !_kicked) {
+      if (!next.hasValue || next.value!.enfants.isEmpty) return;
+      if (!_kicked) {
         _kicked = true;
         _loadTrajets().then((_) => _loadEtas());
+        return;
       }
+      // La montée/descente change la destination visée par l'ETA → recalcul
+      // immédiat au lieu d'attendre le prochain tick de 30 s.
+      final avant = prev?.value?.enfants
+          .map((e) => '${e.id}:${e.statutPresence}')
+          .join('|');
+      final apres = next.value!.enfants
+          .map((e) => '${e.id}:${e.statutPresence}')
+          .join('|');
+      if (avant != null && avant != apres) _loadEtas();
     });
 
     final async = ref.watch(childrenProvider);
@@ -207,6 +253,14 @@ class _ChildCard extends StatelessWidget {
     required this.eta,
   });
 
+  bool get present => eleve.statutPresence;
+
+  /// Destination réellement pertinente pour le parent (même règle que `_loadEtas`) :
+  /// tant que l'enfant n'est pas monté, c'est son domicile que le bus rejoint.
+  bool get versDomicile => (trajet?.isSoir ?? false) || !present;
+
+  String get _destinationLabel => versDomicile ? 'chez vous' : 'à l\'école';
+
   /// Résumé vocalisé d'un bloc (lecteurs d'écran) au lieu de fragments épars.
   String _semanticSummary() {
     final buf = StringBuffer(eleve.nomComplet);
@@ -217,7 +271,7 @@ class _ChildCard extends StatelessWidget {
     } else if (eta != null) {
       buf.write(
         '. Le bus arrive dans environ ${eta!.round()} minutes '
-        '${trajet!.isSoir ? "chez vous" : "à l'école"}.',
+        '$_destinationLabel.',
       );
     } else {
       buf.write(
@@ -227,8 +281,6 @@ class _ChildCard extends StatelessWidget {
     }
     return buf.toString();
   }
-
-  bool get present => eleve.statutPresence;
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +415,7 @@ class _ChildCard extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         TextSpan(
-                          text: soir ? ' chez vous' : ' à l\'école',
+                          text: ' $_destinationLabel',
                           style: TextStyle(color: context.softColor),
                         ),
                       ],

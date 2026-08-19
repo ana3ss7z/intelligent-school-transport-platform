@@ -3,6 +3,8 @@ import { GraduationCap, Bus as BusIcon, Clock } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useMyChildren } from "../hooks/useMyChildren";
 import { useGpsSocket } from "../hooks/useGpsSocket";
+import { useTrajetRoutes } from "../hooks/useTrajetRoutes";
+import { etaInputsRestants } from "../lib/routeEta";
 import { getTrajetActifBus, predictEta } from "../api/endpoints";
 import type { Trajet } from "../api/types";
 import { Panel, Stat, StatusChip, Spinner, SectionTitle } from "../components/ui";
@@ -35,16 +37,28 @@ export function ParentHome() {
     return () => { alive = false; clearInterval(t); };
   }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ETA par enfant vers la destination selon le sens (école le matin, domicile le soir) — SI trajet démarré.
+  // Tournée figée de chaque trajet en cours → ETA mesuré LE LONG DU CIRCUIT.
+  const routes = useTrajetRoutes(trajets);
+
+  // ETA par enfant vers la destination PERTINENTE POUR LE PARENT — SI trajet démarré.
+  // La tournée part de l'école, ramasse, puis y revient. Deux corrections nécessaires :
+  //  1. la CIBLE : enfant pas encore à bord → son domicile (le bus vient le chercher) ;
+  //     à bord le matin → l'école ; le soir → son domicile (dépose).
+  //  2. le CHEMIN : distance restante SUR LA TOURNÉE, pas à vol d'oiseau. Sinon, même après la
+  //     montée, l'ETA→école remonte (3→4→7→9) tant que le bus s'écarte pour les autres arrêts.
   // Deps = clés PRIMITIVES stables (pas d'objets) + lecture via refs → pas de boucle de rendu.
   const [etas, setEtas] = useState<Record<number, number>>({});
   const enfantsRef = useRef(enfants); enfantsRef.current = enfants;
   const busByIdRef = useRef(busById); busByIdRef.current = busById;
   const trajetsRef = useRef(trajets); trajetsRef.current = trajets;
   const posRef = useRef(positions); posRef.current = positions;
+  const routesRef = useRef(routes); routesRef.current = routes;
 
-  const enfantsKey = enfants.map((e) => `${e.id}:${e.busId}`).join("|");
+  // `statutPresence` fait partie de la clé : la montée change la destination visée.
+  const enfantsKey = enfants.map((e) => `${e.id}:${e.busId}:${e.statutPresence}`).join("|");
   const trajetsKey = busIds.map((id) => `${id}:${trajets[id]?.sens ?? "-"}`).join("|");
+  // L'arrivée de la tournée change la méthode de calcul → recalculer aussitôt.
+  const routesKey = busIds.map((id) => `${id}:${routes[id]?.geometrie?.length ?? 0}`).join("|");
 
   useEffect(() => {
     let alive = true;
@@ -59,9 +73,20 @@ export function ParentHome() {
         const lng = live?.longitude ?? bus?.longitude;
         if (lat == null || lng == null) return [e.id, null] as const;
         const soir = trajet.sens === "SOIR";
-        const dest = soir ? { lat: e.latitude, lng: e.longitude } : ECOLE;
+        const versDomicile = soir || !e.statutPresence;
+        const dest = versDomicile ? { lat: e.latitude, lng: e.longitude } : ECOLE;
+        const poly = routesRef.current[busId]?.geometrie;
         try {
-          const r = await predictEta({ bus_lat: lat, bus_lng: lng, dest_lat: dest.lat, dest_lng: dest.lng, moment: soir ? "soir" : "matin" });
+          // Le long du circuit : cible = domicile (point du parcours) ou "fin" (retour école —
+          // viser les coords de l'école la projetterait sur le DÉPART de la boucle).
+          const inputs = poly?.length
+            ? etaInputsRestants(poly, { lat, lng }, versDomicile ? dest : "fin",
+                routesRef.current[busId]?.distancePlanM, routesRef.current[busId]?.dureePlanMin)
+            : null;
+          // `moment` = contexte trafic du modèle, pas la destination.
+          const r = await predictEta(inputs
+            ? { ...inputs, moment: soir ? "soir" : "matin" }
+            : { bus_lat: lat, bus_lng: lng, dest_lat: dest.lat, dest_lng: dest.lng, moment: soir ? "soir" : "matin" });
           return [e.id, r.eta_minutes] as const;
         } catch { return [e.id, null] as const; }
       }));
@@ -70,7 +95,7 @@ export function ParentHome() {
     compute();
     const t = setInterval(compute, 30000);
     return () => { alive = false; clearInterval(t); };
-  }, [enfantsKey, trajetsKey]);
+  }, [enfantsKey, trajetsKey, routesKey]);
 
   if (loading) return <Spinner label="Chargement de vos enfants…" />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -101,6 +126,8 @@ export function ParentHome() {
               const trajet = e.busId != null ? trajets[e.busId] : null;
               const eta = etas[e.id];
               const soir = trajet?.sens === "SOIR";
+              // Même règle que le calcul d'ETA ci-dessus.
+              const versDomicile = soir || !e.statutPresence;
               return (
                 <div key={e.id} className="rounded-lg border border-line p-3">
                   <div className="flex items-center gap-2.5">
@@ -137,7 +164,7 @@ export function ParentHome() {
                       {eta != null ? (
                         <span className="text-sm">
                           Le bus arrive dans <span className="font-semibold tabular">~{Math.round(eta)} min</span>{" "}
-                          <span className="text-ink-soft">{soir ? "chez vous" : "à l'école"}</span>
+                          <span className="text-ink-soft">{versDomicile ? "chez vous" : "à l'école"}</span>
                         </span>
                       ) : (
                         <span className="text-sm text-ink-soft">Trajet {soir ? "du soir" : "du matin"} en cours — calcul de l'arrivée…</span>

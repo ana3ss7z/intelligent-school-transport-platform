@@ -18,4 +18,8 @@ public class TrajetRequest {
 
     /** Géométrie de la tournée planifiée [[lat,lng],…] (optionnel) — envoyée par le front chauffeur. */
     private List<List<Double>> geometrie;
+
+    /** Totaux OSRM de cette tournée (MS5) — vitesse moyenne du circuit pour l'ETA restant. */
+    private Double distancePlanM;
+    private Double dureePlanMin;
 }

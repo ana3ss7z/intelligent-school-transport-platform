@@ -31,6 +31,15 @@ public class Trajet {
     @Column(columnDefinition = "TEXT")
     private String geometrie;
 
+    /**
+     * Totaux OSRM de la tournée planifiée (MS5), figés au démarrage avec la géométrie.
+     * Servent à dériver la vitesse moyenne réelle du circuit → ETA « distance restante
+     * le long de la tournée » côté chauffeur ET parent (sinon le parent devrait deviner
+     * une vitesse). Nullables : un trajet démarré sans tournée reste valide.
+     */
+    private Double distancePlanM;
+    private Double dureePlanMin;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Sens sens;

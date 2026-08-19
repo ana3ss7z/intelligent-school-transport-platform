@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.transport.ms1bus.dto.TrajetRequest;
 import ma.transport.ms1bus.dto.TrajetResponse;
+import ma.transport.ms1bus.dto.TrajetRouteResponse;
 import ma.transport.ms1bus.service.TrajetService;
 import ma.transport.mscommon.security.UserPrincipal;
 
@@ -63,5 +64,19 @@ public class TrajetController {
     public ResponseEntity<TrajetResponse> actifParBus(@PathVariable Long busId) {
         TrajetResponse t = service.actifParBus(busId);
         return t == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(t);
+    }
+
+    /**
+     * Tournée figée du trajet en cours d'un bus (polyligne + totaux OSRM). 204 si aucun trajet.
+     *
+     * <p>Permet aux fronts de mesurer la distance <b>restante le long du circuit</b> au lieu du
+     * vol d'oiseau : le bus s'éloigne de l'école pendant le ramassage, un ETA point-à-point
+     * augmenterait au lieu de décroître. Ouvert au PARENT (lecture seule, déjà scopé par bus).</p>
+     */
+    @GetMapping("/bus/{busId}/route")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
+    public ResponseEntity<TrajetRouteResponse> routeParBus(@PathVariable Long busId) {
+        TrajetRouteResponse r = service.routeParBus(busId);
+        return r == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(r);
     }
 }

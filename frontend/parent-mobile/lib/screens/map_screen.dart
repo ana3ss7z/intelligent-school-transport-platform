@@ -7,7 +7,9 @@ import 'package:latlong2/latlong.dart';
 
 import '../api/api.dart';
 import '../config/env.dart';
+import '../models/models.dart';
 import '../services/gps_socket.dart';
+import '../services/route_eta.dart';
 import '../state/providers.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -30,18 +32,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
   GpsSocket? _gps; // instance écoutée
   final Map<int, LatLng> _from = {};
   final Map<int, LatLng> _to = {};
-  final Map<int, double> _etas = {}; // busId -> minutes (→ école)
+  final Map<int, double> _etas = {}; // busId -> minutes
+  final Map<int, bool> _versDomicile = {}; // busId -> destination visée
+  final Map<int, Trajet?> _trajets = {}; // busId -> trajet actif
+  final Map<int, TrajetRoute?> _routes = {}; // busId -> tournée figée
   Timer? _etaTimer;
+  Timer? _trajetTimer;
 
   @override
   void initState() {
     super.initState();
+    _loadTrajets();
+    _trajetTimer = Timer.periodic(Env.pollTrajet, (_) => _loadTrajets());
     _etaTimer = Timer.periodic(Env.pollEta, (_) => _loadEtas());
   }
 
   @override
   void dispose() {
     _etaTimer?.cancel();
+    _trajetTimer?.cancel();
     _gps?.removeListener(_onGps);
     _anim.dispose();
     super.dispose();
@@ -73,6 +82,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  Future<void> _loadTrajets() async {
+    final data = ref.read(childrenProvider).value;
+    if (data == null) return;
+    for (final id in data.busIds) {
+      try {
+        final avant = _trajets[id]?.id;
+        final t = await Api.instance.getTrajetActifBus(id);
+        _trajets[id] = t;
+        // Tournée rechargée seulement au changement de trajet (polyligne volumineuse).
+        if (t == null) {
+          _routes.remove(id);
+        } else if (t.id != avant || _routes[id] == null) {
+          _routes[id] = await Api.instance.getTrajetRoute(id);
+        }
+      } catch (_) {
+        /* garde la valeur précédente */
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadEtas() async {
     final data = ref.read(childrenProvider).value;
     final gps = ref.read(gpsSocketProvider);
@@ -82,15 +112,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final lat = live?.latitude ?? b.latitude;
       final lng = live?.longitude ?? b.longitude;
       if (lat == null || lng == null) continue;
+
+      // Même règle que « Mon espace » : tant que l'enfant n'est pas monté, la
+      // destination utile est SON domicile (le bus vient le chercher) ; une fois
+      // à bord le matin, c'est l'école ; le soir, c'est le domicile. Et la distance
+      // se mesure LE LONG de la tournée, sinon l'ETA remonte pendant le ramassage.
+      final enfant = data.enfants.where((e) => e.busId == b.id).firstOrNull;
+      final soir = _trajets[b.id]?.isSoir ?? false;
+      final versDomicile = enfant != null && (soir || !enfant.statutPresence);
+      final destLat = versDomicile ? enfant.latitude : Env.ecoleLat;
+      final destLng = versDomicile ? enfant.longitude : Env.ecoleLng;
+      if (destLat == null || destLng == null) continue;
+
+      final route = _routes[b.id];
+      final inputs = route != null && route.hasGeometrie
+          ? etaInputsRestants(
+              route.geometrie,
+              lat,
+              lng,
+              // null = terminus de la tournée (l'école), cf. route_eta.dart
+              cibleLat: versDomicile ? destLat : null,
+              cibleLng: versDomicile ? destLng : null,
+              distancePlanM: route.distancePlanM,
+              dureePlanMin: route.dureePlanMin,
+            )
+          : null;
       try {
         final r = await Api.instance.predictEta(
-          busLat: lat,
-          busLng: lng,
-          destLat: Env.ecoleLat,
-          destLng: Env.ecoleLng,
-          moment: 'matin',
+          busLat: inputs == null ? lat : null,
+          busLng: inputs == null ? lng : null,
+          destLat: inputs == null ? destLat : null,
+          destLng: inputs == null ? destLng : null,
+          distanceRoutiereM: inputs?.distanceM,
+          dureeBaseS: inputs?.dureeBaseS,
+          moment: soir ? 'soir' : 'matin',
         );
         _etas[b.id] = r.etaMinutes;
+        _versDomicile[b.id] = versDomicile;
       } catch (_) {
         /* ignore */
       }
@@ -140,9 +198,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
             text: 'Aucun bus assigné à vos enfants pour le moment.',
           );
         }
-        final etaMin = _etas.values.isEmpty
-            ? null
-            : _etas.values.reduce((a, b) => a < b ? a : b);
+        // Bus le plus proche de sa destination (celle qui concerne le parent).
+        int? busProche;
+        double? etaMin;
+        for (final entry in _etas.entries) {
+          if (etaMin == null || entry.value < etaMin) {
+            etaMin = entry.value;
+            busProche = entry.key;
+          }
+        }
+        final etaLabel =
+            busProche != null && (_versDomicile[busProche] ?? false)
+            ? 'chez vous'
+            : 'école';
         return Stack(
           children: [
             RepaintBoundary(
@@ -210,6 +278,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                     data.busById[entry.key]?.matricule ??
                                     '${entry.key}',
                                 eta: _etas[entry.key],
+                                versDomicile: _versDomicile[entry.key] ?? false,
                               ),
                             ),
                         ],
@@ -235,7 +304,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const SizedBox(width: AppSpacing.sm),
                   if (etaMin != null)
                     _pill(
-                      '~${etaMin.round()} min → école',
+                      '~${etaMin.round()} min → $etaLabel',
                       AppColors.brand,
                       Icons.schedule_rounded,
                     ),
@@ -336,14 +405,19 @@ class _Pin extends StatelessWidget {
 class _BusMarker extends StatelessWidget {
   final String matricule;
   final double? eta;
-  const _BusMarker({required this.matricule, this.eta});
+  final bool versDomicile;
+  const _BusMarker({
+    required this.matricule,
+    this.eta,
+    this.versDomicile = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message:
           'Bus $matricule'
-          '${eta != null ? ' · ~${eta!.round()} min → école' : ''}',
+          '${eta != null ? ' · ~${eta!.round()} min → ${versDomicile ? "chez vous" : "école"}' : ''}',
       child: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(

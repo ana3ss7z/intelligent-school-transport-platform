@@ -17,6 +17,7 @@ import { useToast } from "../components/Toast";
 import { EmptyState, ErrorState } from "../components/AsyncState";
 import type { BusPositions } from "../hooks/useGpsSocket";
 import { lineColor } from "../lib/colors";
+import { etaInputsRestants } from "../lib/routeEta";
 
 const ECOLE = { lat: 33.893, lng: -5.5455 };
 const TYPES: TypeIncident[] = ["PANNE", "ACCIDENT", "RETARD", "ROUTE_BLOQUEE", "ABSENCE_CHAUFFEUR", "AUTRE"];
@@ -53,6 +54,7 @@ export function ChauffeurHome() {
   const [loadingEl, setLoadingEl] = useState(false);
   const [pending, setPending] = useState<number | null>(null);
   const [route, setRoute] = useState<RouteTrace | null>(null);
+  const [plan, setPlan] = useState<{ distancePlanM: number | null; dureePlanMin: number | null } | null>(null);
   const [eta, setEta] = useState<number | null>(null);
 
   // Trajet actif du chauffeur (restauré au chargement / reload)
@@ -63,6 +65,32 @@ export function ChauffeurHome() {
     if (!myBus) return;
     setLoadingEl(true);
     getElevesParBus(myBus.id).then(setEleves).catch(() => setEleves([])).finally(() => setLoadingEl(false));
+  }, [myBus]);
+
+  // Rafraîchissement silencieux de la présence (10 s).
+  // La présence change AUSSI hors de cet écran : simulateur, admin, ou le chauffeur
+  // depuis un autre appareil. Sans ce rafraîchissement la liste restait figée sur son
+  // état de chargement jusqu'au rechargement de la page — seuls les pointages faits
+  // ICI (mise à jour optimiste) se voyaient.
+  const pendingRef = useRef<number | null>(pending);
+  pendingRef.current = pending;
+  useEffect(() => {
+    if (!myBus) return;
+    const t = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const frais = await getElevesParBus(myBus.id);
+        setEleves((actuels) => {
+          const enVol = pendingRef.current;
+          if (enVol == null) return frais;
+          // Un pointage est encore en vol : le serveur ne le connaît pas encore,
+          // on conserve la valeur optimiste pour éviter qu'elle ne « revienne ».
+          const local = actuels.find((x) => x.id === enVol);
+          return local ? frais.map((x) => (x.id === enVol ? local : x)) : frais;
+        });
+      } catch { /* réseau instable : on garde la liste courante */ }
+    }, 10000);
+    return () => clearInterval(t);
   }, [myBus]);
 
   const groupeId = eleves[0]?.groupeId ?? null;
@@ -83,7 +111,10 @@ export function ChauffeurHome() {
         return e ? { n: i + 1, lat: e.latitude, lng: e.longitude, label: `${e.prenom} ${e.nom}` } : null;
       }).filter((s): s is NonNullable<typeof s> => s != null);
       setRoute({ color: lineColor(groupeId), points: (res.geometrie ?? []) as [number, number][], stops });
-    }).catch(() => setRoute(null));
+      // Totaux OSRM du circuit → vitesse moyenne réelle pour l'ETA restant (et figés au démarrage
+      // du trajet pour que les parents calculent exactement la même chose).
+      setPlan({ distancePlanM: res.distance_m ?? null, dureePlanMin: res.duree_min ?? null });
+    }).catch(() => { setRoute(null); setPlan(null); });
     return () => { alive = false; };
   }, [groupeId, sens]);
 
@@ -94,15 +125,28 @@ export function ChauffeurHome() {
   const posRef = useRef<{ lat: number | null; lng: number | null }>({ lat, lng });
   posRef.current = { lat, lng };
 
-  // ETA bus → école (recalcul 30 s)
+  // ETA de FIN DE TOURNÉE (recalcul 30 s).
+  // La tournée boucle école → élèves → école : viser l'école en point-à-point donne un ETA qui
+  // AUGMENTE pendant le ramassage (le bus s'en éloigne). On mesure donc ce qui reste à parcourir
+  // SUR LE CIRCUIT — ça inclut tous les arrêts restants et ça décroît.
+  const routeRef = useRef(route); routeRef.current = route;
+  const planRef = useRef(plan); planRef.current = plan;
   useEffect(() => {
     if (!myBus) return;
     let alive = true;
     const compute = async () => {
       const p = posRef.current;
       if (p.lat == null || p.lng == null) return;
+      const poly = routeRef.current?.points;
       try {
-        const r = await predictEta({ bus_lat: p.lat, bus_lng: p.lng, dest_lat: ECOLE.lat, dest_lng: ECOLE.lng, moment: sens });
+        const inputs = poly?.length
+          ? etaInputsRestants(poly, { lat: p.lat, lng: p.lng }, "fin",
+              planRef.current?.distancePlanM, planRef.current?.dureePlanMin)
+          : null;
+        // Repli point-à-point si la tournée n'est pas (encore) chargée.
+        const r = await predictEta(inputs
+          ? { ...inputs, moment: sens }
+          : { bus_lat: p.lat, bus_lng: p.lng, dest_lat: ECOLE.lat, dest_lng: ECOLE.lng, moment: sens });
         if (alive) setEta(r.eta_minutes);
       } catch { /* ignore */ }
     };
@@ -118,7 +162,7 @@ export function ChauffeurHome() {
     try {
       // On envoie la tournée figée (groupe + géométrie) → MS11 surveille la déviation pendant le trajet
       const t = await demarrerTrajet(myBus.id, sensChoix === "matin" ? "MATIN" : "SOIR",
-        groupeId, route?.points);
+        groupeId, route?.points, plan ?? undefined);
       setTrajet(t);
       toast.success(`Trajet ${sensChoix} démarré — l'administration est prévenue`);
     } catch (e: unknown) {
@@ -244,7 +288,8 @@ export function ChauffeurHome() {
           <Stat label="Statut" value={<StatusChip tone={statutTone(myBus.statut)}>{myBus.statut}</StatusChip>} tone="ok" />
         )}
         <Stat label={sens === "matin" ? "Montés" : "Déposés"} value={`${done}/${eleves.length}`} tone="line2" hint={enCours ? "pointage en cours" : "démarrez pour pointer"} />
-        <Stat label="Arrivée école" value={eta != null ? `~${Math.round(eta)}` : "—"} unit="min" tone="warn" hint="ETA estimé (MS12)" />
+        <Stat label="Fin de tournée" value={eta != null ? `~${Math.round(eta)}` : "—"} unit="min" tone="warn"
+          hint={route?.points?.length ? "arrêts restants inclus (MS12)" : "ETA estimé (MS12)"} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">

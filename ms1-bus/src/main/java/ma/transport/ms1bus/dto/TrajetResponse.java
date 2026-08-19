@@ -14,6 +14,7 @@ public class TrajetResponse {
     private Long busId;
     private String matricule;
     private Long chauffeurId;
+    private Long groupeId;
     private Sens sens;
     private StatutTrajet statut;
     private LocalDateTime heureDebut;

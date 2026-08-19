@@ -1,15 +1,24 @@
 import { useMemo } from "react";
 import { useAsync } from "./useAsync";
+import { usePolling } from "./usePolling";
 import { useAuth } from "../auth/AuthContext";
 import { getBus, getElevesParParent } from "../api/endpoints";
 import type { Bus, Eleve } from "../api/types";
 
-/** Résout les enfants du parent connecté + les bus associés. */
+/**
+ * Résout les enfants du parent connecté + les bus associés.
+ *
+ * Les enfants sont **sondés** (20 s, silencieux) et non chargés une seule fois : `statutPresence`
+ * change côté serveur quand le chauffeur pointe la montée. Sans ce sondage, la pastille
+ * « à bord » et le compte à rebours (dont la destination dépend de la présence) restaient figés
+ * jusqu'au rechargement de la page.
+ */
 export function useMyChildren() {
   const { user } = useAuth();
   const parentId = user?.userId ?? 0;
-  const { data: eleves, loading: le, error, refetch } = useAsync<Eleve[]>(
+  const { data: eleves, loading: le, error, refetch } = usePolling<Eleve[]>(
     () => (parentId ? getElevesParParent(parentId) : Promise.resolve([])),
+    20000,
     [parentId],
   );
   const { data: buses, loading: lb } = useAsync(getBus, []);

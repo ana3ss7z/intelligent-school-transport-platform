@@ -226,7 +226,10 @@ async def predict(req: PredictRequest):
         "duree_moyenne_historique_s": hist_s,
         "retard_cumule_s": req.retard_cumule_min * 60.0,
     }
-    eta_min = float(eta_model.predict_df(pd.DataFrame([row]))[0])
+    # Hors du domaine d'entraînement (tournée restante ≫ tronçon), le modèle n'extrapole pas :
+    # il fournit le facteur d'inflation contextuel, OSRM la distance. Cf. ETAModel.predire_minutes.
+    eta_min, mode_eta = eta_model.predire_minutes(row)
+    sources["eta"] = mode_eta
     mae = float(eta_model.config.get("mae_minutes", 0.0))
 
     return {
@@ -239,6 +242,7 @@ async def predict(req: PredictRequest):
         "distance_routiere_m": round(dist, 1),
         "duree_base_min": round(dur / 60.0, 2),
         "modele": eta_model.config.get("algorithme"),
+        "mode_eta": mode_eta,
         "contexte_auto": auto,
         "facteurs": {"meteo": meteo, "trafic": trafic_cat, "moment": req.moment,
                      "ramadan": ramadan, "jour_souk": jour_souk, "travaux_prevus": travaux_prevus},
