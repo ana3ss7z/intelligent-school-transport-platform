@@ -172,9 +172,9 @@ MS9 est **agnostique** : il parle à n'importe quel fournisseur **compatible Ope
 d'essai automatique (fichier `llm_client.py` + `config.py`) :
 
 ```
-1) Groq  llama-3.3-70b-versatile   ← qualité (raisonnement, multilingue)
+1) Groq  openai/gpt-oss-120b        ← qualité (raisonnement, multilingue)
       ↓  (si quota/erreur : retry court, puis bascule)
-2) Groq  llama-3.1-8b-instant       ← repli rapide, quota journalier séparé
+2) Groq  openai/gpt-oss-20b         ← repli rapide, quota journalier séparé
       ↓
 3) Gemini gemini-2.0-flash          ← dernier repli
 ```
@@ -182,8 +182,25 @@ d'essai automatique (fichier `llm_client.py` + `config.py`) :
 - **Retry + backoff** sur les erreurs `429` (rate limit) / `5xx`.
 - **Mode dégradé** : si aucune clé n'est configurée, le service démarre quand même et répond
   « assistant non configuré » (rien ne plante).
-- Pourquoi 70b d'abord ? il est **plus intelligent** (respect des règles de sécurité, arabe/darija).
-  Le 8b est un **repli** (plus léger, quota plus large), pas « meilleur ».
+- Pourquoi le 120b d'abord ? il est **plus intelligent** (respect des règles de sécurité, arabe/darija).
+  Le 20b est un **repli** (plus léger, quota séparé), pas « meilleur ».
+
+> ⚠️ **Migration du 19/08/2026.** La cascade utilisait `llama-3.3-70b-versatile` → `llama-3.1-8b-instant`.
+> Groq a décommissionné **toute la famille Llama le 16/08/2026** — l'avis ne mentionnait que le 70b, mais le
+> 8b a disparu **aussi**. Les deux étages Groq échouaient donc en silence, MS9 retombant sur Gemini.
+> `qwen/qwen3.6-27b` (2ᵉ remplaçant conseillé par Groq) a été **écarté** : au test, il n'émet pas de
+> `tool_call` — rédhibitoire pour un agent dont tout repose sur les outils. `gpt-oss` 120b et 20b : tool
+> calling vérifié.
+>
+> **Effet de bord traité** : `gpt-oss` renvoie un champ propriétaire `reasoning`, et **aucun `content`**
+> lorsqu'il appelle un outil. `agent.py` réinjectait le message assistant **brut** dans l'historique ; Groq
+> le tolère, mais la cascade peut basculer sur Gemini **en cours de conversation** avec cet historique.
+> `_assistant_spec()` réduit désormais le message à `role`/`content`/`tool_calls` (et évite de repayer les
+> jetons de raisonnement à chaque tour).
+>
+> **À surveiller** : `max_tokens` (800) est **partagé avec les jetons de raisonnement** de `gpt-oss` — sur un
+> tour multi-outils, la réponse visible peut être tronquée. Vérifier la liste vivante des modèles avant une
+> démo : `GET https://api.groq.com/openai/v1/models`.
 
 ---
 
@@ -220,8 +237,8 @@ MS12_URL=http://localhost:8088
 PRIMARY_PROVIDER=groq
 FALLBACK_PROVIDER=gemini
 GROQ_API_KEY=gsk_...            # https://console.groq.com/keys (gratuit, sans CB)
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_FALLBACK_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=openai/gpt-oss-120b
+GROQ_FALLBACK_MODEL=openai/gpt-oss-20b
 GEMINI_API_KEY=...             # https://aistudio.google.com/apikey (optionnel)
 GEMINI_MODEL=gemini-2.0-flash
 

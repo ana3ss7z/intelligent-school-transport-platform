@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 27 juillet 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** + **app mobile PARENT Flutter** livrés
+## État au 19 août 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** + **app mobile PARENT Flutter** + **ETA le long de la tournée** livrés
 
 ---
 
@@ -74,7 +74,7 @@ jamais confiance aux ids du modèle). Outils : `get_mes_enfants` (MS2), `get_pos
 Nominatim/OSM** → rue/quartier), `get_eta_ecole` (MS12), `get_trajet_actif` (MS1), `get_incidents_bus` (MS10).
 Robustesse : **pré-fetch enfants (1×)** + injection contexte au prompt, **tool calls en parallèle** (`asyncio.gather`),
 **historique propre** (user/assistant seulement → évite le 400 OpenAI), **cascade providers 70b → 8b → Gemini**
-(`llama-3.3-70b` qualité → `llama-3.1-8b-instant` repli budget séparé → Gemini) avec **retry+backoff** sur 429/5xx,
+(`openai/gpt-oss-120b` qualité → `openai/gpt-oss-20b` repli budget séparé → Gemini) avec **retry+backoff** sur 429/5xx,
 mode dégradé si aucune clé. Endpoints : `GET /api/llm/health|model-info`, **`POST /api/llm/chat`** (JWT **PARENT**).
 Front : page **Assistant** (`/parent/assistant`, widget chat + suggestions). Delta MS10 : `GET /api/incidents/bus/{id}`
 ouvert au **PARENT** (portée gardée par MS9) ; MS12 `/predict` ouvert au **PARENT**. **Validé e2e** (FR/AR/darija,
@@ -86,11 +86,13 @@ injection de prompt refusée, scope inter-parents refusé, écriture refusée). 
 **NOUVEAU (27/07) — App mobile PARENT Flutter (`frontend/parent-mobile/`, Flutter 3.44 / Dart 3.12) :**
 Vraie app parent multiplateforme (cible dev **Chrome web** `:5174`, code Android-ready) qui **reprend à
 l'identique les 5 écrans de l'espace parent web** en consommant le **même backend** (Gateway `:8080` + WebSocket
-GPS direct `:8083`) — **aucun delta backend** (tous les endpoints déjà ouverts au rôle PARENT ; CORS Gateway `*`).
-- **Écrans** : Login · **Mon espace** (enfants/présence/bus + **compte à rebours** ETA gaté sur trajet démarré,
-  matin→école / soir→domicile selon `sens`) · **Carte de mon enfant** (`flutter_map` OSM/CARTO, bus filtrés aux
-  enfants, **glisse interpolée** entre pings GPS, ETA→école, tuiles sombres) · **Messagerie** (réception diffusions,
-  poll 15 s) · **Notifications** (poll 15 s) · **Assistant** (chat MS9 `POST /api/llm/chat`) + badge non-lus (poll 20 s).
+GPS direct `:8083`). *(Livrée sans delta backend ; depuis le 19/08 elle consomme 2 endpoints ajoutés
+pour l'ETA — `/api/trajets/bus/{id}/route` et `/api/planification/mes-enfants`, cf. plus bas.)*
+- **Écrans** (6) : Login · **Mon espace** (enfants/présence/bus + **compte à rebours** ETA gaté sur trajet démarré) ·
+  **Carte de mon enfant** (`flutter_map` OSM/CARTO, bus filtrés aux enfants, **glisse interpolée** entre pings GPS,
+  tuiles sombres) · **ETA / Prévisions** (`eta_screen.dart` : sens matin/soir + heure de départ → heure de passage
+  estimée par enfant, ← **NOUVEAU 19/08**) · **Messagerie** (réception diffusions, poll 15 s) · **Notifications**
+  (poll 15 s) · **Assistant** (chat MS9 `POST /api/llm/chat`) + badge non-lus (poll 20 s).
 - **Archi** : `dio` (Bearer + 401→logout, timeouts 20 s / 120 s pour ETA+LLM), `web_socket_channel` (auto-reconnect
   2,5 s + throttle 1 s), `flutter_secure_storage` (JWT), `flutter_riverpod` (auth/enfants/GPS partagés), `intl`.
 - **UI/UX + perf** (skill `flutter-ui-ux`) : **Material 3 thème pro clair + sombre** (toggle), tokens 4/8 pt,
@@ -118,6 +120,96 @@ GPS direct `:8083`) — **aucun delta backend** (tous les endpoints déjà ouver
   *« Could not find method kotlin() on project ':jni' »*. **Solution : épingler `path_provider_android: 2.2.17`**
   (même service, sans `jni`). À retirer quand `jni` sera compatible AGP 9. *(N'affecte pas la cible web.)*
 - **Skills Flutter installées** (`.claude/skills/` + `.claude/agents/`) : `flutter-ui-ux`, `flutter-tester`, agent `flutter-expert`.
+
+---
+
+**NOUVEAU (19/08) — ETA « le long de la tournée » + page Prévisions parent + migration LLM :**
+
+**1. Correction de fond de l'ETA (5 écrans).** Symptôme : le compte à rebours *augmentait* (3→4→7→9 min),
+même une fois l'enfant monté. Cause : l'ETA visait un point (école ou domicile) en **distance directe**, or la
+tournée boucle `école → élèves → école` — pendant le ramassage le bus **s'éloigne** de l'école, donc la distance
+directe croît alors que le bus avance normalement. *(Un premier correctif avait changé la **cible** selon la
+présence ; insuffisant, le problème était le **chemin**.)*
+- **Primitive partagée** : `web-admin/src/lib/routeEta.ts` + `parent-mobile/lib/services/route_eta.dart`
+  (jumeaux, **parité vérifiée à 4 décimales**). Projette la position GPS sur la polyligne figée du trajet et
+  mesure la **distance restante SUR le circuit** — quantité qui décroît. Cible `"fin"` pour l'école (la boucle y
+  revient : viser ses coordonnées projetterait sur le **départ**), sinon le domicile cherché **devant** le bus.
+  Vitesse déduite des totaux OSRM du circuit. **11 tests** (`test/route_eta_test.dart`).
+- **Règle unique partout** : pas encore à bord → *chez vous* · à bord le matin → *l'école* · le soir → *chez vous*.
+- Appliqué à `ChauffeurHome` (KPI « Arrivée école » → **« Fin de tournée »**, arrêts restants inclus),
+  `ParentHome`, `ParentCarte`, `home_screen.dart`, `map_screen.dart`. Repli point-à-point si pas de tournée.
+
+**2. Deltas backend liés :**
+- **MS1** : `Trajet` + colonnes `distancePlanM` / `dureePlanMin` (totaux OSRM figés au démarrage → vitesse réelle
+  du circuit, même calcul pour le chauffeur ET le parent) ; DTO `TrajetRouteResponse` ;
+  **`GET /api/trajets/bus/{id}/route`** (ADMIN/CHAUFFEUR/**PARENT**) → polyligne + totaux, séparé de
+  `/actif` car la géométrie pèse des dizaines de Ko et `/actif` est sondé toutes les 15 s. `groupeId` ajouté à
+  `TrajetResponse`. *(Colonnes **nullables** → `ddl-auto=update` les crée seul, pas de migration manuelle.)*
+- **MS5** : `planner.planifier()` renvoie `etapes` (cumul distance/durée **depuis l'école** à chaque arrêt) ;
+  **`POST /api/planification/mes-enfants?sens=`** réservé au rôle **PARENT**, **portée imposée par le JWT**
+  (`parentId` du token, jamais de la requête). MS5 planifie la tournée entière (nécessaire au cumul) mais ne
+  renvoie **que** les étapes des enfants du demandeur — aucun autre nom/domicile/rang. `/tournee` et `/tournees`
+  restent **interdits au PARENT** (une tournée = les adresses de toutes les familles du bus).
+- **MS12 — garde anti-extrapolation** (`model.py::predire_minutes`) : le modèle a été entraîné sur des **tronçons**
+  (0,7–4 km) ; une tournée restante atteint ~12 km. Hors domaine, on **n'extrapole plus** : le modèle est interrogé
+  sur un tronçon **de référence** (médiane d'entraînement) avec le **contexte réel du moment** → **facteur
+  d'inflation** (×1,32 fluide … ×2,36 embouteillage+pluie) appliqué à la durée OSRM restante. *Le ML dit de combien
+  ça se dégrade aujourd'hui, OSRM dit la distance.* → **artefact gelé et métriques publiées (MAE 1,32 min,
+  +52,7 %) restent valides**. Bornes gelées dans `eta_config.json` (`domaine_entrainement`, écrites par `train.py`) ;
+  champ `mode_eta` (`modele_direct` | `facteur_contexte`) dans la réponse. Discontinuité mesurée à la bascule :
+  **14,5 s**, soit 18 % du MAE du modèle → assumée.
+
+**3. Page « Prévisions » parent (web + mobile)** — même principe que `/chauffeur/eta`, limité à ses enfants :
+sens matin/soir + heure de départ de l'école → **heure de passage estimée** par enfant, rang (« 7ᵉ arrêt sur 50 »),
+bus, km depuis l'école. Le cumul MS5 est passé à MS12 en `distance_routiere_m`/`duree_base_s` (donc via la garde
+ci-dessus). Web : `ParentEta.tsx` → `/parent/eta` + entrée de nav. Mobile : `eta_screen.dart` → 6ᵉ onglet « ETA ».
+
+**4. Présence figée dans l'UI (bug)** : `ChauffeurHome` et `useMyChildren` (parent web ×2) chargeaient les élèves
+**une seule fois**. Une présence changée ailleurs (simulateur, admin, autre appareil) restait invisible jusqu'au
+rechargement — seuls les pointages faits sur place s'affichaient (mise à jour optimiste). Sondage silencieux
+ajouté (chauffeur 10 s en **préservant un pointage en vol**, parent 20 s via `usePolling`). Corrige au passage le
+« recalcul immédiat à la montée » de l'ETA, qui ne pouvait jamais se déclencher côté web.
+
+**5. Simulateur** : `bus_simulator.py` suivait déjà l'ordre MS5 et les vraies routes OSRM — **mais** si
+`ordrePassage` était NULL (MS5 jamais lancé), `ORDER BY ordrePassage ASC` laissait un ordre arbitraire et le bus
+zigzaguait **en silence**. `assurer_ordre_optimise()` détecte le cas, appelle MS5 (`persister=true`), relit l'ordre
+et affiche le gain. Flag **`--optimiser`** pour forcer le recalcul.
+
+**6. Page de connexion — refonte + 2 bugs.**
+- **Bug thème sombre** : `--header` est une **encre de titre** (elle s'éclaircit en sombre : `#cdd8ea`) mais était
+  utilisée comme **fond** sous du texte blanc → blanc sur clair, illisible. 4 endroits touchés (`Login`,
+  `AppLayout`, `ChauffeurEta`, `EtaPrevisions`). Nouveau token **`--surface-deep`** (fond de marque, **toujours
+  foncé**, contenu blanc ; contraste 14,3:1).
+- **Bug thème non appliqué** : `useTheme` ne pose `[data-theme]` que depuis les écrans qui l'appellent (via
+  `AppLayout`) → `/login` s'affichait en clair malgré un choix « sombre ». Thème désormais appliqué dans
+  `main.tsx` **avant le premier rendu** (supprime aussi le flash).
+- **Refonte** (skills `frontend-design` + `web-design-guidelines`) : volet gauche = **diagramme de réseau animé**
+  (géométrie de plan de métro 0°/45°/90°) où **la tournée se résout** au chargement, lignes voisines convergeant
+  vers l'école ; légende = le **vrai pipeline** (Regroupement MS6 → Tournée MS5 → Arrivée MS12). Décor **hissé hors
+  du composant** (ne re-rend pas à la saisie), 100 % CSS, `prefers-reduced-motion` respecté.
+- Qualité : `Admin123!` n'est plus pré-rempli qu'en `import.meta.env.DEV` (il partait dans le bundle de prod),
+  `outline-none` retiré (il masquait l'anneau `:focus-visible`), `name`/`spellCheck`/`inputMode`, `aria-hidden`
+  sur les icônes, bascule d'affichage du mot de passe.
+
+**7. MS9 — migration LLM forcée (⚠️ modèles décommissionnés)** : Groq a retiré **toute la famille Llama** le
+**16/08/2026**. L'avis ne citait que `llama-3.3-70b-versatile`, mais `llama-3.1-8b-instant` a disparu **aussi** →
+les 2 étages Groq de la cascade échouaient, MS9 retombait silencieusement sur Gemini.
+- Nouvelle cascade : **`openai/gpt-oss-120b` → `openai/gpt-oss-20b` → Gemini** (`config.py` **et** `ms9-llm/.env`,
+  qui a priorité et réintroduisait le modèle mort).
+- `qwen/qwen3.6-27b` (2ᵉ modèle conseillé par Groq) **écarté** : n'a pas appelé l'outil au test — rédhibitoire
+  pour un agent tool-calling. `gpt-oss` 120b et 20b : tool calling **vérifié**.
+- **Bug latent corrigé** : `gpt-oss` renvoie un champ propriétaire **`reasoning`** et **aucun `content`** quand il
+  appelle un outil ; `agent.py` réinjectait le message **brut** dans l'historique. Toléré par Groq, mais la cascade
+  peut basculer sur **Gemini en cours de conversation** avec cet historique. `_assistant_spec()` réduit le message
+  à `role`/`content`/`tool_calls` (et cesse de repayer les jetons de raisonnement à chaque tour).
+- ⚠️ `max_tokens: 800` est **partagé avec les jetons de raisonnement** de `gpt-oss` → réponse visible
+  potentiellement tronquée sur un tour multi-outils. À surveiller (monter à ~1200 ou brider `reasoning_effort`).
+
+> **Vérifications** : `bun run build` (typecheck) ✅ · `flutter analyze` 0 issue ✅ · `flutter test` **16/16** ✅ ·
+> `mvn compile` ms1 ✅ · `py_compile` MS5/MS12 ✅ · boucle tool-calling MS9 rejouée en réel ✅.
+> **Non vérifié** : exécution complète (backend éteint). **MS1, MS5, MS12 et MS9 doivent être redémarrés.**
+> Le chauffeur doit **démarrer un nouveau trajet** pour que les totaux OSRM soient persistés (un trajet déjà en
+> cours reste route-aware mais retombe sur la vitesse urbaine par défaut).
 
 ## 📁 Structure racine du projet
 
@@ -216,6 +308,12 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 - Endpoints CRUD complets + `PATCH /statut` + `PATCH /position`
 - **`GET /api/bus/actifs`** (permitAll, interne) → flotte ACTIF pour la **liaison groupe↔bus** (MS6) ← NOUVEAU B1
 - **RabbitMQ publie :** `bus.created`, `bus.deleted` → **déclenche le recalcul clustering MS6** (changement de flotte = changement de capacité totale → `k` peut changer). Config : `spring-boot-starter-amqp` + `RabbitMQConfig` (exchange `transport.exchange`).
+- **Entité `Trajet`** : `busId`, `chauffeurId`, `groupeId`, `geometrie` (JSON `[[lat,lng],…]`), `sens`, `statut`,
+  `heureDebut/Fin` + **`distancePlanM` / `dureePlanMin`** (totaux OSRM de la tournée, figés au démarrage) ← **19/08**
+- **`GET /api/trajets/bus/{busId}/route`** (ADMIN/CHAUFFEUR/**PARENT**, 204 si aucun trajet) → `TrajetRouteResponse`
+  = polyligne + totaux. **Séparé de `/actif`** : la géométrie pèse des dizaines de Ko et `/actif` est sondé toutes
+  les 15 s par chaque front ; ici on ne recharge qu'au changement de trajet. Sert à mesurer la **distance restante
+  le long du circuit** (ETA qui décroît) ← **NOUVEAU 19/08**
 
 ---
 
@@ -531,7 +629,7 @@ ms12-prediction/
 |-------|------|-------------|
 | GET `/api/eta/health` | Public | Health + modèle chargé |
 | GET `/api/eta/model-info` | Public | Métriques (tous/normaux), gain vs baseline, importances |
-| POST `/api/eta/predict` | **JWT ADMIN/CHAUFFEUR** | ETA d'un trajet (coords→OSRM ou distance/durée fournies) |
+| POST `/api/eta/predict` | **JWT ADMIN/CHAUFFEUR/PARENT** | ETA d'un trajet (coords→OSRM ou distance/durée fournies). Hors du domaine d'entraînement → bascule **facteur de contexte** (champ `mode_eta`) ← **19/08** |
 
 **Features (dispo à l'heure de départ) :** temporel (heure sin/cos, jour, mois, moment), conditions
 (météo, trafic), route (distance/durée OSRM, nb_feux, traverse_oued), dwell (montées/descentes,
@@ -642,6 +740,11 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 | GET `/api/planification/health` | Public | Health + solveur |
 | POST `/api/planification/tournee?groupeId=&sens=matin\|soir` | **JWT ADMIN/CHAUFFEUR** | Tournée d'un bus → `{ordre, distance_m, duree_min, gain_vs_baseline_%, geometrie}` |
 | POST `/api/planification/tournees?sens=` | **JWT ADMIN/CHAUFFEUR** | Toutes les tournées (lit l'affectation MS6 via MS2) + totaux + gain moyen |
+| POST `/api/planification/mes-enfants?sens=` | **JWT PARENT** | **Étapes des SEULS enfants du parent** (rang + cumul distance/durée depuis l'école) — portée prise dans le JWT, jamais dans la requête ← **NOUVEAU 19/08** |
+
+> **Pourquoi un endpoint dédié au parent** : `/tournee` expose l'ordre **et les domiciles de toutes les familles**
+> du bus. L'ouvrir au rôle PARENT serait une fuite. MS5 calcule donc la tournée complète (indispensable au cumul)
+> puis **filtre sur `parentId` du jeton** avant de répondre.
 
 **Sécurité JWT :** `verify_token` ADMIN/CHAUFFEUR (même `jwt_secret` que MS7). **CORS :** aucun (Gateway).
 **Gateway :** route `ms5-planification` (8085) **déjà présente** → aucune modif.
@@ -775,6 +878,7 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
 | S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |
 | **S13+** | **27/07** | **✅** | **App mobile PARENT Flutter (`frontend/parent-mobile/`, Chrome :5174 / Android) : 5 écrans miroir de l'espace parent web (login, Mon espace+countdown, carte live glisse GPS, messagerie, notifications, assistant MS9), Material 3 clair+sombre, skeletons, perf (RepaintBoundary/const/builder). Aucun delta backend. Skills `flutter-ui-ux`/`flutter-tester` + agent `flutter-expert` installés.** |
+| **S14** | **19/08** | **✅** | **ETA « le long de la tournée » (5 écrans) + garde anti-extrapolation MS12 + page Prévisions parent (web `/parent/eta` + mobile 6ᵉ onglet, MS5 `/mes-enfants` scopé JWT) + fix présence figée + refonte page de connexion (2 bugs thème sombre) + migration LLM forcée (Llama décommissionné → gpt-oss)** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---
@@ -814,6 +918,21 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 5. **JWT_SECRET** : identique partout (`app.jwt.secret` MS7 = `.env` des services Python). **CORS** : uniquement la Gateway.
 
 6. **Python 3.11 (env conda `nlp`)** : `scikit-learn==1.5.2`, `aio-pika==9.4.1` ; services Python démarrés via `start-all-ms.bat`.
+
+7. **Modèles LLM Groq — durée de vie courte** (19/08/2026) : Groq a décommissionné **toute la famille Llama** le
+   16/08 (`llama-3.3-70b-versatile` **et** `llama-3.1-8b-instant`, alors que l'avis ne citait que le 70b). La
+   cascade MS9 échouait deux fois avant de retomber sur Gemini, **sans erreur visible**. Cascade actuelle :
+   `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → Gemini. **Vérifier `GET https://api.groq.com/openai/v1/models`
+   avant toute démo** — et se rappeler que `ms9-llm/.env` **écrase** les valeurs de `config.py`.
+
+8. **`--surface-deep` ≠ `--header` (web-admin)** : `--header` est une **encre de titre**, elle s'éclaircit en thème
+   sombre. L'utiliser comme **fond** sous du texte blanc donne du blanc sur clair. Pour toute surface de marque
+   foncée, utiliser **`--surface-deep`** (reste foncé dans les deux thèmes).
+
+9. **ETA : ne jamais viser un point en distance directe pendant une tournée.** La tournée boucle
+   `école → élèves → école` : un ETA point-à-point **augmente** pendant le ramassage. Utiliser `routeEta.ts` /
+   `route_eta.dart` (distance restante **sur** la polyligne). Et côté MS12, ne pas dépasser le domaine
+   d'entraînement (tronçons 0,7–4 km) : la garde `facteur_contexte` s'en charge.
 
 ---
 

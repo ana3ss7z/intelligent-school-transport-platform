@@ -107,7 +107,7 @@ Pour répondre parfaitement à cette double exigence (Function Calling + NL2SQL 
 | Composant | Technologie Recommandée | Pourquoi ce choix pour votre PFE ? |
 | --- | --- | --- |
 | **LLM Principal** | **Google AI Studio** (`gemini-2.0-flash` ou `gemini-1.5-flash`) | **0 DH / Sans CB.** Modèle souverain pour le **Tool Calling**, la génération de **code SQL**, et le multilingue (Français/Arabe parfait). 1 500 req/jour offertes. |
-| **LLM Secours / Vitesse** | **Groq Cloud** (`llama-3.3-70b-versatile`) | Inférence sous les 200 ms. Idéal en plan B pour le chatbot parent. |
+| **LLM Secours / Vitesse** | **Groq Cloud** (`openai/gpt-oss-120b`) | Inférence sous les 200 ms. Idéal en plan B pour le chatbot parent. *(Ce document date de l'étude préalable ; à la réalisation, Groq est devenu le **principal** et Gemini le dernier repli — cf. `MS9_Phase_A_Chatbot_Parent.md`. `llama-3.3-70b-versatile`, retenu à l'origine, a été **décommissionné le 16/08/2026**.)* |
 | **Framework Agent IA** | **FastAPI + LangChain / LangGraph** (ou SDK `google-genai`) | Gestion simplifiée de l'agent à outils (Tools) et de la chaîne NL2SQL (`SQLDatabaseChain`). |
 | **Accès BDD (NL2SQL)** | **PostgreSQL** (Connexion Read-Only) | Accès direct aux vues/tables analytiques de votre base globale pour l'admin. |
 
