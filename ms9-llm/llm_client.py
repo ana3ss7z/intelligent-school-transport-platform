@@ -18,6 +18,24 @@ _MAX_RETRIES = 3          # tentatives par provider (sur 429/5xx/timeout)
 _BACKOFF_BASE = 0.8       # secondes (exponentiel : 0.8, 1.6, 3.2…)
 
 
+def _logger_usage(provider: dict, usage: dict | None) -> None:
+    """
+    Journalise la consommation de jetons de l'appel.
+
+    Le quota Groq qui contraint réellement le service est le **TPM** (8 000 jetons/minute sur le
+    palier gratuit), pas la fenêtre de contexte (131 072). Or le contexte est réenvoyé à CHAQUE
+    itération de la boucle d'outils : sans cette trace, on grossit le prompt à l'aveugle.
+    `prompt_tokens` est la valeur à surveiller quand on ajoute du contexte au prompt système.
+    """
+    if not usage:
+        return
+    logger.info(
+        "[MS9] jetons %s/%s — entrée %s · sortie %s · total %s",
+        provider.get("name"), provider.get("model"),
+        usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
+    )
+
+
 class LLMNotConfigured(Exception):
     """Aucune clé LLM configurée (mode dégradé)."""
 
@@ -56,7 +74,9 @@ async def chat_completion(messages: list[dict], tools: list[dict] | None = None)
                         json=payload,
                     )
                 if r.status_code == 200:
-                    return r.json()["choices"][0]["message"]
+                    body = r.json()
+                    _logger_usage(p, body.get("usage"))
+                    return body["choices"][0]["message"]
                 # 429 (rate limit) ou 5xx → réessayer le MÊME provider avec backoff
                 if r.status_code == 429 or r.status_code >= 500:
                     last_err = LLMUnavailable(f"{p['name']} HTTP {r.status_code}")

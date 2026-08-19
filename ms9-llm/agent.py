@@ -10,6 +10,7 @@ import logging
 
 from config import settings
 from llm_client import chat_completion
+from school_facts import FAITS_ECOLE
 from tools import ToolContext, TOOLS_SCHEMA, execute_tool, parse_args, prefetch_children, _resume_enfants
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 def _system_prompt(nom: str, enfants: list[dict]) -> str:
     resume = _resume_enfants(enfants)
+    # Socle « école » : ancre les questions générales (horaires, procédures, règlement) sur des faits
+    # au lieu de la mémoire du modèle. Désactivable pour mesurer l'écart avec/sans (cf. config).
+    socle = f"\n\n{FAITS_ECOLE}" if settings.school_facts_enabled else ""
     return (
         f"Tu es l'assistant de transport scolaire du parent {nom}. "
         "Réponds toujours dans la langue du dernier message (français, arabe standard ou darija). "
@@ -25,16 +29,35 @@ def _system_prompt(nom: str, enfants: list[dict]) -> str:
         "1. Réponds EXACTEMENT à la question posée ; ne substitue jamais une autre information.\n"
         "2. Les outils servent UNIQUEMENT à obtenir des infos sur le BUS/l'enfant (position, ETA, présence, "
         "incidents, trajet). N'appelle AUCUN outil pour une question qui ne porte pas sur le bus.\n"
-        "3. Si la question porte sur l'ÉCOLE elle-même (« où est l'école ? », son adresse), réponds DIRECTEMENT "
-        "SANS aucun outil : « L'École Al Massira se trouve à Meknès. » (c'est la destination de tous les bus).\n"
-        "4. N'invente jamais une position, une heure ou un statut : pour le bus, appuie-toi sur les outils.\n"
+        "3. Si la question porte sur l'ÉCOLE, le transport en général ou une procédure (horaires, absence, "
+        "règlement, inscription, contact), n'appelle AUCUN outil : réponds uniquement à partir des "
+        "CONNAISSANCES ÉCOLE données plus bas.\n"
+        "4. N'invente jamais une position, une heure, un statut, un horaire, un délai, un tarif ni une règle. "
+        "Pour le bus, appuie-toi sur les outils ; pour l'école et les procédures, sur les CONNAISSANCES ÉCOLE. "
+        "Si l'information ne figure ni dans les outils ni dans ces connaissances, dis simplement que tu ne l'as "
+        "pas et invite le parent à contacter l'administration de l'école. Ne comble jamais un manque par une "
+        "réponse plausible.\n"
         "5. Tu ne peux renseigner que sur les enfants de ce parent ; refuse poliment toute demande sur d'autres bus/élèves.\n"
         "6. Pour une position de bus, utilise le champ « lieu » (rue/quartier) renvoyé par l'outil "
         "(ex. « près de {lieu} ») ; ne cite JAMAIS de coordonnées brutes (latitude/longitude) au parent. "
         "Ajoute l'ETA si pertinent (« à ~N min de l'école »).\n"
-        f"École desservie : « École Al Massira », à Meknès (destination des bus). "
         f"Contexte enfants (source de vérité pour les busId) : {json.dumps(resume, ensure_ascii=False)}"
+        f"{socle}"
     )
+
+
+def _assistant_spec(assistant: dict) -> dict:
+    """Message d'assistant réduit aux champs de la spec OpenAI (role/content/tool_calls).
+
+    Les modèles gpt-oss renvoient en plus un champ `reasoning`, et parfois AUCUN `content`
+    quand ils appellent un outil. On normalise pour que l'historique reste rejouable par
+    n'importe quel provider de la cascade.
+    """
+    out: dict = {"role": assistant.get("role", "assistant"),
+                 "content": assistant.get("content") or ""}
+    if assistant.get("tool_calls"):
+        out["tool_calls"] = assistant["tool_calls"]
+    return out
 
 
 def _clean_history(history: list[dict] | None) -> list[dict]:
@@ -71,8 +94,12 @@ async def run(bearer: str, parent_id: int, parent_nom: str, message: str,
         if not tool_calls:
             return {"reply": assistant.get("content") or "", "used_tools": used_tools}
 
-        # Garder le message assistant (avec tool_calls) AVANT les messages tool (spec OpenAI)
-        messages.append(assistant)
+        # Garder le message assistant (avec tool_calls) AVANT les messages tool (spec OpenAI),
+        # mais réduit aux champs de la spec : gpt-oss ajoute un champ `reasoning` propriétaire.
+        # Le renvoyer tel quel marche chez Groq, pas forcément chez le provider suivant — or la
+        # cascade peut basculer sur Gemini EN COURS de conversation, avec cet historique.
+        # Bonus : on cesse de repayer les jetons de raisonnement à chaque tour.
+        messages.append(_assistant_spec(assistant))
 
         async def _one(call: dict) -> dict:
             fn = call.get("function", {})

@@ -41,13 +41,24 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    groq_model: str = "llama-3.3-70b-versatile"
+    # Groq a décommissionné TOUTE la famille Llama le 16/08/2026 : `llama-3.3-70b-versatile`
+    # ET `llama-3.1-8b-instant` ont disparu de /v1/models (l'e-mail d'avis ne mentionnait que
+    # le 70b). Remplacés par gpt-oss, seule famille encore servie qui appelle réellement les
+    # outils — vérifié : gpt-oss 120b et 20b émettent bien un tool_call, `qwen/qwen3.6-27b`
+    # (l'autre modèle conseillé) a répondu sans appeler l'outil, donc écarté pour cet agent.
+    groq_model: str = "openai/gpt-oss-120b"
     # Repli Groq (budget journalier séparé) : modèle plus léger si le principal est saturé
-    groq_fallback_model: str = "llama-3.1-8b-instant"
+    groq_fallback_model: str = "openai/gpt-oss-20b"
 
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     gemini_model: str = "gemini-2.0-flash"
+
+    # ── Socle de connaissances « école » (prompt parent) ─────────────
+    # Faits vérifiés injectés dans le prompt système (school_facts.py). Le mettre à false permet de
+    # mesurer l'écart avec/sans : sans socle, le modèle répond aux questions d'école de mémoire —
+    # c'est-à-dire qu'il invente. Sert au comparatif d'évaluation.
+    school_facts_enabled: bool = True
 
     # ── Paramètres d'inférence / agent ───────────────────────────────
     temperature: float = 0.2
@@ -71,8 +82,8 @@ class Settings(BaseSettings):
     def providers_order(self) -> list[dict]:
         """Cascade ordonnée : primaire → repli Groq (modèle léger) → fallback provider.
 
-        Chaque modèle Groq a son propre quota journalier ; le repli 8b prend donc le relais
-        automatiquement quand le 70b est saturé (au lieu d'échouer)."""
+        Chaque modèle Groq a son propre quota journalier ; le repli 20b prend donc le relais
+        automatiquement quand le 120b est saturé (au lieu d'échouer)."""
         out: list[dict] = []
 
         def add(name: str, model_override: str | None = None):
