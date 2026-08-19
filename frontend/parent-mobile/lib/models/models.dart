@@ -145,6 +145,93 @@ class Trajet {
   );
 }
 
+/// Étape de tournée d'UN de mes enfants (MS5 `/api/planification/mes-enfants`).
+///
+/// La portée est imposée par MS5 à partir du JWT : les autres élèves du bus ne sont
+/// jamais exposés (ni nom, ni domicile, ni rang).
+class EtapeEnfant {
+  final int eleveId;
+  final String prenom;
+  final String nom;
+  final int? groupeId;
+  final int? busId;
+
+  /// Rang de passage dans la tournée optimisée, sur [nArrets] arrêts.
+  final int rang;
+  final int nArrets;
+
+  /// Cumul depuis l'école le long du circuit — à passer à MS12 comme durée/distance de base.
+  final double cumulDistanceM;
+  final double cumulDureeS;
+  final double tourneeDureeMin;
+
+  EtapeEnfant({
+    required this.eleveId,
+    required this.prenom,
+    required this.nom,
+    this.groupeId,
+    this.busId,
+    required this.rang,
+    required this.nArrets,
+    required this.cumulDistanceM,
+    required this.cumulDureeS,
+    required this.tourneeDureeMin,
+  });
+
+  factory EtapeEnfant.fromJson(Map<String, dynamic> j) => EtapeEnfant(
+    eleveId: (j['eleveId'] as num).toInt(),
+    prenom: (j['prenom'] ?? '') as String,
+    nom: (j['nom'] ?? '') as String,
+    groupeId: _toI(j['groupeId']),
+    busId: _toI(j['busId']),
+    rang: (j['rang'] as num).toInt(),
+    nArrets: (j['n_arrets'] as num).toInt(),
+    cumulDistanceM: _toD(j['cumul_distance_m']) ?? 0,
+    cumulDureeS: _toD(j['cumul_duree_s']) ?? 0,
+    tourneeDureeMin: _toD(j['tournee_duree_min']) ?? 0,
+  );
+}
+
+/// Tournée figée d'un trajet en cours (MS1 `/api/trajets/bus/{id}/route`).
+///
+/// Sert à mesurer la distance **restante le long du circuit** : la tournée boucle
+/// école → élèves → école, donc un ETA à vol d'oiseau augmente pendant le ramassage.
+class TrajetRoute {
+  final int trajetId;
+  final int? busId;
+  final String sens;
+
+  /// Polyligne [[lat, lng], …] ; vide si le trajet a démarré sans tournée.
+  final List<List<double>> geometrie;
+
+  /// Totaux OSRM du circuit → vitesse moyenne réelle (convertit les mètres restants en durée).
+  final double? distancePlanM;
+  final double? dureePlanMin;
+
+  TrajetRoute({
+    required this.trajetId,
+    this.busId,
+    this.sens = 'MATIN',
+    this.geometrie = const [],
+    this.distancePlanM,
+    this.dureePlanMin,
+  });
+
+  bool get hasGeometrie => geometrie.length >= 2;
+
+  factory TrajetRoute.fromJson(Map<String, dynamic> j) => TrajetRoute(
+    trajetId: (j['trajetId'] as num).toInt(),
+    busId: _toI(j['busId']),
+    sens: (j['sens'] ?? 'MATIN') as String,
+    geometrie: ((j['geometrie'] as List?) ?? const [])
+        .map((p) => (p as List).map((c) => (c as num).toDouble()).toList())
+        .where((p) => p.length >= 2)
+        .toList(),
+    distancePlanM: _toD(j['distancePlanM']),
+    dureePlanMin: _toD(j['dureePlanMin']),
+  );
+}
+
 class GpsPosition {
   final int? id;
   final String cibleType; // BUS | ELEVE

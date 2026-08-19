@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { to: "/parent", label: "Mon espace", Icon: LayoutDashboard, roles: ["PARENT"] },
   { to: "/parent/assistant", label: "Assistant", Icon: Sparkles, roles: ["PARENT"] },
   { to: "/parent/carte", label: "Carte de mon enfant", Icon: Map, roles: ["PARENT"] },
+  { to: "/parent/eta", label: "Prévisions", Icon: Clock, roles: ["PARENT"] },
   { to: "/parent/messages", label: "Messagerie", Icon: MessageSquare, roles: ["PARENT"] },
   { to: "/parent/notifications", label: "Notifications", Icon: Bell, roles: ["PARENT"] },
   { to: "/carte", label: "Carte live", Icon: Map, roles: ["ADMIN"] },
@@ -45,7 +46,7 @@ function NavContent({ items, role, nom, unread }: { items: NavItem[]; role: Role
   return (
     <>
       <div className="px-5 h-16 flex items-center gap-2.5 border-b border-line shrink-0">
-        <span className="grid place-items-center size-8 rounded-lg" style={{ background: "var(--header)" }}>
+        <span className="grid place-items-center size-8 rounded-lg" style={{ background: "var(--surface-deep)" }}>
           <BusIcon size={18} color="#fff" />
         </span>
         <div className="leading-tight">

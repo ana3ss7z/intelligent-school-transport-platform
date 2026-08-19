@@ -48,8 +48,13 @@ export const deleteIncident = (id: number) => api.delete(`/api/incidents/${id}`)
 
 // ── Trajets (MS1) ────────────────────────────────────────────
 // geometrie [[lat,lng],…] = tournée planifiée figée au démarrage (référence de déviation MS11)
-export const demarrerTrajet = (busId: number, sens: SensTrajet, groupeId?: number | null, geometrie?: [number, number][]) =>
-  api.post<Trajet>("/api/trajets/demarrer", { busId, sens, groupeId, geometrie }).then((r) => r.data);
+export const demarrerTrajet = (
+  busId: number, sens: SensTrajet, groupeId?: number | null, geometrie?: [number, number][],
+  // Totaux OSRM de la tournée : figés avec elle pour que TOUS les fronts (y compris parent)
+  // dérivent la même vitesse de circuit → ETA « distance restante » cohérente.
+  totaux?: { distancePlanM?: number | null; dureePlanMin?: number | null },
+) =>
+  api.post<Trajet>("/api/trajets/demarrer", { busId, sens, groupeId, geometrie, ...totaux }).then((r) => r.data);
 export const terminerTrajet = (id: number) =>
   api.post<Trajet>(`/api/trajets/${id}/terminer`).then((r) => r.data);
 export const getMonTrajetActif = () =>
@@ -58,6 +63,15 @@ export const getTrajetsActifs = () => api.get<Trajet[]>("/api/trajets/actifs").t
 export const getMesTrajets = () => api.get<Trajet[]>("/api/trajets/mes-trajets").then((r) => r.data);
 export const getTrajetActifBus = (busId: number) =>
   api.get<Trajet | "">(`/api/trajets/bus/${busId}/actif`).then((r) => (r.status === 204 ? null : r.data) as Trajet | null);
+
+/** Tournée figée du trajet en cours — pour l'ETA « distance restante le long du circuit ». */
+export interface TrajetRoute {
+  trajetId: number; busId: number; groupeId: number | null; sens: SensTrajet;
+  geometrie: [number, number][]; distancePlanM: number | null; dureePlanMin: number | null;
+}
+export const getTrajetRoute = (busId: number) =>
+  api.get<TrajetRoute | "">(`/api/trajets/bus/${busId}/route`)
+    .then((r) => (r.status === 204 ? null : r.data) as TrajetRoute | null);
 
 // ── GPS (MS3) ────────────────────────────────────────────────
 export const getPositionsBus = () =>
@@ -84,6 +98,21 @@ export const getPareto = (capacity?: number) => {
 // ── Planification / VRP (MS5) ────────────────────────────────
 export const getTournee = (groupeId: number, sens: "matin" | "soir" = "matin") =>
   api.post(`/api/planification/tournee?groupeId=${groupeId}&sens=${sens}`, undefined, LONG).then((r) => r.data);
+/**
+ * Étapes de tournée des enfants du parent connecté (portée imposée par le JWT côté MS5 —
+ * les tournées complètes restent interdites au rôle PARENT : elles contiennent les domiciles
+ * de toutes les familles du bus).
+ */
+export interface EtapeEnfant {
+  eleveId: number; prenom: string; nom: string; groupeId: number | null; busId: number | null;
+  rang: number; n_arrets: number;
+  cumul_distance_m: number; cumul_duree_s: number;
+  tournee_duree_min: number; tournee_distance_m: number;
+}
+export const getEtaMesEnfants = (sens: "matin" | "soir" = "matin") =>
+  api.post<{ sens: string; enfants: EtapeEnfant[] }>(
+    `/api/planification/mes-enfants?sens=${sens}`, undefined, LONG).then((r) => r.data);
+
 export const getTournees = (sens: "matin" | "soir" = "matin") =>
   api.post(`/api/planification/tournees?sens=${sens}&persister=true`, undefined, LONG).then((r) => r.data);
 

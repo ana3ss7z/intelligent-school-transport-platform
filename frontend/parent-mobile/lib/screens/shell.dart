@@ -8,6 +8,7 @@ import '../config/env.dart';
 import '../state/providers.dart';
 import '../theme.dart';
 import 'assistant_screen.dart';
+import 'eta_screen.dart';
 import 'home_screen.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
@@ -28,10 +29,15 @@ class _ParentShellState extends ConsumerState<ParentShell> {
   static const _titles = [
     'Mon espace',
     'Carte de mon enfant',
+    'Prévisions',
     'Messagerie',
     'Notifications',
     'Assistant',
   ];
+
+  /// Index de l'onglet Messagerie (badge non-lus) — évite les nombres magiques
+  /// quand l'ordre des onglets change.
+  static const _idxMessages = 3;
 
   @override
   void initState() {
@@ -112,6 +118,7 @@ class _ParentShellState extends ConsumerState<ParentShell> {
         children: const [
           HomeScreen(),
           MapScreen(),
+          EtaScreen(),
           MessagesScreen(),
           NotificationsScreen(),
           AssistantScreen(),
@@ -122,7 +129,7 @@ class _ParentShellState extends ConsumerState<ParentShell> {
         onDestinationSelected: (i) {
           setState(() => _index = i);
           // rafraîchit le badge en ouvrant la messagerie
-          if (i == 2) {
+          if (i == _idxMessages) {
             _pollUnread();
           }
         },
@@ -136,6 +143,11 @@ class _ParentShellState extends ConsumerState<ParentShell> {
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map),
             label: 'Carte',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.schedule_outlined),
+            selectedIcon: Icon(Icons.schedule),
+            label: 'ETA',
           ),
           NavigationDestination(
             icon: _badge(const Icon(Icons.message_outlined)),

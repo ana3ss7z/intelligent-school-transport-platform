@@ -28,6 +28,7 @@ const TrajetsEnCours = lazy(() => import("./pages/TrajetsEnCours").then((m) => (
 const Messagerie = lazy(() => import("./pages/Messagerie").then((m) => ({ default: m.Messagerie })));
 const ParentHome = lazy(() => import("./pages/ParentHome").then((m) => ({ default: m.ParentHome })));
 const ParentCarte = lazy(() => import("./pages/ParentCarte").then((m) => ({ default: m.ParentCarte })));
+const ParentEta = lazy(() => import("./pages/ParentEta").then((m) => ({ default: m.ParentEta })));
 const ParentMessagerie = lazy(() => import("./pages/ParentMessagerie").then((m) => ({ default: m.ParentMessagerie })));
 const ParentAssistant = lazy(() => import("./pages/ParentAssistant").then((m) => ({ default: m.ParentAssistant })));
 const AdminAssistant = lazy(() => import("./pages/AdminAssistant").then((m) => ({ default: m.AdminAssistant })));
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="messages" element={<RequireAuth roles={["ADMIN", "CHAUFFEUR"]}><Suspense fallback={<Spinner />}><Messagerie /></Suspense></RequireAuth>} />
         <Route path="parent" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentHome /></Suspense></RequireAuth>} />
         <Route path="parent/carte" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentCarte /></Suspense></RequireAuth>} />
+        <Route path="parent/eta" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentEta /></Suspense></RequireAuth>} />
         <Route path="parent/messages" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentMessagerie /></Suspense></RequireAuth>} />
         <Route path="parent/notifications" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ChauffeurNotifs /></Suspense></RequireAuth>} />
         <Route path="parent/assistant" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentAssistant /></Suspense></RequireAuth>} />

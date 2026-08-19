@@ -28,7 +28,7 @@ async def planifier(eleves: list[dict], sens: str = "matin") -> dict:
     depot = (settings.ecole_lat, settings.ecole_lng)
 
     if len(valides) == 0:
-        return {"n_arrets": 0, "ordre": [], "distance_m": 0.0, "duree_min": 0.0,
+        return {"n_arrets": 0, "ordre": [], "etapes": [], "distance_m": 0.0, "duree_min": 0.0,
                 "duree_base_min": 0.0, "gain_vs_baseline_%": 0.0, "geometrie": []}
 
     pts = [depot] + [(e["latitude"], e["longitude"]) for e in valides]
@@ -52,10 +52,26 @@ async def planifier(eleves: list[dict], sens: str = "matin") -> dict:
     latlon_order = [depot] + [(valides[i - 1]["latitude"], valides[i - 1]["longitude"]) for i in passage] + [depot]
     geom = await geometrie(latlon_order)
 
+    # Cumul depuis l'école à chaque arrêt : c'est ce qui permet de dater l'arrivée d'un élève
+    # précis (« ton enfant est pris à 7 h 42 »), sans divulguer les autres arrêts.
+    etapes, cum_t, cum_d = [], 0.0, 0.0
+    for i in range(len(order) - 1):
+        a, b = order[i], order[i + 1]
+        cum_t += dur[a][b]
+        cum_d += dist[a][b]
+        if b != 0:  # 0 = école (départ et retour)
+            etapes.append({
+                "eleveId": valides[b - 1]["id"],
+                "rang": len(etapes) + 1,
+                "cumul_duree_s": round(cum_t, 1),
+                "cumul_distance_m": round(cum_d, 1),
+            })
+
     return {
         "sens": sens,
         "n_arrets": len(valides),
         "ordre": ordre_eleves,
+        "etapes": etapes,
         "distance_m": round(dist_opt, 1),
         "duree_min": round(duree_opt / 60.0, 2),
         "duree_base_min": round(duree_base / 60.0, 2),

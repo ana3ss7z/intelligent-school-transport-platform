@@ -94,23 +94,64 @@ class Api {
     return null;
   }
 
+  /// Tournée figée du trajet en cours d'un bus, ou null (HTTP 204 = aucun trajet).
+  Future<TrajetRoute?> getTrajetRoute(int busId) async {
+    final r = await _dio.get('/api/trajets/bus/$busId/route');
+    if (r.statusCode == 204 || r.data == null || r.data == '') return null;
+    if (r.data is Map) {
+      return TrajetRoute.fromJson(Map<String, dynamic>.from(r.data as Map));
+    }
+    return null;
+  }
+
+  // --------------------------------------------------------- Planification
+  /// Étapes de la tournée pour MES enfants (MS5 — portée imposée par le JWT).
+  Future<List<EtapeEnfant>> getEtaMesEnfants(String sens) async {
+    final r = await _dio.post(
+      '/api/planification/mes-enfants',
+      queryParameters: {'sens': sens},
+      options: _long,
+    );
+    if (r.statusCode == 200 && r.data is Map) {
+      final liste = (r.data as Map)['enfants'] as List? ?? const [];
+      return liste
+          .map((e) => EtapeEnfant.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    throw ApiException(_msg(r) ?? 'Prévisions indisponibles');
+  }
+
   // ------------------------------------------------------------------ ETA
+  /// Prédit l'ETA (MS12).
+  ///
+  /// Deux modes exclusifs : soit les coordonnées (OSRM route en direct), soit
+  /// [distanceRoutiereM] + [dureeBaseS] déjà mesurés — c'est ce second mode qui permet
+  /// de donner la portion **restante sur la tournée** au lieu du vol d'oiseau.
   Future<EtaResult> predictEta({
-    required double busLat,
-    required double busLng,
-    required double destLat,
-    required double destLng,
+    double? busLat,
+    double? busLng,
+    double? destLat,
+    double? destLng,
+    double? distanceRoutiereM,
+    double? dureeBaseS,
+    double?
+    heureDepart, // heure décimale (7.5 = 07:30) ; défaut MS12 selon `moment`
     required String moment, // matin | soir
   }) async {
     final r = await _dio.post(
       '/api/eta/predict',
       data: {
         'auto_context': true,
-        'bus_lat': busLat,
-        'bus_lng': busLng,
-        'dest_lat': destLat,
-        'dest_lng': destLng,
         'moment': moment,
+        'heure_depart': ?heureDepart,
+        'distance_routiere_m': ?distanceRoutiereM,
+        'duree_base_s': ?dureeBaseS,
+        if (distanceRoutiereM == null) ...{
+          'bus_lat': busLat,
+          'bus_lng': busLng,
+          'dest_lat': destLat,
+          'dest_lng': destLng,
+        },
       },
       options: _long,
     );
