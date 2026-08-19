@@ -8,7 +8,11 @@ PILOTÉ PAR LES VRAIES DONNÉES du back et exerce toute la chaîne temps réel :
   1. Login MS7 (admin) via Gateway  → JWT
   2. GET /api/bus/actifs            → la vraie flotte active
   3. GET /api/eleves/bus/{id}       → les élèves du bus DANS l'ordre de passage (MS5/G2)
-  4. Trajet réel = école → arrêt 1 → 2 → … → n → école (OSRM), converge vers l'école
+     → si `ordrePassage` est vide (MS5 jamais lancé), l'ordre serait ARBITRAIRE : on
+       appelle alors MS5 /tournee (TSP OR-Tools) qui le calcule et le persiste. Le bus
+       roule donc toujours sur la tournée optimisée. `--optimiser` force le recalcul.
+  4. Trajet réel = école → arrêt 1 → 2 → … → n → école, chaque tronçon suivant la vraie
+     route OSRM (pas de ligne droite), converge vers l'école
      → déclenche G1 (MS12 : ETA ≤ 10 min → notif parents) en fin de tournée
   5. (--presence) à chaque arrêt atteint : PATCH /api/eleves/{id}/presence
      → déclenche G5 (« enfant à bord » → notif au bon parent) — matin=montée, soir=descente
@@ -23,6 +27,7 @@ Usage :
   python bus_simulator.py --bus 8               # un seul bus
   python bus_simulator.py --max-bus 3           # limiter à 3 bus (démo lisible)
   python bus_simulator.py --sens soir --presence# tournée du soir (dépose)
+  python bus_simulator.py --optimiser           # recalculer les tournées MS5 avant de rouler
   python bus_simulator.py --loop --interval 0.5 # boucle, plus fluide
   python bus_simulator.py --verbose             # log chaque point GPS
 
@@ -98,6 +103,59 @@ def get_eleves_ordonnes(token: str, bus_id: int) -> list[dict]:
     eleves = resp.json()
     # garde uniquement ceux avec coords valides, dans l'ordre renvoyé
     return [e for e in eleves if e.get("latitude") is not None and e.get("longitude") is not None]
+
+
+# ─── Tournée optimisée (MS5) ──────────────────────────────────────────────────
+
+def optimiser_tournee_ms5(token: str, groupe_id: int, sens: str) -> dict | None:
+    """Tournée optimale d'un groupe via MS5 (TSP OR-Tools sur durées OSRM) + persistance MS2."""
+    try:
+        resp = requests.post(
+            f"{GATEWAY_URL}/api/planification/tournee",
+            params={"groupeId": groupe_id, "sens": sens, "persister": "true"},
+            headers=auth_headers(token), timeout=180,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"  ⚠️  MS5 /tournee a échoué : {e}")
+        return None
+
+
+def assurer_ordre_optimise(token: str, bus: dict, eleves: list[dict], args) -> list[dict]:
+    """
+    Garantit que le bus roule sur la tournée OPTIMISÉE, pas dans un ordre arbitraire.
+
+    `/api/eleves/bus/{id}` trie par `ordrePassage` — mais si MS5 n'a jamais tourné, ce champ est
+    NULL pour tout le monde : PostgreSQL place les NULL en fin de tri ASC et l'ordre restant est
+    celui, non déterministe, de la table. Le bus zigzaguerait alors entre les arrêts **sans que
+    rien ne le signale**. On détecte ce cas et on déclenche MS5, qui réécrit `ordrePassage`.
+    """
+    bus_id = bus["id"]
+    groupe = eleves[0].get("groupeId")
+    sans_ordre = [e for e in eleves if e.get("ordrePassage") is None]
+
+    if not sans_ordre and not args.optimiser:
+        print(f"[Bus {bus_id}] ✅ tournée déjà optimisée (ordre MS5 persisté)")
+        return eleves
+    if groupe is None:
+        print(f"[Bus {bus_id}] ⚠️  aucun groupe (clustering MS6 non appliqué) — ordre arbitraire")
+        return eleves
+
+    raison = ("réoptimisation demandée (--optimiser)" if args.optimiser
+              else f"{len(sans_ordre)}/{len(eleves)} élèves sans ordre de passage")
+    print(f"[Bus {bus_id}] 🧭 {raison} → MS5 /tournee (TSP OR-Tools, durées OSRM)…")
+    res = optimiser_tournee_ms5(token, groupe, args.sens)
+    if res is None:
+        print(f"[Bus {bus_id}] ⚠️  MS5 indisponible — le bus roulera dans un ordre NON optimisé")
+        return eleves
+
+    gain = res.get("gain_vs_baseline_%")
+    detail = f"{res.get('distance_m', 0) / 1000:.1f} km · {res.get('duree_min', 0):.0f} min"
+    if gain is not None:
+        detail += f" · gain {gain:.1f} % vs ordre naïf"
+    print(f"[Bus {bus_id}] ✅ tournée optimisée : {detail}")
+    return get_eleves_ordonnes(token, bus_id)  # relit l'ordre fraîchement persisté par MS5
 
 
 # ─── OSRM ─────────────────────────────────────────────────────────────────────
@@ -232,6 +290,8 @@ def main():
     p.add_argument("--bus", type=int, default=None, help="simuler un seul bus (id actif)")
     p.add_argument("--max-bus", type=int, default=None, help="limiter le nombre de bus (démo)")
     p.add_argument("--sens", choices=["matin", "soir"], default="matin", help="ramassage (matin) / dépose (soir)")
+    p.add_argument("--optimiser", action="store_true",
+                   help="forcer la réoptimisation MS5 avant de rouler (par défaut : seulement si l'ordre manque)")
     p.add_argument("--presence", action="store_true", help="marquer la présence aux arrêts (G5)")
     p.add_argument("--anomalies", action="store_true", help="injecter des pics de vitesse (G3)")
     p.add_argument("--verbose", action="store_true", help="log chaque point GPS")
@@ -266,10 +326,10 @@ def main():
     plans = []
     for b in bus_actifs:
         eleves = get_eleves_ordonnes(token, b["id"])
-        if eleves:
-            plans.append((b, eleves))
-        else:
+        if not eleves:
             print(f"[Bus {b['id']}] ⏭️  aucun élève affecté (ordre non planifié) — ignoré")
+            continue
+        plans.append((b, assurer_ordre_optimise(token, b, eleves, args)))
 
     if not plans:
         print("❌ Aucun bus avec des élèves ordonnés. Lance d'abord le clustering (appliquer=true) "
