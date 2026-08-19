@@ -121,7 +121,7 @@ export function EtaPrevisions() {
               <li key={i} className="flex items-center gap-3 py-1.5">
                 <span className="grid place-items-center size-6 shrink-0 rounded-full text-[11px] font-mono font-bold"
                   style={s.ecole
-                    ? { background: "var(--header)", color: "#fff" }
+                    ? { background: "var(--surface-deep)", color: "#fff" }
                     : { background: col, color: "#fff" }}>
                   {s.ecole ? <School size={13} /> : i + 1}
                 </span>

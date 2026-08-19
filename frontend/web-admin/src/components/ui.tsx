@@ -55,17 +55,19 @@ export function SectionTitle({ children, sub }: { children: ReactNode; sub?: str
 }
 
 export function Button({
-  children, onClick, tone = "route", variant = "solid", disabled, type = "button",
+  children, onClick, tone = "route", variant = "solid", disabled, type = "button", full = false,
 }: {
   children: ReactNode; onClick?: () => void; tone?: Tone;
   variant?: "solid" | "ghost"; disabled?: boolean; type?: "button" | "submit";
+  /** Pleine largeur (formulaires : connexion, dialogues). */
+  full?: boolean;
 }) {
   const c = toneVar[tone];
   const base = "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
   return (
     <button
       type={type} onClick={onClick} disabled={disabled}
-      className={base}
+      className={full ? `${base} w-full py-2.5` : base}
       style={variant === "solid"
         ? { background: c, color: "#fff" }
         : { color: c, background: `color-mix(in oklab, ${c} 10%, transparent)` }}

@@ -97,7 +97,7 @@ export function ChauffeurEta() {
             {etapes.map((s, i) => (
               <li key={i} className="flex items-center gap-3 py-1.5">
                 <span className="grid place-items-center size-6 shrink-0 rounded-full text-[11px] font-mono font-bold text-white"
-                  style={s.ecole ? { background: "var(--header)" } : { background: col }}>
+                  style={s.ecole ? { background: "var(--surface-deep)" } : { background: col }}>
                   {s.ecole ? <School size={13} /> : i + 1}
                 </span>
                 <MapPin size={13} className="text-ink-soft shrink-0" />

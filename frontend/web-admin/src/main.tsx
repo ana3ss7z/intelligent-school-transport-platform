@@ -8,6 +8,14 @@ import { ConfirmProvider } from "./components/ConfirmDialog";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 
+// Thème appliqué AVANT le premier rendu. `useTheme` ne pose [data-theme] que depuis les écrans
+// qui l'utilisent (via AppLayout) : au chargement direct de /login l'attribut manquait, donc la
+// page s'affichait en clair malgré un choix « sombre » — puis basculait après connexion.
+document.documentElement.setAttribute(
+  "data-theme",
+  localStorage.getItem("ts_theme") === "dark" ? "dark" : "light",
+);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>

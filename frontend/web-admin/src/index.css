@@ -18,7 +18,8 @@
     --line: #d9d5cc;       /* traits / grille / bordures */
     --ink: #14181f;        /* texte principal */
     --ink-soft: #5a6270;   /* texte secondaire */
-    --header: #0e2a47;     /* encre entêtes */
+    --header: #0e2a47;     /* encre entêtes — TEXTE uniquement (s'éclaircit en sombre) */
+    --surface-deep: #0e2a47; /* fond de marque foncé, contenu TOUJOURS blanc (login, pastilles école) */
     /* Statuts / lignes (sémantiques) */
     --route: #2a6fdb;      /* ligne / info */
     --ok: #1fa37a;         /* actif / OK */
@@ -37,6 +38,9 @@
     --ink: #e7e9ee;
     --ink-soft: #9aa3b2;
     --header: #cdd8ea;
+    /* Reste FONCÉ en thème sombre : ces surfaces portent du texte blanc. Utiliser --header
+       ici donnerait du blanc sur fond clair (illisible) — c'était le bug de la page login. */
+    --surface-deep: #152c4a;
     --route: #5b8def;
     --ok: #3fd0a0;
     --warn: #ffc247;
@@ -56,6 +60,7 @@
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-header: var(--header);
+  --color-surface-deep: var(--surface-deep);
   --color-route: var(--route);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
@@ -95,9 +100,44 @@
   }
 }
 
-/* Motif signature : ligne + pastille-station (dessin animé au chargement) */
+/* Motif signature : ligne verticale qui se dessine (RouteStrip, nav latérale) */
 @keyframes draw-line { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .station-line { transform-origin: top; animation: draw-line 0.5s ease-out both; }
+
+/* ══ Écran de connexion : la tournée se résout ════════════════════
+   Signature de la page. Le tracé se dessine, les arrêts apparaissent dans l'ordre
+   de passage, l'école se pose en dernier — c'est le pipeline du produit joué
+   littéralement (regroupement → tournée optimisée → ETA).
+   Géométrie de plan de réseau : segments à 0°, 45° et 90° uniquement.
+   Aucun état React : tout est en CSS, le formulaire ne re-rend jamais le décor. */
+@keyframes route-draw { to { stroke-dashoffset: 0; } }
+@keyframes stop-in { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes ecole-halo { 0%, 100% { opacity: 0.22; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.18); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.route-trace {
+  stroke-dasharray: 560;
+  stroke-dashoffset: 560;
+  animation: route-draw 2.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+.route-stop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: stop-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.route-ecole-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ecole-halo 2.8s ease-in-out 3s infinite both;
+}
+.pipeline-step { animation: fade-up 0.5s ease-out both; }
+
+/* Tracé et arrêts figés dans leur état final : l'information reste, le mouvement part. */
+@media (prefers-reduced-motion: reduce) {
+  .route-trace { stroke-dashoffset: 0; animation: none; }
+  .route-stop, .pipeline-step { opacity: 1; transform: none; animation: none; }
+  .route-ecole-halo { opacity: 0.3; animation: none; }
+}
 
 /* ── Skeleton (chargement) — shimmer discret ─────────────────── */
 @keyframes shimmer { 100% { transform: translateX(100%); } }
