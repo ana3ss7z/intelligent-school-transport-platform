@@ -35,6 +35,41 @@
         "--web-port=5174",
         "--dart-define-from-file=config/env.chrome.json"
       ]
+    },
+    {
+      "name": "Chauffeur App — Chrome (localhost)",
+      "request": "launch",
+      "type": "dart",
+      "program": "frontend/chauffeur-mobile/lib/main.dart",
+      "cwd": "frontend/chauffeur-mobile",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5175",
+        "--dart-define-from-file=config/env.chrome.json"
+      ]
+    },
+    {
+      "name": "Chauffeur App — Téléphone (IP LAN)",
+      "request": "launch",
+      "type": "dart",
+      "program": "frontend/chauffeur-mobile/lib/main.dart",
+      "cwd": "frontend/chauffeur-mobile",
+      "args": [
+        "--dart-define-from-file=config/env.phone.json"
+      ]
+    },
+    {
+      "name": "Chauffeur App — Chrome (profile, perf)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "frontend/chauffeur-mobile/lib/main.dart",
+      "cwd": "frontend/chauffeur-mobile",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5175",
+        "--dart-define-from-file=config/env.chrome.json"
+      ]
     }
   ]
 }

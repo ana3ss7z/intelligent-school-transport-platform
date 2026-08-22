@@ -74,6 +74,12 @@ graphify-out/
 !frontend/parent-mobile/web/icons/*.png
 !frontend/parent-mobile/web/favicon.png
 
+# Idem pour l'app Flutter chauffeur.
+!frontend/chauffeur-mobile/assets/icon/*.png
+!frontend/chauffeur-mobile/android/app/src/main/res/mipmap-*/*.png
+!frontend/chauffeur-mobile/web/icons/*.png
+!frontend/chauffeur-mobile/web/favicon.png
+
 
 # Comptes générés (mots de passe en clair — ne jamais committer)
 comptes_utilisateurs.*
