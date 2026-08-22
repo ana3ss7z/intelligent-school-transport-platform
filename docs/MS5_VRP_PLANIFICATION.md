@@ -173,8 +173,17 @@ Sécurité : **JWT** (ADMIN/CHAUFFEUR). Route Gateway `ms5-planification` (8085)
 | Route | Description |
 |---|---|
 | `GET /api/planification/health` | statut + solveur |
-| `POST /api/planification/tournee?groupeId=&sens=matin\|soir` | tournée d'un bus → `{ ordre, distance_m, duree_min, gain_vs_baseline_%, geometrie }` |
+| `POST /api/planification/tournee?groupeId=&sens=matin\|soir` | tournée d'un bus → `{ ordre, etapes, distance_m, duree_min, gain_vs_baseline_%, geometrie }` |
 | `POST /api/planification/tournees?sens=` | toutes les tournées + totaux + gain moyen |
+| `POST /api/planification/mes-enfants?sens=` | **rôle PARENT** — étapes des SEULS enfants du demandeur (rang + cumul depuis l'école). Portée prise dans le **JWT**, jamais dans la requête |
+
+`etapes` donne, pour chaque élève, son `rang` et le **cumul depuis l'école** (`cumul_distance_m`,
+`cumul_duree_s`) : c'est ce qui permet de dater l'arrivée d'un élève précis (« votre enfant est pris vers 7 h 42 »)
+et c'est l'entrée que les écrans « Prévisions » passent à MS12.
+
+> **Pourquoi un endpoint dédié au parent** : `/tournee` expose l'ordre **et les domiciles de toutes les familles**
+> du bus. L'ouvrir au rôle PARENT serait une fuite. MS5 calcule donc la tournée complète — indispensable au cumul —
+> puis filtre sur le `parentId` du jeton avant de répondre.
 
 `sens=matin` = ramassage (école→arrêts→école) ; `sens=soir` = dépose sur la **même** tournée (**même ordre**, pas
 l'inverse). Pourquoi : « même ordre » et « ordre inversé » parcourent le même cycle, mais garder le même ordre
@@ -210,13 +219,50 @@ ms5-planification/            (port 8085, /api/planification/**)
 ├── main.py         ← FastAPI + JWT : health / tournee / tournees
 ├── config.py       ← port, jwt_secret, ms2_url, osrm_url, école (dépôt)
 ├── ms2_client.py   ← élèves par groupe (filtrés depuis /api/eleves)
-├── osrm_client.py  ← matrice durées/distances (/table) + géométrie (/route GeoJSON)
+├── osrm_client.py  ← matrice durées/distances (/table) + géométrie (/route GeoJSON, continue_straight=false)
 ├── vrp.py          ← OR-Tools TSP (dépôt=école) + baseline plus-proche-voisin
 ├── planner.py      ← orchestrateur : groupe → matrice → solve → ordre + gain + géométrie
 ├── notebooks/05_vrp_study.ipynb + figures/
 └── requirements.txt · Dockerfile · .env
 ```
 **Réutilise** : les groupes **réels de MS6** (via MS2), le pattern OSRM, le JWT MS7. **Gateway** : route déjà réservée.
+
+## 8 bis. `continue_straight=false` — pourquoi la géométrie et la distance divergeaient de 11 %
+
+MS5 produit **deux** grandeurs qui décrivent censément le même trajet : `distance_m`, somme des arcs de la
+matrice OSRM `/table` (l'objectif que le TSP minimise), et `geometrie`, la polyligne renvoyée par `/route`.
+Elles ne coïncidaient pas.
+
+Par défaut, OSRM impose au véhicule de **poursuivre tout droit en franchissant chaque waypoint**
+(`continue_straight=default`). Quand l'arrêt suivant est en arrière, il insère donc un **demi-tour** au lieu de
+tourner. Sur 50 arrêts, l'effet s'accumule. Mesuré contre l'OSRM local sur les 52 waypoints réels du groupe 1 :
+
+| Appel | Distance | Durée | Points |
+|---|---:|---:|---:|
+| `/route` **sans** `continue_straight` | 19 123,5 m | 42,23 min | 882 |
+| `/route` **avec** `continue_straight=false` | **17 241,1 m** | **35,99 min** | 753 |
+| Matrice `/table` (référence, `distance_m`) | 17 241,1 m | 35,99 min | — |
+
+Soit **+10,92 % de trajet fantôme**, et une polyligne qui décrivait un **autre itinéraire** que celui optimisé.
+Vérifié avec un haversine de référence que l'écart ne venait pas de la projection côté client (0,008 %).
+
+**Deux conséquences en aval, toutes deux levées par le correctif :**
+
+1. **ETA faussé.** Les clients mesurent les mètres restants **sur la polyligne** puis les convertissent avec une
+   vitesse. S'ils déduisaient cette vitesse de `distance_m`, ils divisaient des mètres d'une géométrie par la
+   vitesse d'une autre — l'ETA était gonflé d'autant. *(Les clients dérivent désormais la vitesse de la polyligne
+   qu'ils mesurent : immunité si la divergence revenait.)*
+2. **Référence de déviation MS11 polluée.** MS11 fige cette polyligne au démarrage du trajet et lève
+   `DEVIATION_ITINERAIRE` quand le bus s'en écarte de plus de 250 m. Des demi-tours **que le bus ne fera jamais**
+   sont autant de faux positifs en puissance.
+
+Après correctif : convergence à **0,05 %**, et une déviation forcée déclenche toujours l'anomalie — la
+surveillance n'a pas été désarmée par le changement de géométrie.
+
+> ⚠️ La tournée reste un **cycle fermé** : le premier et le dernier point sont à 0,0 m l'un de l'autre. Les
+> clients qui projettent une position dessus doivent mémoriser la progression déjà acquise, sans quoi un bus
+> arrivé à l'école se recale sur le **départ**. Voir `route_eta.dart` / `routeEta.ts` et le piège 13 de
+> `CLAUDE.md`.
 
 ## 9. Limites & perspectives (honnête)
 - **TSP par bus** (l'affectation vient de MS6). Le **CVRP global** (affecter + router ensemble) + un **benchmark**

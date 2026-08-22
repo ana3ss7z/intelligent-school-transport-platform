@@ -4,6 +4,13 @@
 > **Ordre imposé : 1) le pipeline Data Science d'abord → 2) la démonstration / les tests ensuite.**
 > Ton domaine est la data science : c'est le cœur de la soutenance, donc on **raconte la démarche scientifique avant** de montrer que « ça marche ».
 
+> ⚠️ **Ce guide a été écrit au sprint S7-S8 : il couvre MS6 (clustering) et, en bonus, MS12 (ETA).**
+> Tout ce qui a été livré depuis — MS5 (VRP), MS11 (anomalies), MS9 (assistant LLM), la console web à 3 rôles
+> et les **deux applications mobiles Flutter** — est rassemblé dans la
+> [section « Ce qui a été ajouté depuis »](#-ce-qui-a-été-ajouté-depuis-s9--s15), en fin de document.
+> Le plan de 12 min ci-dessous reste valable ; la section finale propose **3 min supplémentaires** si le jury
+> veut voir le produit fini.
+
 ---
 
 ## ⏱️ Plan de la démo (≈ 12 min)
@@ -215,3 +222,70 @@ aucune divergence, car les deux appellent le même code. »*
 - `ms6-clustering/notebooks/03_production_strategy.ipynb` (stratégie + Pareto)
 - `ms6-clustering/notebooks/production_config.json` (config gelée)
 - `html_tests/test-console.html` (démo live)
+
+---
+
+## 🆕 Ce qui a été ajouté depuis (S9 → S15)
+
+Bloc optionnel de **~3 min**, à jouer après la démo principale si le jury veut voir le produit fini.
+Pré-requis : `docker-compose up -d` + `docker start osrm_meknes` + `start-all-ms.bat`, puis les fronts.
+
+### Les deux briques IA suivantes (30 s chacune)
+
+| Service | La phrase à dire | Le chiffre |
+|---|---|---|
+| **MS5 — VRP** | *« Le clustering dit quel bus ; MS5 dit dans quel ordre. Un TSP par bus, dépôt = école, coût d'arc = durée routière OSRM réelle. »* | **~12,6 %** de gain vs l'ordre naïf |
+| **MS11 — Anomalies** | *« Trois enseignements : le feature engineering prime — ma feature `surprise` bat le ratio brut ; la curation prime — l'Isolation Forest curé écrase le dilué ; et ici le multivarié gagne, parce que les anomalies sont hétérogènes. »* | **PR-AUC 0,91** vs 0,48 pour le dilué |
+
+> **Contraste à souligner** : sur MS12, le modèle **simple** (ElasticNet) gagne ; sur MS11, le **multivarié**.
+> Ce n'est pas une contradiction — les deux problèmes n'ont pas la même structure, et c'est le benchmark qui
+> tranche, pas une préférence.
+
+### Le produit (2 min) — scénario en une seule traite
+
+Ouvrir **côte à côte** : la console admin (`:5173`), l'app parent (`:5174`), l'app chauffeur (`:5175`).
+
+1. **Chauffeur → « Démarrer le trajet ».** Dire : *« À cet instant, le front envoie la tournée MS5 — le groupe
+   et la géométrie. MS1 la persiste et MS11 la fige comme référence de déviation. »*
+2. **Lancer `bus_simulator.py`.** Le bus bouge simultanément sur les trois écrans (WebSocket MS3).
+3. **Chauffeur → pointer une montée.** La notification « enfant à bord » arrive côté parent, et son compte à
+   rebours se recale.
+4. **Forcer une déviation** (`html_tests/simulation-control.html`) → l'anomalie `DEVIATION_ITINERAIRE` apparaît
+   sur le tableau de bord admin.
+5. **Parent → Assistant** : « où est le bus ? » → MS9 appelle les outils et répond avec le **nom de la rue**
+   (reverse geocoding OSM).
+
+### Les deux points où la démo peut se retourner à votre avantage
+
+**Si le jury demande « et si le réseau tombe ? »** — Mettre le téléphone en mode avion, pointer trois élèves,
+signaler un incident, **tuer l'app**, la rouvrir, rétablir le réseau : tout part, dans l'ordre, sans doublon.
+*« La file est FIFO stricte parce que l'ordre porte du sens : un pointage envoyé avant le démarrage du trajet
+n'a aucun trajet auquel se rattacher. Et le démarrage n'est pas idempotent — MS1 refuse un second trajet — donc
+au lieu de réessayer bêtement, l'app relit `mon-actif` et adopte le trajet existant. »*
+
+**Si le jury demande « pourquoi deux applications et pas une ? »** — La réponse honnête est technique :
+une app fusionnée déclarerait `ACCESS_FINE_LOCATION` et `FOREGROUND_SERVICE_LOCATION` **pour les parents aussi**,
+ce qui impose une justification Play Store pour une permission dont l'immense majorité des utilisateurs ne se
+sert pas. *(Le coût : un socle dupliqué — verrouillé par des tests de parité partagés.)*
+
+### La diapositive « ce que l'exécution réelle a appris »
+
+C'est probablement le meilleur argument de rigueur du projet : **trois défauts invisibles en test unitaire**,
+révélés en branchant les applications sur le vrai backend avec les vraies données.
+
+| Défaut | Comment il se manifestait | Ce que ça enseigne |
+|---|---|---|
+| **Cycle fermé de la tournée** | À 98 % du parcours : 1,1 min restantes. À 99 % : **35,4 min**. Le compte à rebours bondissait à l'instant de l'arrivée à l'école | Une polyligne `école → … → école` a son premier et son dernier point **confondus** ; projeter une position dessus exige de mémoriser la progression déjà acquise |
+| **MS5 : deux trajets pour une tournée** | `distance_m` = 17 241 m mais la polyligne en faisait 19 132 (**+10,9 %**) | OSRM impose de franchir les waypoints **tout droit** par défaut et insère des demi-tours. Une géométrie fausse ne se voit pas à l'œil sur une carte — mais elle polluait la référence de déviation de MS11 |
+| **Écran figé après calcul** | L'écran « Prévisions » affichait son résultat mais n'acceptait plus aucun clic | Un `ListView` imbriqué dans un `ListView` reçoit une hauteur infinie : les `RenderBox` ne sont jamais dimensionnés, donc **le hit-test ne trouve plus rien**. L'erreur remontée (`mouse_tracker`) désignait la conséquence, pas la cause |
+
+**Phrase clé :** *« Ces trois-là ne sont pas des fautes d'inattention : ce sont des bugs que seule l'exécution
+sur données réelles pouvait produire. C'est pour ça que j'ai rejoué la primitive d'ETA sur une vraie tournée de
+753 points plutôt que sur un carré de quatre points — et la fixture est versionnée, donc la régression est
+verrouillée dans les trois implémentations. »*
+
+### Artefacts supplémentaires à avoir ouverts
+- `ms5-planification/notebooks/05_vrp_study.ipynb` · `ms11-analytique/notebooks/04_anomaly_detection.ipynb`
+- `frontend/chauffeur-mobile/test/route_eta_reel_test.dart` (+ sa fixture) — la preuve chiffrée du tableau ci-dessus
+- `html_tests/simulation-control.html` (pilotage de tous les scénarios)
+- `CLAUDE.md`, section « Points d'attention » — les 15 pièges documentés

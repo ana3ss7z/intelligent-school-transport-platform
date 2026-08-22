@@ -11,7 +11,9 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2BPostGIS-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.44-02569B.svg?logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Tests](https://img.shields.io/badge/Newman-88%2F88%20✓-brightgreen.svg)](#-tests)
+[![Flutter tests](https://img.shields.io/badge/Flutter%20tests-109%2F109%20✓-brightgreen.svg)](#-tests)
 
 *Projet de Fin d'Études — Master SDIA (Systèmes Distribués & Intelligence Artificielle)*
 *Faculté des Sciences Moulay Ismail, Meknès*
@@ -41,7 +43,7 @@ L'architecture repose sur **12 microservices** répartis en deux écosystèmes c
 
 ```mermaid
 flowchart TB
-    Client["🖥️ Console web React :5173 (admin · chauffeur · parent)<br/>📱 App mobile PARENT Flutter :5174"]
+    Client["🖥️ Console web React :5173 (admin · chauffeur · parent)<br/>📱 App mobile PARENT Flutter :5174<br/>🚐 App mobile CHAUFFEUR Flutter :5175 (source GPS)"]
     GW["🚪 MS8 — API Gateway :8080<br/>(JWT · Rate-limiting Redis · CORS)"]
     Client --> GW
 
@@ -168,7 +170,61 @@ code **Android-ready** (`usesCleartextTraffic`, IP LAN via `--dart-define`).
 **Tech** : `dio` (Bearer, timeouts 20 s / 120 s ETA+LLM), `web_socket_channel` (auto-reconnect + throttle),
 `flutter_riverpod` (auth/enfants/GPS partagés). **UI/UX + perf** (skill `flutter-ui-ux`) : **Material 3 clair + sombre**
 avec toggle, tokens 4/8 pt, skeletons shimmer, countdown animé, `RepaintBoundary` / `const` / `ListView.builder`,
-`Semantics` (lecteurs d'écran). **Qualité** : `flutter analyze` 0 issue · `flutter test` 5/5.
+`Semantics` (lecteurs d'écran). **Qualité** : `flutter analyze` 0 issue · `flutter test` **25/25**.
+
+> L'écran **Prévisions ETA** (6ᵉ onglet) donne l'heure de passage estimée par enfant : sens matin/soir + heure de
+> départ → rang dans la tournée et heure d'arrivée, via `POST /api/planification/mes-enfants` (portée imposée par
+> le JWT : MS5 planifie la tournée entière mais ne renvoie que les étapes des enfants du demandeur).
+
+---
+
+## 🚐 App mobile CHAUFFEUR (Flutter)
+
+Application **Flutter** ([`frontend/chauffeur-mobile/`](frontend/chauffeur-mobile/)) qui reprend les **7 écrans de
+l'espace chauffeur web**. Cible dev **Chrome** `:5175`, code **Android-ready**. **Aucun delta backend.**
+
+**Ce qui la distingue de l'app parent : elle ÉCRIT, et le téléphone devient la source GPS du bus.**
+
+| Écran | Contenu |
+|-------|---------|
+| **Ma tournée** | Cycle de vie du **Trajet** (démarrer/terminer), **pointage** montée/dépose, arrêt courant + distance, KPI **« Fin de tournée »**, interrupteur d'émission GPS |
+| **Ma carte** | Position live de **son** bus, tracé de la tournée, arrêts numérotés (verts une fois traités), suivi automatique |
+| **Prévisions ETA** | Heure de passage estimée à chaque arrêt (cumul MS5 → MS12) |
+| **Mes incidents** | Liste des incidents de son bus + signalement (6 types, position jointe) |
+| **Messagerie** | **Bidirectionnelle** avec l'administration + **diffusion aux parents** de son groupe (canaux étanches) |
+| **Mes notifications · Mes trajets** | Notifications entrantes · historique des tournées |
+
+### Le téléphone comme source GPS
+
+`POST /api/gps/position` était **déjà ouvert au rôle CHAUFFEUR** côté MS3 — d'où l'absence de delta backend.
+L'interrupteur « Transmettre ma position » est **désactivé par défaut** (sinon le téléphone et `bus_simulator.py`
+se disputent le même bus) et n'émet **que pendant un trajet** (1 envoi / 5 s, filtre 15 m). L'émission continue
+écran verrouillé grâce au `ForegroundNotificationConfig` de `geolocator` — donc **sans**
+`ACCESS_BACKGROUND_LOCATION` ni second isolate.
+
+> ⚠️ `geolocator` renvoie des **m/s**, `bus_simulator.py` publie des **km/h** et le seuil MS11 vaut **90 km/h** :
+> la conversion ×3,6 est indispensable, faute de quoi `VITESSE_EXCESSIVE` ne partirait jamais d'un vrai téléphone.
+
+### File d'écritures hors ligne — un chauffeur roule
+
+Toutes les écritures passent par une file **FIFO stricte, single-flight**, persistée (`shared_preferences`) et
+donc **survivant à la fermeture de l'app**. La sémantique dépend du type d'écriture :
+
+| Écriture | Idempotente ? | Traitement au rejeu |
+|---|---|---|
+| Présence | ✅ valeur absolue (`?present=`) | Les pointages successifs d'un même élève sont **fusionnés** |
+| Démarrer un trajet | ❌ MS1 renvoie `400` si un trajet est déjà en cours | **Réconciliation** : on relit `mon-actif` et on **adopte** le trajet existant |
+| Incident · message · diffusion | ❌ aucune clé serveur | **At-least-once assumé** : plafond de 3 essais, puis la décision revient au chauffeur |
+
+Les **positions GPS ne sont jamais rejouées** : `PositionRequest` n'a pas d'horodatage (MS3 date à la réception),
+un point réémis deviendrait une **fausse position courante**.
+
+**Démarrer hors ligne est refusé sans itinéraire en cache** : démarrer sans `geometrie` prive MS11 de sa référence
+et **désarme la détection de déviation en silence**. Le bouton est désactivé et la raison affichée.
+
+**Qualité** : `flutter analyze` 0 issue · `flutter test` **84/84** — l'app parent exposait un singleton
+`Api.instance` qui bornait ses tests au login ; ici tout passe par une interface `ApiClient` injectable, ce qui
+permet de tester les écrans à actions, y compris leurs chemins d'échec.
 
 ### Configuration multi-cible (sans jamais modifier le code)
 
@@ -185,8 +241,21 @@ flutter run -d chrome --web-port 5174 --dart-define-from-file=config/env.chrome.
 flutter run --dart-define-from-file=config/env.phone.json
 ```
 
-> Depuis VS Code, les deux cibles sont lançables **en un clic** via `.vscode/launch.json`
-> (« Parent App — Chrome » / « Parent App — Téléphone »).
+> Depuis VS Code, toutes les cibles sont lançables **en un clic** via `.vscode/launch.json`
+> (« Parent App — Chrome / Téléphone », « Chauffeur App — Chrome / Téléphone »).
+
+L'app chauffeur suit **exactement le même mécanisme**, seul le port web diffère (les deux apps doivent pouvoir
+tourner côte à côte pendant une démo) :
+
+```bash
+cd frontend/chauffeur-mobile && flutter pub get
+flutter run -d chrome --web-port 5175 --dart-define-from-file=config/env.chrome.json
+flutter run --dart-define-from-file=config/env.phone.json
+```
+
+> ⚠️ `String.fromEnvironment` est une **constante de compilation** : éditer un JSON exige de **relancer** l'app,
+> un hot restart ne suffit pas. Et la console web (`web-admin`) suit le même principe avec un mécanisme
+> différent — Vite et `import.meta.env.VITE_GATEWAY`, dans un fichier `.env`.
 
 ---
 
@@ -204,7 +273,7 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 <tr>
   <td><b>🗺️ MS5</b><br/>VRP / Tournées</td>
   <td>Ordre de ramassage optimal par bus</td>
-  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel, cf. <code>verify_sens.py</code>)</td>
+  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel, cf. <code>verify_sens.py</code>) · géométrie et distance annoncée <b>convergentes à 0,05 %</b> (<code>continue_straight=false</code>)</td>
 </tr>
 <tr>
   <td><b>⏱️ MS12</b><br/>Prédiction ETA</td>
@@ -312,7 +381,7 @@ Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](htm
 | Notifications (MS4) | `8084` | | Incidents (MS10) | `8090` |
 | Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
 | PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
-| **Front** : web-admin `5173` · app parent Flutter `5174` | | | | |
+| **Front** : web-admin `5173` · app parent Flutter `5174` · **app chauffeur Flutter `5175`** | | | | |
 
 ---
 
@@ -323,7 +392,13 @@ Exchange **`transport.exchange`** (topic, durable). Communication asynchrone dé
 | Routing key | Producteur | Consommateur |
 |-------------|:---------:|:------------:|
 | `eleve.created` · `eleve.gps.updated` · `eleve.deleted` | MS2 | MS6 (recalcul clustering) |
-| `gps.bus.updated` | MS3 | MS4 (notifications) |
+| `bus.created` · `bus.deleted` | MS1 | MS6 (la flotte change → `k` peut changer) |
+| `gps.bus.updated` | MS3 | MS4 (arrivée école) · **MS12** (ETA temps réel) · **MS11** (anomalies live) |
+| `eta.bus.arriving` | MS12 | MS4 (« le bus arrive dans ~10 min ») |
+| `eleve.presence.updated` | MS2 | MS4 (« enfant à bord » / « déposé ») |
+| `trajet.demarre` · `trajet.termine` | MS1 | MS4 (alerte admin) · **MS11** (fige/purge la route de référence) |
+| `clustering.quality.low` | MS6 | MS4 (alerte qualité admin) |
+| `anomalie.detectee` | MS11 | MS4 (alerte admin) |
 | `incident.signale` · `incident.resolu` | MS10 | MS4 (notifications) |
 
 ---
@@ -344,6 +419,8 @@ Exchange **`transport.exchange`** (topic, durable). Communication asynchrone dé
 | **`e2e_integration_test.py`** | Chaîne complète (clustering→busId→GPS→ETA→notif→présence→anomalie) | **8/8** ✅ |
 | **Newman (Postman)** | API cœur métier | **88/88 assertions** ✅ |
 | **Console web** | Parcours de bout en bout + cartes | ✅ |
+| **`flutter test`** (chauffeur) | Écrans à actions, file hors ligne, primitive ETA sur **tournée réelle** | **84/84** ✅ |
+| **`flutter test`** (parent) | Login, primitive ETA (mêmes tests de parité + fixture réelle) | **25/25** ✅ |
 | **Notebooks Jupyter** | Validation des modèles IA (CRISP-DM) | ✅ |
 | `verify_sens.py` | Preuve d'équité des tournées (OSRM réel) | ✅ |
 
@@ -362,7 +439,8 @@ transport-scolaire/
 ├── ms-common/               # module Java partagé (JWT, rôles)
 ├── ms1-bus/ … ms12-prediction/   # 12 microservices
 ├── frontend/web-admin/      # console web React + Vite + TS (Bun) — admin · chauffeur · parent
-├── frontend/parent-mobile/  # app mobile PARENT Flutter (Chrome :5174 / Android)
+├── frontend/parent-mobile/     # app mobile PARENT Flutter (Chrome :5174 / Android)
+├── frontend/chauffeur-mobile/  # app mobile CHAUFFEUR Flutter (Chrome :5175 / Android) — source GPS
 ├── html_tests/              # console de test unifiée + cartes Leaflet
 ├── bus_simulator.py         # simulateur data-driven (vraies tournées OSRM, présence, anomalies)
 ├── osrm-data/               # données OSM Maroc pré-traitées
@@ -386,7 +464,9 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
 | S9 | **Assistant LLM parent (MS9, Phase A)** — agent tool-calling, cascade Groq/Gemini, FR/AR/darija ✅ · NL2SQL admin (Phase B) ⏳ | ✅ |
 | S13+ | **App mobile PARENT Flutter** (`frontend/parent-mobile/`, Chrome :5174 / Android) — 5 écrans miroir de l'espace parent web, Material 3 clair+sombre, carte live glisse GPS, aucun delta backend | ✅ |
-| — | App Flutter **chauffeur** · réaffectation dynamique (UC-9) | ⏳ |
+| S15 | **App mobile CHAUFFEUR Flutter** (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) — 7 écrans, le téléphone devient la **source GPS**, **file d'écritures hors ligne** persistée, 84 tests | ✅ |
+| S15 | **Campagne de correction** issue de l'exécution contre le backend réel : ETA « cycle fermé », MS5 `continue_straight`, 2 crashs d'interface (cf. [CLAUDE.md](CLAUDE.md), pièges 13-15) | ✅ |
+| — | Réaffectation dynamique (UC-9) · MS9 Phase B (NL2SQL admin) | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 
 ---
