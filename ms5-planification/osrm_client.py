@@ -48,10 +48,28 @@ async def matrice(latlon: list[tuple]) -> tuple[list[list[float]], list[list[flo
 
 
 async def geometrie(latlon_ordre: list[tuple]) -> list[list[float]]:
-    """Polyligne [[lat,lng]...] de l'itinéraire réel passant par les points dans l'ordre."""
+    """
+    Polyligne [[lat,lng]...] de l'itinéraire réel passant par les points dans l'ordre.
+
+    `continue_straight=false` est **indispensable**, pas cosmétique. Par défaut, OSRM impose au véhicule
+    de poursuivre tout droit en franchissant chaque waypoint : quand l'arrêt suivant est en arrière, il
+    insère un demi-tour au lieu de tourner. Sur la tournée réelle du groupe 1 (50 arrêts), mesuré contre
+    l'OSRM local :
+
+        sans continue_straight : 19 123,5 m / 42,23 min / 882 points
+        avec  (=false)         : 17 241,1 m / 35,99 min / 753 points
+        matrice /table (réf.)  : 17 241,1 m / 35,99 min
+
+    Soit +10,92 % de trajet fantôme, et une polyligne qui décrivait un AUTRE itinéraire que celui
+    optimisé par le TSP. Deux conséquences en aval :
+      · l'ETA « distance restante sur le circuit » mesurait des mètres sur une géométrie et les
+        convertissait avec la vitesse d'une autre ;
+      · MS11 fige cette polyligne comme référence de détection de déviation (UC-8) — les demi-tours
+        inexistants sont autant de faux positifs en puissance.
+    """
     try:
         url = (f"{settings.osrm_url}/route/v1/driving/{_coords(latlon_ordre)}"
-               f"?overview=full&geometries=geojson")
+               f"?overview=full&geometries=geojson&continue_straight=false")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.get(url)
             r.raise_for_status()

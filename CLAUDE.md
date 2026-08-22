@@ -1,5 +1,5 @@
 # CLAUDE.md — Transport Scolaire Intelligent
-## État au 19 août 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** + **app mobile PARENT Flutter** + **ETA le long de la tournée** livrés
+## État au 20 août 2026 — briques IA (MS6/MS12/MS5/MS11) + temps réel (e2e) + **3 espaces web (admin · chauffeur · parent)** + **messagerie** + **déviation d'itinéraire** + **MS9 assistant LLM parent (Phase A)** + **apps mobiles PARENT & CHAUFFEUR Flutter** + **ETA le long de la tournée** livrés
 
 ---
 
@@ -211,6 +211,96 @@ les 2 étages Groq de la cascade échouaient, MS9 retombait silencieusement sur 
 > Le chauffeur doit **démarrer un nouveau trajet** pour que les totaux OSRM soient persistés (un trajet déjà en
 > cours reste route-aware mais retombe sur la vitesse urbaine par défaut).
 
+---
+
+**NOUVEAU (20/08) — App mobile CHAUFFEUR Flutter (`frontend/chauffeur-mobile/`, Chrome `:5175` / Android) :**
+Miroir mobile de l'espace chauffeur web (7 écrans), construite sur l'architecture de `parent-mobile`.
+**Différence de nature : cette app ÉCRIT** (démarrer/terminer un trajet, pointer les présences, signaler un
+incident, écrire à l'administration, diffuser aux parents) et **émet la position GPS réelle du bus**.
+
+- **Écrans (7 + login)** — barre basse **Tournée · Carte · Messages · Incidents · Plus** (Material 3 plafonne à
+  5 destinations ; « Plus » ouvre une feuille avec **Prévisions ETA · Notifications · Historique · Thème ·
+  Déconnexion** — les trois écrans qu'on consulte à l'arrêt, pas au volant).
+- **Le téléphone est la source GPS** (`POST /api/gps/position`, déjà ouvert au rôle CHAUFFEUR côté MS3 → **aucun
+  delta backend**). Interrupteur « Transmettre ma position », **OFF par défaut** (sinon le téléphone et
+  `bus_simulator.py` se disputent le même bus) ; n'émet que **pendant un trajet** ; 1 envoi / 5 s, filtre 15 m.
+  ⚠️ **Conversion m/s → km/h obligatoire** : `geolocator` renvoie des m/s, `bus_simulator.py` publie des **km/h**
+  (40 normal, 110 pour déclencher l'anomalie, seuil MS11 = 90). Sans elle, la vitesse serait 3,6× trop faible et
+  `VITESSE_EXCESSIVE` ne se déclencherait jamais depuis un vrai téléphone.
+  Émission écran verrouillé via le **`ForegroundNotificationConfig` de geolocator** (service de premier plan lié au
+  flux) → **pas de `ACCESS_BACKGROUND_LOCATION`**, pas de second isolate. *(`flutter_foreground_task` écarté : il
+  aurait imposé de recréer Dio et le JWT dans un autre isolate pour le même résultat.)*
+- **File d'écritures hors ligne** (`lib/services/outbox.dart`) — **FIFO strict, single-flight**, persistée en JSON
+  dans `shared_preferences` (choisi contre sqflite (KO sur le web) et hive (codegen) ; surtout **ne tire pas
+  `path_provider`**, donc reste à l'écart du piège `jni`/AGP 9). Déclencheurs : `connectivity_plus`, reprise
+  d'app, balayage 30 s. Sémantique **par type d'écriture**, c'est le cœur du sujet :
+  · `presence` — valeur absolue (`?present=`) donc idempotente → deux pointages du même élève sont **fusionnés** ;
+  · `trajetDemarrer` — **non idempotent** (MS1 `TrajetService.demarrer` lève si un trajet est déjà `EN_COURS`) →
+    sur refus, on lit `GET /api/trajets/mon-actif` et on **adopte** le trajet existant (réconciliation, pas retry) ;
+  · `trajetTerminer` — idem via `mon-actif` (plus de trajet actif ⇒ déjà clos) ;
+  · `incident` / `message` / `diffusion` — **aucune clé d'idempotence côté serveur** → at-least-once assumé,
+    plafond **3 essais** puis l'item est « parké » et la décision revient au chauffeur (réessayer / abandonner).
+  **Les positions GPS ne sont PAS rejouées** : `PositionRequest` n'a pas d'horodatage (MS3 date à la réception),
+  réémettre un point vieux de 3 min écrirait une **fausse position courante**.
+- **Démarrer hors ligne est refusé sans itinéraire en cache** (`tournee_cache.dart`, clé `(groupeId, sens)`) :
+  démarrer sans `geometrie` prive MS11 de sa référence et **désarme la détection de déviation en silence**.
+  Le bouton est désactivé et la raison affichée, plutôt que de partir à l'aveugle.
+- **Testabilité — le point faible de `parent-mobile` corrigé** : `Api.instance` (singleton) est remplacé par une
+  interface **`ApiClient`** derrière `apiProvider`, `Outbox` derrière `outboxProvider` avec un `MemoryOutboxStore`.
+  **55 tests** : `route_eta` 11 (copiés, garantissent la parité avec le jumeau parent), `outbox` 11 (ordre,
+  fusion, réconciliation, plafond, persistance après kill), `login` 7 (dont **rejet d'un compte PARENT**),
+  `tournee` 12 (dont **le démarrage envoie bien `groupeId` ET `geometrie`**, rollback sur refus serveur, mise en
+  file hors ligne), `messages` 8, `incidents` 6.
+  *Un test a révélé un vrai bug* : le `TextEditingController` de la diffusion était libéré pendant l'animation de
+  fermeture de la feuille → « used after being disposed ». Corrigé (contrôleur porté par l'état).
+- **Écarts assumés vs la console web** : (1) l'écran **Prévisions ETA** part du **cumul MS5 depuis l'école** passé
+  à MS12 (comme la page parent) au lieu des N appels tronçon-par-tronçon du web — deux méthodes donneraient deux
+  heures différentes pour le même enfant, on s'aligne sur ce que voient les familles ; concurrence bornée à 6
+  appels pour ne pas heurter le rate-limiter Gateway (20 req/s). (2) Quand un trajet est en cours, l'ETA et la
+  carte utilisent la polyligne **figée par MS1** (`/api/trajets/bus/{id}/route`), celle que MS11 surveille et que
+  l'app parent utilise, plutôt qu'une tournée re-planifiée.
+- **Socle dupliqué depuis `parent-mobile`** (theme, common, env, auth_store, gps_socket, **route_eta + ses 11
+  tests**, generate_icon) plutôt qu'extrait en package partagé : l'app parent est **livrée et validée** à
+  quelques semaines de la soutenance. Garde-fou contre la divergence : les tests de parité sont copiés aussi.
+  Clé de session distincte (`ts_auth_chauffeur`) et **icône teal** (`#0F766E`) pour la cohabitation des deux apps
+  sur un même téléphone.
+- **Aucun delta backend.** Seuls `.vscode/launch.json` (3 entrées, `--web-port=5175`) et `.gitignore`
+  (exceptions PNG symétriques) sont touchés hors du nouveau dossier.
+
+> **Vérifié hors ligne** : `flutter analyze` **0 issue** ✅ · `flutter test` **68/68** ✅ ·
+> `flutter build web --release` ✅ · `flutter build apk --release` ✅ (**54,3 Mo** — confirme que
+> `path_provider_android: 2.2.17` + `geolocator` passent AGP 9) · non-régression `parent-mobile` : 16/16 ✅.
+
+> **Vérifié CONTRE LE BACKEND RÉEL (20/08, tous MS + OSRM up)** — les 12 contrats consommés par l'app,
+> validés champ par champ contre les modèles Dart :
+> · `POST /api/auth/login` (CHAUFFEUR, JWT `userId`/`role`) · `GET /api/bus` (10 bus, 1 au chauffeur 32)
+> · `GET /api/eleves/bus/14` (50 élèves, `ordrePassage` 1..50) · `/api/trajets/{mon-actif,mes-trajets,bus/14/route}`
+> · `POST /api/planification/tournee` (50 arrêts, 882 pts, `etapes` conformes à `EtapeTournee`)
+> · `POST /api/eta/predict` dans les 3 modes (`mode_eta` = `facteur_contexte` à 12 km, `modele_direct` à 2 km)
+> · `/api/incidents/bus/14`, `/api/messages/{ma-conversation,non-lus}`, `/api/notifications/mes-notifications`.
+> **Cycle de trajet complet joué** : clôture → `POST /demarrer` avec le payload exact de l'app → **HTTP 201**
+> → `GET /route` renvoie **882 points + totaux figés** ⇒ *surveillance de déviation MS11 armée* (c'était LE
+> point non vérifié). **Non-idempotence confirmée en réel** : un second démarrage renvoie
+> `400 « Un trajet est déjà en cours pour ce bus (id=18) »` — exactement le cas que la file réconcilie via
+> `mon-actif`. **`POST /api/gps/position` en CHAUFFEUR accepté**, 43,2 km/h persistés ; MS11 `/live` expose
+> `seuils.vitesse_kmh = 90` ⇒ **la conversion m/s→km/h est indispensable et correcte**.
+> **NON vérifié** : émission GPS depuis un téléphone physique, tenue du service de premier plan au-delà de
+> quelques minutes écran verrouillé (et survie au *Doze* constructeur), batterie, iOS (pas de cible iOS).
+
+> **Campagne de correction du 22/08 — vérifications** : `flutter analyze` 0 issue sur les deux apps ·
+> `flutter test` **84/84** (chauffeur) et **25/25** (parent) · `bun run build` (web-admin) ✅.
+> **Contre le backend réel** : MS5 rechargé → convergence `distance_m` / longueur de `geometrie` à **0,05 %** ;
+> nouveau trajet démarré avec le payload de l'app → MS1 persiste **753 pts + totaux** ; **déviation forcée →
+> `DEVIATION_ITINERAIRE` détectée** (écart 277,2 m, seuil 250 m) ⇒ la surveillance MS11 reste opérationnelle
+> après le changement de géométrie.
+> **La primitive ETA est vérifiée dans ses 3 implémentations sur la MÊME tournée réelle** — les deux apps Dart
+> par `route_eta_reel_test.dart` (fixture `test/fixtures/tournee_groupe1.json`, 753 points), et le TypeScript
+> par un script `bun` jetable exécutant `routeEta.ts` sur la même fixture. Résultats identiques :
+> 99 % du parcours → **35,4 min avant / 0,6 min après**, et au départ l'ETA vaut **35,99 min**, exactement la
+> durée annoncée par MS5 (preuve que la vitesse est bien dérivée de la polyligne mesurée).
+> ⚠️ `web-admin` n'a **toujours aucun lanceur de tests** : hors cette vérification ponctuelle, ses corrections
+> ne sont couvertes que par le typecheck.
+
 ## 📁 Structure racine du projet
 
 ```
@@ -226,8 +316,11 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 ├── frontend/
 │   ├── web-admin/                   ← Console admin React 18 + Vite + TS + Bun + Tailwind v4 (port 5173) ← NOUVEAU
 │   │   └── src/ (api · auth · components · hooks · layout · lib · pages)
-│   └── parent-mobile/               ← App mobile PARENT Flutter 3.44 (Chrome :5174 / Android) ← NOUVEAU (27/07)
-│       └── lib/ (config · models · api · services · state · screens · widgets)
+│   ├── parent-mobile/               ← App mobile PARENT Flutter 3.44 (Chrome :5174 / Android) ← NOUVEAU (27/07)
+│   │   └── lib/ (config · models · api · services · state · screens · widgets)
+│   └── chauffeur-mobile/            ← App mobile CHAUFFEUR Flutter (Chrome :5175 / Android) ← NOUVEAU (20/08)
+│       └── lib/ (api[api_client·dio_api] · models · services[outbox·gps_emitter·tournee_cache·route_eta]
+│                 · state · screens · widgets) + test/ (55 tests, fake ApiClient)
 ├── ws-test/
 │   ├── test-gps.html               ← Test WebSocket GPS MS3
 │   ├── map-gps.html                ← Carte Leaflet temps réel (GPS + OSRM routes)
@@ -855,6 +948,14 @@ flutter run -d chrome --web-port 5174 --dart-define-from-file=config/env.chrome.
 flutter run --dart-define-from-file=config/env.phone.json                              # téléphone (IP LAN)
 # ⇒ si l'IP du PC change, éditer UNIQUEMENT config/env.phone.json (+ pare-feu 8080/8083)
 # ⇒ ou lancer en 1 clic via VS Code : .vscode/launch.json (« Parent App — Chrome » / « — Téléphone »)
+
+# 6. App mobile CHAUFFEUR (Flutter) — même mécanique, port web différent
+cd frontend/chauffeur-mobile && flutter pub get
+flutter run -d chrome --web-port 5175 --dart-define-from-file=config/env.chrome.json  # navigateur
+flutter run --dart-define-from-file=config/env.phone.json                              # téléphone
+# ⇒ VS Code : « Chauffeur App — Chrome » / « — Téléphone »
+# ⇒ l'interrupteur « Transmettre ma position » est OFF par défaut : le laisser OFF tant que
+#    bus_simulator.py tourne (deux sources GPS sur le même bus se contrediraient).
 ```
 
 ---
@@ -879,6 +980,8 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |
 | **S13+** | **27/07** | **✅** | **App mobile PARENT Flutter (`frontend/parent-mobile/`, Chrome :5174 / Android) : 5 écrans miroir de l'espace parent web (login, Mon espace+countdown, carte live glisse GPS, messagerie, notifications, assistant MS9), Material 3 clair+sombre, skeletons, perf (RepaintBoundary/const/builder). Aucun delta backend. Skills `flutter-ui-ux`/`flutter-tester` + agent `flutter-expert` installés.** |
 | **S14** | **19/08** | **✅** | **ETA « le long de la tournée » (5 écrans) + garde anti-extrapolation MS12 + page Prévisions parent (web `/parent/eta` + mobile 6ᵉ onglet, MS5 `/mes-enfants` scopé JWT) + fix présence figée + refonte page de connexion (2 bugs thème sombre) + migration LLM forcée (Llama décommissionné → gpt-oss)** |
+| **S15** | **20/08** | **✅** | **App mobile CHAUFFEUR Flutter (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) : 7 écrans miroir de l'espace chauffeur web, le téléphone devient la **source GPS réelle** (foreground service, m/s→km/h), **file d'écritures hors ligne persistée** (FIFO, fusion des présences, réconciliation des démarrages non idempotents), démarrage refusé sans itinéraire (protège la détection de déviation MS11), `ApiClient` injectable → **55 tests** dont les écrans à actions. Aucun delta backend.** |
+| **S15** | **22/08** | **✅** | **Campagne de correction issue de l'exécution contre le backend réel : (1) ETA « cycle fermé » — le compte à rebours bondissait de 1,1 à 35,4 min pile à l'arrivée à l'école — corrigé dans les **3 implémentations** (`routeEta` Dart ×2 + TS) et les **6 écrans** ; (2) MS5 `continue_straight=false` — `geometrie` et `distance_m` décrivaient deux trajets (+10,92 %), convergence ramenée à 0,05 %, référence de déviation MS11 assainie ; (3) figeage de l'écran « Prévisions » (ListView imbriqué) ; (4) crash au `dispose` des cartes (`late final AnimationController`) ; (5) couverture chauffeur portée à 84 tests (shell + 3 écrans de consultation), parent à 25.** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---
@@ -934,6 +1037,52 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
    `route_eta.dart` (distance restante **sur** la polyligne). Et côté MS12, ne pas dépasser le domaine
    d'entraînement (tronçons 0,7–4 km) : la garde `facteur_contexte` s'en charge.
 
+10. **Unité de vitesse GPS : km/h partout.** `bus_simulator.py` publie des **km/h** (40 normal, 110 anomalie) et
+    le seuil MS11 `SEUIL_VITESSE_KMH` vaut 90. `geolocator` (app chauffeur) renvoie des **m/s** → conversion
+    ×3,6 dans `gps_emitter.dart`. Sans elle, aucune anomalie de vitesse ne se déclencherait depuis un vrai
+    téléphone, et l'affichage divergerait entre bus simulés et bus réel — **sans erreur visible**.
+
+11. **Deux sources GPS pour un même bus se contredisent.** L'interrupteur « Transmettre ma position » de l'app
+    chauffeur est OFF par défaut. Pour une démo au simulateur, le laisser OFF ; pour démontrer le GPS réel,
+    couper `bus_simulator.py` sur ce bus.
+
+12. **Ne jamais démarrer un trajet sans `geometrie`.** MS1 l'accepte (le champ est optionnel) et MS11 se
+    retrouve alors sans route de référence : `DEVIATION_ITINERAIRE` ne peut plus se déclencher, **silencieusement**.
+    L'app chauffeur refuse donc le démarrage plutôt que de partir à l'aveugle, et met la géométrie en cache local
+    pour rester capable de démarrer hors ligne.
+
+13. **La tournée est un cycle FERMÉ : recaler un bus dessus exige de mémoriser sa progression.** ✅ **corrigé
+    partout (22/08)**. Mesuré sur les données réelles du groupe 1 : le premier et le dernier point de la
+    polyligne sont à **0,0 m** l'un de l'autre. Quand le bus revient à l'école, sa position se projette aussi
+    bien sur le début que sur la fin — et à égalité d'écart, c'est le **début** qui gagne. Conséquence chiffrée :
+    à 98 % du parcours il reste 1,1 min, à 99 % il « reste » **35,4 min**. Le compte à rebours bondit à l'instant
+    de l'arrivée, sous les yeux des familles. Correctif : `depuisAlongM` (abscisse déjà atteinte, réinjectée d'un
+    calcul au suivant) — un bus ne rembobine pas sa tournée. Après : 0,6 min à 99 %, 0,0 min à l'arrivée.
+    Appliqué aux **3 implémentations** (`chauffeur-mobile`, `parent-mobile`, `web-admin/routeEta.ts`) et aux
+    **6 écrans** concernés. ⚠️ **Le plancher est PAR BUS côté parent** (`Map<int,double>` / `Record<number,number>`) :
+    la progression appartient au bus, pas à l'élève ; deux enfants d'une même famille peuvent partager le bus.
+    Il est remis à zéro **au changement de polyligne uniquement** — surtout pas quand un élève monte, ce qui
+    rouvrirait le bug au moment même de l'embarquement.
+
+14. **MS5 : `distance_m` et `geometrie` décrivaient deux trajets différents (+10,92 %).** ✅ **corrigé (22/08)**.
+    `distance_m` vient de la matrice OSRM `/table` ; `geometrie` venait de `/route` appelé sans
+    `continue_straight=false` — OSRM imposait alors de franchir chaque waypoint tout droit et insérait des
+    demi-tours. Mesuré contre l'OSRM local sur les 52 waypoints réels :
+    `sans = 19 123,5 m / 42,23 min / 882 pts` · `avec = 17 241,1 m / 35,99 min / 753 pts` ·
+    `matrice /table = 17 241,1 m / 35,99 min`. Vérifié avec un haversine de référence que l'écart ne venait
+    **pas** de la projection équirectangulaire (0,008 %). Après correctif, convergence à **0,05 %**.
+    Deux conséquences levées : (a) l'ETA était gonflé de 11 % ; (b) **la référence de déviation de MS11**
+    contenait des demi-tours inexistants. *(Les clients dérivent malgré tout la vitesse de la polyligne qu'ils
+    mesurent — immunité si la divergence revient.)*
+
+15. **Ne jamais écrire `late final AnimationController _x = AnimationController(vsync: this, …)`.** Un `late
+    final` n'est évalué qu'au **premier accès**. Si l'écran ne rend jamais la partie animée (chauffeur sans bus,
+    enfants sans bus assigné, erreur de chargement), ce premier accès est celui de `dispose()` — qui construit
+    alors un `Ticker` sur un élément déjà désactivé et lève *« Looking up a deactivated widget's ancestor is
+    unsafe »*. Le crash survient en **quittant** l'écran, ce qui le rend difficile à rattacher à sa cause.
+    Créer le contrôleur dans `initState`. Trouvé par un test, présent dans les `map_screen.dart` des **deux**
+    apps Flutter, corrigé dans les deux.
+
 ---
 
 ## 💡 Décisions architecturales clés
@@ -955,3 +1104,8 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 | groupeId=999 pour bruit DBSCAN | Sentinel (legacy) ; en production les dispersés sont affectés au médoïde le plus proche |
 | **CORS uniquement sur la Gateway** | **Retiré de MS1/MS2/MS3/MS6 (en-têtes en double = "Failed to fetch")** |
 | Routes internes MS6→MS2 permitAll | MS6 Python ne gère pas de token Spring JWT |
+| **File hors ligne FIFO stricte (app chauffeur)** | **L'ordre porte du sens : un pointage parti avant le démarrage n'a aucun trajet auquel se rattacher** |
+| **Réconcilier plutôt que rejouer (`trajetDemarrer`)** | **MS1 refuse un second démarrage ; relire `mon-actif` et adopter le trajet existant évite une erreur permanente pour un effet déjà obtenu** |
+| **Positions GPS jamais rejouées** | **`PositionRequest` n'a pas d'horodatage : un point rejoué deviendrait une fausse position courante** |
+| **`ApiClient` injectable (≠ singleton `Api.instance`)** | **Sans cette couture les tests s'arrêtent au login — c'est ce qui limitait `parent-mobile` à 16 tests** |
+| **Socle Flutter dupliqué (pas de package partagé)** | **`parent-mobile` est livrée et validée ; on ne la déstabilise pas avant la soutenance. Divergence gardée par les tests de parité `route_eta` copiés** |

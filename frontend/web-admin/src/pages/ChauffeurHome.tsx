@@ -131,6 +131,12 @@ export function ChauffeurHome() {
   // SUR LE CIRCUIT — ça inclut tous les arrêts restants et ça décroît.
   const routeRef = useRef(route); routeRef.current = route;
   const planRef = useRef(plan); planRef.current = plan;
+  // Abscisse déjà atteinte sur le circuit. La tournée boucle sur l'école : sans ce
+  // plancher, le bus arrivé se recale sur le DÉPART et le KPI repasse de ~1 min à la
+  // durée totale (mesuré sur la vraie tournée : 1,4 → 35,4 min).
+  const alongRef = useRef(-1);
+  // Une nouvelle polyligne invalide l'abscisse acquise sur l'ancienne.
+  useEffect(() => { alongRef.current = -1; }, [route, trajet?.id]);
   useEffect(() => {
     if (!myBus) return;
     let alive = true;
@@ -141,8 +147,10 @@ export function ChauffeurHome() {
       try {
         const inputs = poly?.length
           ? etaInputsRestants(poly, { lat: p.lat, lng: p.lng }, "fin",
-              planRef.current?.distancePlanM, planRef.current?.dureePlanMin)
+              planRef.current?.distancePlanM, planRef.current?.dureePlanMin, alongRef.current)
           : null;
+        // Mémorisé avant l'appel réseau : la progression reste acquise même si MS12 ne répond pas.
+        if (inputs) alongRef.current = inputs.alongM;
         // Repli point-à-point si la tournée n'est pas (encore) chargée.
         const r = await predictEta(inputs
           ? { ...inputs, moment: sens }

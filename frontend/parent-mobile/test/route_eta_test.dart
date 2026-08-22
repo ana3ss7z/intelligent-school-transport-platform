@@ -149,18 +149,59 @@ void main() {
 
   group('etaInputsRestants', () {
     test(
-      'Given une tournée et une vitesse, Then durée = distance / vitesse',
+      'Given une tournée et une durée, '
+      'Then la vitesse vient de la polyligne MESURÉE, pas du total annoncé',
       () {
+        // Divergence assumée avec `parent-mobile` et `web-admin/routeEta.ts`,
+        // qui divisent par `distancePlanM`. Sur les données réelles du groupe 1,
+        // MS5 annonce 17 241 m (matrice /table) alors que sa propre polyligne en
+        // fait 19 132 m (/route sans `continue_straight=false`, qui insère des
+        // demi-tours). Mesurer les mètres restants sur une géométrie et les
+        // diviser par la vitesse d'une AUTRE gonflait l'ETA de 11 %.
+        // Ici : le total annoncé est volontairement faux (2× trop petit) et le
+        // résultat doit l'ignorer.
+        final longueur = longueurRoute(_tournee);
         final r = etaInputsRestants(
           _tournee,
           0.0,
           0.0,
-          distancePlanM: 6000,
-          dureePlanMin: 10, // 10 m/s
+          distancePlanM: longueur / 2, // total incohérent, doit être ignoré
+          dureePlanMin: 10,
         )!;
-        expect(r.dureeBaseS, closeTo(r.distanceM / 10, 0.01));
+
+        final vAttendue = longueur / (10 * 60);
+        expect(r.dureeBaseS, closeTo(r.distanceM / vAttendue, 0.01));
+        // Au point de départ, il reste tout le circuit → l'ETA vaut exactement
+        // la durée annoncée de la tournée.
+        expect(r.dureeBaseS / 60, closeTo(10, 0.01));
       },
     );
+
+    test('Given le bus revenu au point de départ d\'un circuit fermé, '
+        'When on lui rappelle l\'abscisse déjà atteinte, '
+        'Then le reste est quasi nul au lieu de repartir à zéro', () {
+      // Le cas qui cassait le compte à rebours sur la vraie tournée : le
+      // dernier point d'une boucle est confondu avec le premier.
+      final fin = _tournee.last;
+      final longueur = longueurRoute(_tournee);
+
+      final sansMemoire = etaInputsRestants(
+        _tournee,
+        fin[0],
+        fin[1],
+        dureePlanMin: 10,
+      )!;
+      final avecMemoire = etaInputsRestants(
+        _tournee,
+        fin[0],
+        fin[1],
+        dureePlanMin: 10,
+        depuisAlongM: longueur * 0.9,
+      )!;
+
+      expect(avecMemoire.distanceM, lessThan(sansMemoire.distanceM));
+      expect(avecMemoire.alongM, greaterThanOrEqualTo(longueur * 0.9));
+    });
 
     test('Given une polyligne inexploitable, Then null', () {
       expect(etaInputsRestants(const [], 0, 0), isNull);

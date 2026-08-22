@@ -68,6 +68,15 @@ export function ParentCarte() {
   // L'arrivée de la tournée change la méthode de calcul → recalculer aussitôt.
   const routesKey = busIds.map((id) => `${id}:${routes[id]?.geometrie?.length ?? 0}`).join("|");
 
+  // Abscisse déjà atteinte sur le circuit, par bus. La tournée boucle sur l'école :
+  // sans ce plancher, le bus arrivé se recale sur le DÉPART et l'ETA repasse de
+  // ~1 min à la durée totale (mesuré sur la vraie tournée : 1,4 → 35,4 min).
+  const alongRef = useRef<Record<number, number>>({});
+  // Une nouvelle polyligne rend caduque l'abscisse acquise sur l'ancienne. Effet
+  // séparé de `presenceKey` : une montée d'élève ne doit pas réinitialiser la
+  // progression du bus.
+  useEffect(() => { alongRef.current = {}; }, [routesKey]);
+
   useEffect(() => {
     if (busIds.length === 0) return;
     let alive = true;
@@ -89,11 +98,16 @@ export function ParentCarte() {
           // l'école la projetterait sur le DÉPART de la boucle).
           const inputs = route?.geometrie?.length
             ? etaInputsRestants(route.geometrie, { lat: b.latitude, lng: b.longitude },
-                dest === ECOLE ? "fin" : dest, route.distancePlanM, route.dureePlanMin)
+                dest === ECOLE ? "fin" : dest, route.distancePlanM, route.dureePlanMin,
+                alongRef.current[b.cibleId] ?? -1)
             : null;
+          // Mémorisé avant l'appel réseau : la progression reste acquise même si MS12 ne répond pas.
+          if (inputs) alongRef.current[b.cibleId] = inputs.alongM;
           // `moment` = contexte trafic du modèle, pas la destination.
+          // `alongM` est un état local : il ne part PAS vers MS12, qui ne le connaît pas.
           const r = await predictEta(inputs
-            ? { ...inputs, moment: soir ? "soir" : "matin" }
+            ? { distance_routiere_m: inputs.distance_routiere_m, duree_base_s: inputs.duree_base_s,
+                moment: soir ? "soir" : "matin" }
             : { bus_lat: b.latitude, bus_lng: b.longitude, dest_lat: dest.lat, dest_lng: dest.lng, moment: soir ? "soir" : "matin" });
           return [b.cibleId, r.eta_minutes] as const;
         } catch { return [b.cibleId, null] as const; }

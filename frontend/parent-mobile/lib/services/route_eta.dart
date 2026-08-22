@@ -104,14 +104,29 @@ double longueurRoute(RoutePolyline poly) {
 /// Si [cibleLat]/[cibleLng] sont nuls, la cible est le TERMINUS de la tournée (l'école : la boucle
 /// y revient, donc viser explicitement la fin — les coordonnées de l'école se projetteraient sur
 /// le point de départ). Retourne null si la polyligne est inexploitable.
+///
+/// [depuisAlongM] = abscisse déjà atteinte par le bus, à réinjecter d'un calcul au suivant.
+///
+/// **Pourquoi ce paramètre est nécessaire.** La tournée MS5 est un cycle FERMÉ : sur les données
+/// réelles du groupe 1, le premier et le dernier point sont à **0,0 m** l'un de l'autre. Quand le
+/// bus revient à l'école, sa position se recale donc aussi bien sur le début que sur la fin — et à
+/// égalité d'écart c'est le début qui l'emporte. Mesuré sur la vraie tournée : à 98 % du parcours il
+/// reste 725 m (1,4 min), à 99 % il « reste » 18 837 m (35,4 min). Le compte à rebours bondit au
+/// moment exact de l'arrivée, côté chauffeur comme côté parents.
+///
+/// En mémorisant l'abscisse atteinte, on interdit ce retour en arrière — un bus ne rembobine pas sa
+/// propre tournée. Effet de bord bienvenu : cela absorbe aussi les micro-reculs (quelques dizaines
+/// de mètres) là où le circuit se frôle lui-même. Si le bus s'écarte vraiment de la route,
+/// [snapToRoute] retombe sur la meilleure projection absolue et l'ETA reste défini.
 double? distanceRestanteM(
   RoutePolyline poly,
   double busLat,
   double busLng, {
   double? cibleLat,
   double? cibleLng,
+  double depuisAlongM = -1,
 }) {
-  final snapBus = snapToRoute(poly, busLat, busLng);
+  final snapBus = snapToRoute(poly, busLat, busLng, minAlongM: depuisAlongM);
   if (snapBus == null) return null;
 
   if (cibleLat == null || cibleLng == null) {
@@ -146,7 +161,12 @@ double vitesseCircuitMs(double? distancePlanM, double? dureePlanMin) {
 class EtaInputs {
   final double distanceM;
   final double dureeBaseS;
-  const EtaInputs(this.distanceM, this.dureeBaseS);
+
+  /// Abscisse du bus sur le circuit, à réinjecter en [depuisAlongM] au prochain
+  /// calcul pour que la progression ne puisse pas repartir en arrière.
+  final double alongM;
+
+  const EtaInputs(this.distanceM, this.dureeBaseS, this.alongM);
 }
 
 EtaInputs? etaInputsRestants(
@@ -157,15 +177,38 @@ EtaInputs? etaInputsRestants(
   double? cibleLng,
   double? distancePlanM,
   double? dureePlanMin,
+  double depuisAlongM = -1,
 }) {
-  final restant = distanceRestanteM(
-    poly,
-    busLat,
-    busLng,
-    cibleLat: cibleLat,
-    cibleLng: cibleLng,
+  final snapBus = snapToRoute(poly, busLat, busLng, minAlongM: depuisAlongM);
+  if (snapBus == null) return null;
+
+  final longueur = longueurRoute(poly);
+  final double restant;
+  if (cibleLat == null || cibleLng == null) {
+    restant = math.max(0, longueur - snapBus.alongM);
+  } else {
+    final snapCible = snapToRoute(
+      poly,
+      cibleLat,
+      cibleLng,
+      minAlongM: snapBus.alongM,
+    );
+    if (snapCible == null) return null;
+    restant = math.max(0, snapCible.alongM - snapBus.alongM);
+  }
+
+  // Vitesse déduite de la polyligne RÉELLEMENT mesurée, et non du total annoncé.
+  // Mesurer les mètres restants sur une géométrie puis les diviser par la vitesse
+  // d'une AUTRE est incohérent par construction : au départ, l'ETA doit valoir
+  // exactement la durée annoncée de la tournée, et c'est ce que garantit cette
+  // ligne. Ce n'était pas théorique — `distance_m` (matrice OSRM /table) et la
+  // polyligne (/route) ont divergé de +11 % jusqu'au correctif de MS5
+  // (`osrm_client.py`, `continue_straight=false`), ce qui gonflait l'ETA d'autant.
+  // On garde cette source unique même maintenant que les deux convergent : elle
+  // rend le calcul immunisé contre une nouvelle divergence.
+  final v = vitesseCircuitMs(
+    longueur > 0 ? longueur : distancePlanM,
+    dureePlanMin,
   );
-  if (restant == null) return null;
-  final v = vitesseCircuitMs(distancePlanM, dureePlanMin);
-  return EtaInputs(restant, restant / v);
+  return EtaInputs(restant, restant / v, snapBus.alongM);
 }

@@ -21,6 +21,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Map<int, Trajet?> _trajets = {}; // par busId
   final Map<int, TrajetRoute?> _routes = {}; // tournée figée, par busId
+
+  /// Abscisse déjà atteinte sur le circuit, **par busId** (et non par enfant :
+  /// la progression appartient au bus, pas à l'élève transporté). Purgée dès que
+  /// la polyligne change.
+  final Map<int, double> _alongM = {};
   final Map<int, double?> _etas = {}; // par eleveId
 
   Timer? _trajetTimer;
@@ -61,8 +66,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // démarrage/fin d'un trajet — on ne la recharge pas à chaque sondage.
         if (t == null) {
           _routes.remove(busId);
+          _alongM.remove(busId);
         } else if (t.id != avant || _routes[busId] == null) {
           _routes[busId] = await Api.instance.getTrajetRoute(busId);
+          // Nouvelle polyligne → l'abscisse acquise sur l'ancienne n'a plus de sens.
+          _alongM.remove(busId);
         }
       } catch (_) {
         /* garde la valeur précédente */
@@ -115,8 +123,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               cibleLng: versDomicile ? destLng : null,
               distancePlanM: route.distancePlanM,
               dureePlanMin: route.dureePlanMin,
+              // 3. la MÉMOIRE : le circuit boucle sur l'école, donc à l'arrivée
+              //    la position du bus se recale aussi bien sur la fin que sur le
+              //    départ — et le départ gagne. Sans ce plancher, le compte à
+              //    rebours saute de ~1 min à la durée totale de la tournée, pile
+              //    au moment où le parent le regarde. Mesuré : 1,4 → 35,4 min.
+              depuisAlongM: _alongM[busId] ?? -1,
             )
           : null;
+      // Indexé par BUS, pas par enfant : deux enfants du même bus partagent la
+      // même progression. Mémorisé avant l'appel réseau, pour que la mesure
+      // reste acquise même si MS12 ne répond pas.
+      if (inputs != null) _alongM[busId] = inputs.alongM;
       try {
         final r = await Api.instance.predictEta(
           // Repli point-à-point si la tournée n'est pas disponible.

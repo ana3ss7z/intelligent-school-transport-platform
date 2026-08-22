@@ -282,6 +282,14 @@ class SkeletonCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      // Indispensable : ce squelette est parfois posé DANS un autre ListView
+      // (écran ETA). Sans `shrinkWrap`, le viewport interne reçoit une hauteur
+      // infinie, la passe de layout échoue, et les RenderBox ne sont jamais
+      // dimensionnés → plus aucun hit-test ne passe : l'écran s'affiche mais
+      // devient totalement insensible aux clics.
+      // Le coût est nul ici (2 à 4 cartes fixes, rien à construire en flux) et
+      // le défilement reste possible quand les contraintes sont bornées.
+      shrinkWrap: true,
       padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: count,
       itemBuilder: (context, i) => const Padding(

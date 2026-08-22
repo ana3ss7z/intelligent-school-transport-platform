@@ -53,12 +53,24 @@ export function ParentHome() {
   const trajetsRef = useRef(trajets); trajetsRef.current = trajets;
   const posRef = useRef(positions); posRef.current = positions;
   const routesRef = useRef(routes); routesRef.current = routes;
+  // Abscisse déjà atteinte sur le circuit, PAR BUS (deux enfants d'une même famille
+  // peuvent partager le bus — la progression appartient au bus, pas à l'élève).
+  // La tournée boucle sur l'école : sans ce plancher, le bus arrivé se recale sur le
+  // DÉPART et le compte à rebours bondit de ~1 min à la durée totale, pile au moment
+  // où le parent le regarde. Mesuré sur la vraie tournée : 1,4 → 35,4 min.
+  const alongRef = useRef<Record<number, number>>({});
 
   // `statutPresence` fait partie de la clé : la montée change la destination visée.
   const enfantsKey = enfants.map((e) => `${e.id}:${e.busId}:${e.statutPresence}`).join("|");
   const trajetsKey = busIds.map((id) => `${id}:${trajets[id]?.sens ?? "-"}`).join("|");
   // L'arrivée de la tournée change la méthode de calcul → recalculer aussitôt.
   const routesKey = busIds.map((id) => `${id}:${routes[id]?.geometrie?.length ?? 0}`).join("|");
+
+  // Une nouvelle polyligne rend caduque l'abscisse acquise sur l'ancienne. Effet
+  // séparé, volontairement PAS déclenché par `enfantsKey` : une montée d'élève ne
+  // doit pas réinitialiser la progression du bus (ce serait rouvrir le bug juste
+  // au moment où l'enfant embarque).
+  useEffect(() => { alongRef.current = {}; }, [routesKey]);
 
   useEffect(() => {
     let alive = true;
@@ -81,11 +93,19 @@ export function ParentHome() {
           // viser les coords de l'école la projetterait sur le DÉPART de la boucle).
           const inputs = poly?.length
             ? etaInputsRestants(poly, { lat, lng }, versDomicile ? dest : "fin",
-                routesRef.current[busId]?.distancePlanM, routesRef.current[busId]?.dureePlanMin)
+                routesRef.current[busId]?.distancePlanM, routesRef.current[busId]?.dureePlanMin,
+                alongRef.current[busId] ?? -1)
             : null;
+          // Mémorisé avant l'appel réseau : la progression reste acquise même si MS12
+          // ne répond pas. `Math.max` car plusieurs enfants du même bus passent ici.
+          if (inputs) {
+            alongRef.current[busId] = Math.max(alongRef.current[busId] ?? -1, inputs.alongM);
+          }
           // `moment` = contexte trafic du modèle, pas la destination.
+          // `alongM` est un état local : il ne part PAS vers MS12, qui ne le connaît pas.
           const r = await predictEta(inputs
-            ? { ...inputs, moment: soir ? "soir" : "matin" }
+            ? { distance_routiere_m: inputs.distance_routiere_m, duree_base_s: inputs.duree_base_s,
+                moment: soir ? "soir" : "matin" }
             : { bus_lat: lat, bus_lng: lng, dest_lat: dest.lat, dest_lng: dest.lng, moment: soir ? "soir" : "matin" });
           return [e.id, r.eta_minutes] as const;
         } catch { return [e.id, null] as const; }

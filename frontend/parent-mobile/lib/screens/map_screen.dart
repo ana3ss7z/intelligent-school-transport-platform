@@ -24,10 +24,15 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   final _controller = MapController();
-  late final AnimationController _anim = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+
+  /// Créé dans `initState`, et **surtout pas** en initialiseur `late final`.
+  /// Un `late final` n'est évalué qu'au premier accès : si l'écran ne rend
+  /// jamais la carte (aucun bus assigné aux enfants, erreur de chargement), le
+  /// premier accès est celui de `dispose()` — qui construit alors un `Ticker`
+  /// sur un élément déjà désactivé et lève « Looking up a deactivated widget's
+  /// ancestor is unsafe ». Le crash survient en QUITTANT l'écran, pas en
+  /// l'ouvrant, ce qui le rend difficile à rattacher à sa cause.
+  late final AnimationController _anim;
 
   GpsSocket? _gps; // instance écoutée
   final Map<int, LatLng> _from = {};
@@ -36,12 +41,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
   final Map<int, bool> _versDomicile = {}; // busId -> destination visée
   final Map<int, Trajet?> _trajets = {}; // busId -> trajet actif
   final Map<int, TrajetRoute?> _routes = {}; // busId -> tournée figée
+
+  /// busId -> abscisse déjà atteinte sur le circuit.
+  ///
+  /// Indexé par BUS et non par enfant : la progression est une propriété du bus
+  /// sur sa tournée. Purgé dès que la polyligne change (nouveau trajet, trajet
+  /// terminé), sinon une abscisse d'un ancien circuit s'appliquerait au nouveau.
+  final Map<int, double> _alongM = {};
   Timer? _etaTimer;
   Timer? _trajetTimer;
 
   @override
   void initState() {
     super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _loadTrajets();
     _trajetTimer = Timer.periodic(Env.pollTrajet, (_) => _loadTrajets());
     _etaTimer = Timer.periodic(Env.pollEta, (_) => _loadEtas());
@@ -93,8 +109,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         // Tournée rechargée seulement au changement de trajet (polyligne volumineuse).
         if (t == null) {
           _routes.remove(id);
+          _alongM.remove(id);
         } else if (t.id != avant || _routes[id] == null) {
           _routes[id] = await Api.instance.getTrajetRoute(id);
+          // Nouvelle polyligne → l'abscisse acquise sur l'ancienne n'a plus de sens.
+          _alongM.remove(id);
         }
       } catch (_) {
         /* garde la valeur précédente */
@@ -135,8 +154,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
               cibleLng: versDomicile ? destLng : null,
               distancePlanM: route.distancePlanM,
               dureePlanMin: route.dureePlanMin,
+              // Progression déjà acquise : la tournée boucle sur l'école, donc
+              // sans ce plancher le bus arrivé « se recale » sur le départ et
+              // le compte à rebours repart à la durée totale.
+              depuisAlongM: _alongM[b.id] ?? -1,
             )
           : null;
+      // Mémorisé avant l'appel réseau : la progression mesurée reste acquise
+      // même si MS12 ne répond pas.
+      if (inputs != null) _alongM[b.id] = inputs.alongM;
       try {
         final r = await Api.instance.predictEta(
           busLat: inputs == null ? lat : null,
