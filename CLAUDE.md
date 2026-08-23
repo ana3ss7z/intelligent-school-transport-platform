@@ -79,7 +79,15 @@ mode dégradé si aucune clé. Endpoints : `GET /api/llm/health|model-info`, **`
 Front : page **Assistant** (`/parent/assistant`, widget chat + suggestions). Delta MS10 : `GET /api/incidents/bus/{id}`
 ouvert au **PARENT** (portée gardée par MS9) ; MS12 `/predict` ouvert au **PARENT**. **Validé e2e** (FR/AR/darija,
 injection de prompt refusée, scope inter-parents refusé, écriture refusée). *(Clés Groq/Gemini gratuites sans CB dans
-`ms9-llm/.env`, gitignoré.)* **Prochaine étape : Phase B — NL2SQL admin** (read-only + garde SELECT-only).
+`ms9-llm/.env`, gitignoré.)*
+
+**MS9 Phase B — NL2SQL admin ✅ livrée** (`admin_agent.py`, `db.py`, `POST /api/llm/admin/query`, JWT **ADMIN**) :
+question en langage naturel → SQL PostgreSQL (schéma DDL injecté au prompt) → exécution → synthèse.
+**Défense en profondeur, pas un simple garde applicatif** : connexion par un rôle Postgres dédié
+**`ms9_readonly`** (droits en lecture seule accordés au niveau de la base) **et** exécution dans une
+transaction `READ ONLY`, résultats capés. Un `DROP` généré par le modèle échouerait donc côté serveur,
+même si le garde applicatif était contourné. Front : page **`AdminAssistant.tsx`** (`/admin/assistant`),
+qui affiche la réponse, **le SQL généré** et le tableau de résultats.
 
 ---
 
@@ -843,7 +851,18 @@ MS5 n'a pas de token utilisateur), `osrm_client.py` (matrice `/table` + géomét
 **Gateway :** route `ms5-planification` (8085) **déjà présente** → aucune modif.
 **Démarrage :** `cd ms5-planification && uvicorn main:app --port 8085` (env `nlp` + `pip install ortools`).
 > **Complémentarité :** MS6 = *quel bus* (affectation capacitaire) ; MS5 = *quel ordre* (temps de tournée).
-> Évolution S11 : CVRP global (assignation+routage conjoints) + benchmark vs MS6+TSP.
+
+**Benchmark CVRP global ✅ (23/08)** — `cvrp.py` + `notebooks/06_cvrp_benchmark.ipynb`. Protocole : une seule
+matrice OSRM (assemblée **par blocs de 50×50**, `/table` plafonnant à 100 coordonnées), même grandeur
+minimisée, même arrondi, **budget égalisé** (A = k TSP × 5 s ; B = 1 résolution de k × 5 s), même flotte.
+Sur les **300 élèves / 7 groupes réels** : le CVRP **ne bat jamais** la décomposition de plus de 0,2 % et lui
+est le plus souvent inférieur (jusqu'à −2,3 %). Explication : les k-médoïdes de MS6 travaillent **déjà sur la
+distance routière**, donc l'information géographique est injectée *avant* le routage — la décomposition est
+une **façon d'injecter de la connaissance du domaine**, pas une approximation subie.
+**Mais** le CVRP n'utilise que **6 bus sur 7** (chargés à 50/50, écart-type 0,00 vs 7,49) : un bus et un
+chauffeur économisés pour +0,4 % de conduite. Arbitrage, pas erreur — le 7ᵉ bus de MS6 achète de la compacité
+**et de la marge** (à 6 bus pleins, un élève de plus rend l'instance infaisable).
+**Verdict : on garde MS6+TSP**, et le CVRP devient un outil de **dimensionnement de flotte**.
 
 ---
 
@@ -973,7 +992,7 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | **S7** | **24-30/06** | **✅** | **MS6 Clustering refonte expert v3 (UTM, k-médoïdes capacitaire routier OSRM, Pareto, 3 notebooks CRISP-DM), données v2, console de test unifiée + cartes, fix CORS** |
 | **S8** | **01-07/07** | **✅** | **MS12 Prédiction ETA (dataset 180j ancré OSRM, benchmark → elasticnet, service :8088). Déclencheurs clustering : ajout élève / déménagement / nouveau bus (MS1→MS6) ✅ ; silhouette dégradée = garde-fou informatif (pas trigger)** |
 | **S8-S12** | **08-16/07** | **✅** | **Couche d'intégration temps réel (validée e2e 8/8) : G1 ETA→notif (MS3→MS12→MS4), G3 anomalies GPS live (MS11), G5 présence→notif, B1 liaison groupe↔bus, garde-fou qualité dynamique. Données comptes générées (parents/fratries/flotte)** |
-| S9 | 08-14/07 | ✅ | **MS9 chatbot LLM parent (Phase A)** — agent tool-calling maison (sans LangChain), agnostique Groq/Gemini (cascade 70b→8b→Gemini), FR/AR/darija, outils scopés parent, reverse geocoding OSM, widget Assistant. NL2SQL admin = Phase B |
+| S9 | 08-14/07 | ✅ | **MS9 chatbot LLM (Phases A et B)** — **Phase A** : agent tool-calling maison (sans LangChain), agnostique Groq/Gemini, FR/AR/darija, outils scopés parent, reverse geocoding OSM. **Phase B ✅** : NL2SQL admin (`/api/llm/admin/query`, rôle Postgres `ms9_readonly` + transaction READ ONLY, page `AdminAssistant.tsx`) |
 | S10 | 15-21/07 | ✅ | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085 ; `/tournees` parallélisé ~9 s)** |
 | **S11** | **22-28/07** | **✅** | **Console d'administration web (UC-13) — React 18 + Vite + TS + Bun + Tailwind v4 (`frontend/web-admin/`, :5173) : dashboard+graphiques, carte live (bus interpolés/ETA/anomalies/tournées), clustering (cartes clusters DB + prévisualisation), CRUD élèves/bus/utilisateurs + liaisons parent↔enfant & chauffeur↔bus, incidents, anomalies, prévisions ETA par arrêt, pagination/tri/CSV, ⌘K, nav mobile. Deltas back : MS7 users CRUD, MS3 fix WS, MS6 `assignments`** |
 | S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
@@ -986,12 +1005,13 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 
 ---
 
-## 🔜 Prochaine étape : MS9 Phase B — NL2SQL admin
+## 🔜 Prochaine étape
 
 1. **MS9 — Chatbot LLM parents (UC-10)** : ✅ **livré (Phase A)** — agent tool-calling maison, agnostique Groq/Gemini
    (cascade 70b→8b→Gemini), FR/AR/darija, outils MS2/MS3/MS12/MS1/MS10 scopés au parent, reverse geocoding OSM.
-2. **NL2SQL admin (UC-11)** — ⏳ **Phase B** : question langage naturel → SQL PostgreSQL (schéma DDL en prompt) →
-   exécution **read-only** (rôle Postgres SELECT-only + garde anti-DDL/DML) → synthèse. Widget chat admin.
+2. **NL2SQL admin (UC-11)** — ✅ **Phase B livrée** : question langage naturel → SQL PostgreSQL (schéma DDL en
+   prompt) → exécution **read-only** (rôle Postgres `ms9_readonly` + transaction `READ ONLY`) → synthèse.
+   Page admin `AdminAssistant.tsx` affichant réponse, SQL généré et tableau.
 
 **Puis (CDC restant) :** Dashboard admin (UC-13), réaffectation dynamique (UC-9), app Flutter parent/chauffeur.
 

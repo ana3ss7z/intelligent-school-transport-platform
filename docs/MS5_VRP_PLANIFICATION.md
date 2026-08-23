@@ -264,9 +264,59 @@ surveillance n'a pas été désarmée par le changement de géométrie.
 > arrivé à l'école se recale sur le **départ**. Voir `route_eta.dart` / `routeEta.ts` et le piège 13 de
 > `CLAUDE.md`.
 
+## 8 ter. Benchmark : CVRP global vs MS6 + TSP (mesuré)
+
+La décomposition MS6 → MS5 est *a priori* sous-optimale : l'affectation est figée **avant** de connaître le coût
+des tournées qui en découlent. Combien coûte-t-elle ? Le notebook `notebooks/06_cvrp_benchmark.ipynb` compare
+l'approche de production à un **CVRP global** (`cvrp.py`) qui résout affectation et routage d'un bloc.
+
+**Protocole** — une seule matrice OSRM construite par blocs de 50×50 (le `/table` d'OSRM plafonne à 100
+coordonnées ; l'approche A en extrait ses sous-matrices, elle ne refait aucun appel), même grandeur minimisée
+(la durée), même arrondi entier, **même budget de calcul** (A = k TSP × 5 s ; B = une résolution de k × 5 s),
+même nombre de bus et même capacité. Matrice **non symétrisée** : l'asymétrie du réseau est une information.
+
+**Résultat sur les 300 élèves / 7 groupes réels :**
+
+| Groupes | Élèves | MS6 + TSP | CVRP global | Écart |
+|--:|--:|--:|--:|:--|
+| 2 | 79 | 59,4 min | 59,2 min | +0,2 % CVRP |
+| 3 | 129 | 74,3 min | 76,0 min | −2,3 % **MS6** |
+| 4 | 165 | 100,2 min | 100,9 min | −0,7 % **MS6** |
+| 5 | 215 | 135,8 min | 137,7 min | −1,4 % **MS6** |
+| 6 | 257 | 164,1 min | 163,9 min | +0,1 % CVRP |
+| 7 | **300** | **207,1 min** | **208,0 min** | **−0,4 % MS6** |
+
+**À budget égal, le CVRP ne bat jamais la décomposition de plus de 0,2 %** et lui est le plus souvent
+inférieur. Le résultat attendu — « résoudre les deux décisions ensemble doit faire mieux » — n'est pas au
+rendez-vous, et l'explication est instructive : les k-médoïdes de MS6 travaillent **déjà sur la distance
+routière OSRM**, donc l'information géographique est injectée *avant* le routage. Le CVRP doit la redécouvrir
+seul, sur un espace de recherche bien plus vaste, dans le même temps. **La décomposition n'est pas une
+approximation subie : c'est une façon d'injecter de la connaissance du domaine dans le solveur.**
+
+**Mais le CVRP trouve autre chose.** Avec 7 véhicules disponibles, il n'en utilise que **6**, chargés à
+**50/50 exactement** (écart-type des charges **0,00**), là où MS6 en utilise 7 chargés de 29 à 50
+(écart-type 7,49) : **un bus — donc un chauffeur — économisé pour +0,4 % de temps de conduite.**
+
+Ce n'est pas une erreur de MS6, c'est un arbitrage différent. Le minimum théorique est ⌈300/50⌉ = 6 bus ;
+MS6 en prend 7 parce que sa courbe de Pareto privilégie la compacité géographique. Ce 7ᵉ bus achète des
+tournées plus compactes (moins de temps à bord) **et de la marge** : la solution du CVRP à 6 bus pleins n'en a
+aucune — **un élève de plus la rend infaisable**, alors qu'une inscription en cours d'année est le cas normal.
+
+**Verdict : on garde MS6 + TSP** — pas par confort d'architecture, mais parce que la mesure le dit : pas de
+surcoût en conduite, k TSP indépendants donc **parallélisables** (`/tournees` : 43 s → 9 s), et de la marge de
+capacité. Le CVRP reste pertinent comme **outil de dimensionnement de flotte**, question à laquelle MS6 ne
+répond pas.
+
+> 📄 **Explication détaillée et pédagogique** : [`MS5_BENCHMARK_CVRP.md`](MS5_BENCHMARK_CVRP.md) — la question,
+> le protocole, les obstacles rencontrés, la lecture des résultats et les questions probables du jury.
+>
+> Reproduire : `python notebooks/build_notebooks.py` puis exécuter `06_cvrp_benchmark.ipynb` (MS2 `:8082` et
+> OSRM `:5000` requis). Figures : `notebooks/figures/06_*.png`.
+
 ## 9. Limites & perspectives (honnête)
-- **TSP par bus** (l'affectation vient de MS6). Le **CVRP global** (affecter + router ensemble) + un **benchmark**
-  MS6+TSP vs CVRP = évolution **S11**.
+- **TSP par bus** (l'affectation vient de MS6) — choix désormais **validé par mesure** (§ 8 ter) et non plus
+  seulement par commodité. Le CVRP global a été implémenté (`cvrp.py`) et comparé ; il ne fait pas mieux à
+  budget égal, mais sert d'outil de dimensionnement de flotte.
 - Un **arrêt par élève** (porte-à-porte) ; l'agrégation en points d'arrêt communs = évolution.
 - Pas de **fenêtres horaires** (time windows) ni de trafic temps réel — perspectives.
 

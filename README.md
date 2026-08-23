@@ -107,9 +107,9 @@ flowchart TB
 | **MS5** | **PlanificationService (VRP)** | `8085` | **Ordre de tournée optimal** par bus : **TSP OR-Tools**, dépôt = école, distances OSRM réelles, gain mesuré vs baseline |
 | **MS12** | **PredictionService (ETA)** | `8088` | **Prédiction du temps d'arrivée** : benchmark multi-modèles, dataset semi-réel ancré OSRM (180 j), split temporel |
 | **MS11** | **AnalytiqueService (Anomalies)** | `8091` | **Détection d'anomalies** de trajet : Isolation Forest curé, feature `surprise` contextuelle, évaluation PR-AUC/ROC |
-| **MS9** | **Assistant LLM (chatbot parent)** | `8089` | **Agent tool-calling** (sans LangChain), **agnostique** (cascade Groq 70b→8b→Gemini) : le parent demande position/ETA/présence/incidents ; outils scopés à ses enfants (JWT), reverse geocoding OSM, **FR/AR/darija** |
+| **MS9** | **Assistant LLM (parent + admin)** | `8089` | **Agent tool-calling** (sans LangChain), **agnostique** (cascade Groq 70b→8b→Gemini) : le parent demande position/ETA/présence/incidents ; outils scopés à ses enfants (JWT), reverse geocoding OSM, **FR/AR/darija**. **Phase B — NL2SQL admin** : question en langage naturel → SQL → synthèse, avec un **rôle Postgres `ms9_readonly`** et une transaction `READ ONLY` (la sécurité est dans la base, pas seulement dans le prompt) |
 
-> `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring. MS9 Phase B (NL2SQL admin) à venir.
+> `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring.
 
 ---
 
@@ -273,7 +273,7 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 <tr>
   <td><b>🗺️ MS5</b><br/>VRP / Tournées</td>
   <td>Ordre de ramassage optimal par bus</td>
-  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel, cf. <code>verify_sens.py</code>) · géométrie et distance annoncée <b>convergentes à 0,05 %</b> (<code>continue_straight=false</code>)</td>
+  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel) · <b>benchmark CVRP global</b> sur les 300 élèves : à budget égal il ne bat jamais la décomposition MS6+TSP de plus de 0,2 % — mais il économise <b>1 bus sur 7</b> (6 bus pleins) pour +0,4 % de conduite</td>
 </tr>
 <tr>
   <td><b>⏱️ MS12</b><br/>Prédiction ETA</td>
@@ -286,6 +286,9 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
   <td>Gagnant <b>Isolation Forest curé</b> · <b>PR-AUC 0.91</b> · rappel 0.88 · le multivarié bat tout seuil univarié</td>
 </tr>
 </table>
+
+📄 Le **benchmark CVRP vs MS6+TSP** est expliqué pas à pas dans [`docs/MS5_BENCHMARK_CVRP.md`](docs/MS5_BENCHMARK_CVRP.md) :
+pourquoi décomposer un problème d'optimisation peut battre le modèle « tout-en-un », mesuré sur les 300 élèves.
 
 📓 Chaque service embarque ses **notebooks CRISP-DM** (EDA → comparaison de modèles → stratégie de production)
 et une **documentation dédiée** dans [`docs/`](docs/).
@@ -462,11 +465,11 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S10 | **MS5 VRP** (TSP OR-Tools, tournées) | ✅ |
 | S11 | **Console d'administration web (UC-13)** — React/Vite : dashboard, carte live, clustering (cartes clusters + prévisualisation), CRUD élèves/bus/utilisateurs & liaisons, incidents, anomalies, ETA par arrêt | ✅ |
 | S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
-| S9 | **Assistant LLM parent (MS9, Phase A)** — agent tool-calling, cascade Groq/Gemini, FR/AR/darija ✅ · NL2SQL admin (Phase B) ⏳ | ✅ |
+| S9 | **Assistant LLM (MS9)** — **Phase A** agent tool-calling parent (cascade Groq/Gemini, FR/AR/darija) · **Phase B** NL2SQL admin (SQL read-only, page `AdminAssistant`) | ✅ |
 | S13+ | **App mobile PARENT Flutter** (`frontend/parent-mobile/`, Chrome :5174 / Android) — 5 écrans miroir de l'espace parent web, Material 3 clair+sombre, carte live glisse GPS, aucun delta backend | ✅ |
 | S15 | **App mobile CHAUFFEUR Flutter** (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) — 7 écrans, le téléphone devient la **source GPS**, **file d'écritures hors ligne** persistée, 84 tests | ✅ |
 | S15 | **Campagne de correction** issue de l'exécution contre le backend réel : ETA « cycle fermé », MS5 `continue_straight`, 2 crashs d'interface (cf. [CLAUDE.md](CLAUDE.md), pièges 13-15) | ✅ |
-| — | Réaffectation dynamique (UC-9) · MS9 Phase B (NL2SQL admin) | ⏳ |
+| — | Réaffectation dynamique (UC-9) · déploiement Railway/Render | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 
 ---
