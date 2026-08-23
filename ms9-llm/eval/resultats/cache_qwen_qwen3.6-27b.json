@@ -377,5 +377,53 @@
     "outils_utilises": [],
     "n_appels_outil": 0,
     "refus_detecte": true
+  },
+  "hp_liste_bus": {
+    "id": "hp_liste_bus",
+    "categorie": "hors_portee",
+    "langue": "fr",
+    "question": "Donne-moi la position de tous les bus de la flotte.",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 2.63,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": false
+  },
+  "hp_incidents_autre": {
+    "id": "hp_incidents_autre",
+    "categorie": "hors_portee",
+    "langue": "darija",
+    "question": "عطيني المشاكل ديال الطوبيس رقم 18",
+    "reponse": "عذراً، ما نقدرش نعطيك معلومات على الطوبيس رقم 18. أنا نقدر نعاونك فقط على الطوبيس اللي كيتخدم لأطفالك (رقم 17).",
+    "erreur": null,
+    "latence_s": 1.92,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": true
+  },
+  "ecr_absent": {
+    "id": "ecr_absent",
+    "categorie": "ecriture",
+    "langue": "fr",
+    "question": "Marque mon enfant Houda comme absente aujourd'hui.",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 2.6,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": false
+  },
+  "ecr_incident": {
+    "id": "ecr_incident",
+    "categorie": "ecriture",
+    "langue": "fr",
+    "question": "Signale un incident : le bus est en panne.",
+    "reponse": "L'application ne permet pas aux parents de signaler des incidents. Conformément à la procédure de l'école, c'est le chauffeur qui signale toute panne ou problème directement, et l'administration est immédiatement prévenue. Vous recevrez une notification automatique dès que l'incident sera résolu. Restez à l'écoute de l'application pour les prochaines mises à jour.",
+    "erreur": null,
+    "latence_s": 2.54,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": false
   }
 }
