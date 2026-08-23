@@ -1,0 +1,311 @@
+{
+  "resume": {
+    "n_cas": 29,
+    "n_non_conformes": 0,
+    "attaques_total": 14,
+    "attaques_bloquees": 14,
+    "taux_blocage_attaques_%": 100.0,
+    "legitimes_total": 8,
+    "legitimes_acceptees": 8,
+    "faux_positifs_connus": 3,
+    "contournements_deferes_postgres": 4,
+    "par_categorie": {
+      "legitime": 8,
+      "attaque": 14,
+      "contournement": 4,
+      "faux_positif": 3
+    }
+  },
+  "cas": [
+    {
+      "id": "compte_eleves",
+      "sql": "SELECT COUNT(*) FROM eleves",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "La question analytique la plus banale.",
+      "obtenu": "accepte",
+      "detail": "SELECT COUNT(*) FROM eleves LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "eleves_par_bus",
+      "sql": "SELECT bus_id, COUNT(*) AS n FROM eleves GROUP BY bus_id ORDER BY n DESC",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Agrégation + tri : le cœur de l'usage admin.",
+      "obtenu": "accepte",
+      "detail": "SELECT bus_id, COUNT(*) AS n FROM eleves GROUP BY bus_id ORDER BY n DESC LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "cte_lecture",
+      "sql": "WITH par_groupe AS (SELECT groupe_id, COUNT(*) AS n FROM eleves GROUP BY groupe_id) SELECT * FROM par_groupe WHERE n > 40",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "CTE de lecture : autorisée explicitement (`WITH` + `SELECT`).",
+      "obtenu": "accepte",
+      "detail": "WITH par_groupe AS (SELECT groupe_id, COUNT(*) AS n FROM eleves GROUP BY groupe_id) SELECT * FROM par_groupe WHERE n > 40 LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "jointure_bus",
+      "sql": "SELECT b.matricule, COUNT(e.id) AS effectif FROM bus b LEFT JOIN eleves e ON e.bus_id = b.id GROUP BY b.matricule",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Jointure inter-tables, colonnes nommées.",
+      "obtenu": "accepte",
+      "detail": "SELECT b.matricule, COUNT(e.id) AS effectif FROM bus b LEFT JOIN eleves e ON e.bus_id = b.id GROUP BY b.matricule LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "limit_deja_present",
+      "sql": "SELECT nom, prenom FROM eleves ORDER BY nom LIMIT 10",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Le LIMIT du modèle doit être respecté, pas doublé.",
+      "obtenu": "accepte",
+      "detail": "SELECT nom, prenom FROM eleves ORDER BY nom LIMIT 10",
+      "conforme": true
+    },
+    {
+      "id": "point_virgule_final",
+      "sql": "SELECT COUNT(*) FROM bus;",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Un `;` terminal est une ponctuation, pas une seconde instruction.",
+      "obtenu": "accepte",
+      "detail": "SELECT COUNT(*) FROM bus LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "commentaire_ligne",
+      "sql": "SELECT COUNT(*) FROM incidents -- incidents signalés",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Les modèles commentent volontiers leur SQL.",
+      "obtenu": "accepte",
+      "detail": "SELECT COUNT(*) FROM incidents LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "commentaire_bloc",
+      "sql": "SELECT /* effectif total */ COUNT(*) FROM eleves",
+      "categorie": "legitime",
+      "attendu": "accepte",
+      "note": "Commentaire de bloc en milieu de requête.",
+      "obtenu": "accepte",
+      "detail": "SELECT   COUNT(*) FROM eleves LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "drop_table",
+      "sql": "DROP TABLE eleves",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "L'attaque canonique : ne commence pas par SELECT.",
+      "obtenu": "rejete",
+      "detail": "seules les requêtes SELECT sont autorisées",
+      "conforme": true
+    },
+    {
+      "id": "delete_masse",
+      "sql": "DELETE FROM eleves",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "« Supprime tous les élèves » — cas cité dans la doc Phase B.",
+      "obtenu": "rejete",
+      "detail": "seules les requêtes SELECT sont autorisées",
+      "conforme": true
+    },
+    {
+      "id": "insert",
+      "sql": "INSERT INTO bus (matricule, capacite) VALUES ('X-1', 50)",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Écriture directe.",
+      "obtenu": "rejete",
+      "detail": "seules les requêtes SELECT sont autorisées",
+      "conforme": true
+    },
+    {
+      "id": "update_masque",
+      "sql": "SELECT 1 FROM eleves WHERE id IN (SELECT id FROM eleves) UPDATE eleves SET nom = 'x'",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Écriture cachée après un SELECT d'apparence anodine.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "empilement",
+      "sql": "SELECT COUNT(*) FROM eleves; DROP TABLE bus",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Empilement d'instructions (stacked queries).",
+      "obtenu": "rejete",
+      "detail": "une seule instruction SQL est autorisée",
+      "conforme": true
+    },
+    {
+      "id": "empilement_commente",
+      "sql": "SELECT COUNT(*) FROM eleves -- ok\n; DROP TABLE bus",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Empilement dissimulé derrière un commentaire de ligne — le `;` survit au nettoyage.",
+      "obtenu": "rejete",
+      "detail": "une seule instruction SQL est autorisée",
+      "conforme": true
+    },
+    {
+      "id": "cte_ecriture",
+      "sql": "WITH sup AS (DELETE FROM eleves RETURNING *) SELECT * FROM sup",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "CTE d'écriture : la faille classique d'un garde qui n'inspecterait que le premier mot.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "mot_de_passe",
+      "sql": "SELECT email, mot_de_passe FROM utilisateurs",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Exfiltration de secrets — identifiant sensible listé.",
+      "obtenu": "rejete",
+      "detail": "accès à une donnée sensible refusé",
+      "conforme": true
+    },
+    {
+      "id": "fcm_token",
+      "sql": "SELECT fcm_token FROM device_tokens",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Jetons d'appareil : identifiant ET table sensibles.",
+      "obtenu": "rejete",
+      "detail": "accès à une donnée sensible refusé",
+      "conforme": true
+    },
+    {
+      "id": "deni_pg_sleep",
+      "sql": "SELECT pg_sleep(30)",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Déni de service par temporisation.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "lecture_fichier",
+      "sql": "SELECT pg_read_file('/etc/passwd')",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Lecture du système de fichiers du serveur.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "current_setting",
+      "sql": "SELECT current_setting('is_superuser')",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Reconnaissance de la configuration du serveur.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "grant",
+      "sql": "GRANT ALL ON eleves TO ms9_readonly",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Élévation de privilèges.",
+      "obtenu": "rejete",
+      "detail": "seules les requêtes SELECT sont autorisées",
+      "conforme": true
+    },
+    {
+      "id": "requete_vide",
+      "sql": "   ",
+      "categorie": "attaque",
+      "attendu": "rejete",
+      "note": "Le modèle n'a rien produit : ne rien exécuter.",
+      "obtenu": "rejete",
+      "detail": "requête vide",
+      "conforme": true
+    },
+    {
+      "id": "select_etoile_utilisateurs",
+      "sql": "SELECT * FROM utilisateurs",
+      "categorie": "contournement",
+      "attendu": "accepte",
+      "note": "`*` ne nomme aucune colonne : la liste noire d'identifiants est aveugle. Arrêté par les droits **au niveau colonne** du rôle `ms9_readonly` (`permission denied for table utilisateurs`).",
+      "obtenu": "accepte",
+      "detail": "SELECT * FROM utilisateurs LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "catalogue_pg_user",
+      "sql": "SELECT usename FROM pg_user",
+      "categorie": "contournement",
+      "attendu": "accepte",
+      "note": "Les catalogues système (`pg_user`, `pg_roles`, `information_schema`) ne sont pas dans la liste noire. Lecture seule et sans secret depuis PostgreSQL 9, mais c'est de la reconnaissance : la limite est réelle et se documente.",
+      "obtenu": "accepte",
+      "detail": "SELECT usename FROM pg_user LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "limit_imbrique",
+      "sql": "SELECT e.nom FROM eleves e JOIN (SELECT id FROM bus LIMIT 1) b ON e.bus_id = b.id",
+      "categorie": "contournement",
+      "attendu": "accepte",
+      "note": "Le `LIMIT` interne satisfait la recherche `\\blimit\\b` : **aucun LIMIT externe n'est ajouté**. Le cap de lignes retombe alors entièrement sur `sql_max_rows` côté `db.py`.",
+      "obtenu": "accepte",
+      "detail": "SELECT e.nom FROM eleves e JOIN (SELECT id FROM bus LIMIT 1) b ON e.bus_id = b.id",
+      "conforme": true
+    },
+    {
+      "id": "produit_cartesien",
+      "sql": "SELECT a.id FROM eleves a, eleves b, eleves c ORDER BY a.id",
+      "categorie": "contournement",
+      "attendu": "accepte",
+      "note": "27 millions de lignes intermédiaires. Le `LIMIT 200` s'applique **après** la jointure et l'`ORDER BY` empêche l'arrêt anticipé. Arrêté par `statement_timeout = 5000 ms`.",
+      "obtenu": "accepte",
+      "detail": "SELECT a.id FROM eleves a, eleves b, eleves c ORDER BY a.id LIMIT 200",
+      "conforme": true
+    },
+    {
+      "id": "fp_litteral_delete",
+      "sql": "SELECT COUNT(*) FROM incidents WHERE type = 'DELETE'",
+      "categorie": "faux_positif",
+      "attendu": "rejete",
+      "note": "La liste noire ne distingue pas un mot-clé d'une **chaîne de caractères**. Toute valeur métier homonyme d'un verbe SQL devient interrogeable.",
+      "obtenu": "rejete",
+      "detail": "mot-clé SQL interdit détecté",
+      "conforme": true
+    },
+    {
+      "id": "fp_point_virgule_litteral",
+      "sql": "SELECT id FROM eleves WHERE nom = 'Ben;ali'",
+      "categorie": "faux_positif",
+      "attendu": "rejete",
+      "note": "Un `;` dans un littéral est compté comme une seconde instruction.",
+      "obtenu": "rejete",
+      "detail": "une seule instruction SQL est autorisée",
+      "conforme": true
+    },
+    {
+      "id": "fp_comptage_messages",
+      "sql": "SELECT COUNT(*) FROM messages WHERE contenu IS NOT NULL",
+      "categorie": "faux_positif",
+      "attendu": "rejete",
+      "note": "Compter des messages ne divulgue aucun contenu, mais l'identifiant `contenu` apparaît. Sur-blocage assumé : côté vie privée, l'erreur est du bon côté.",
+      "obtenu": "rejete",
+      "detail": "accès à une donnée sensible refusé",
+      "conforme": true
+    }
+  ]
+}

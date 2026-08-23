@@ -268,7 +268,7 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 <tr>
   <td><b>🧩 MS6</b><br/>Clustering</td>
   <td>Répartir 300 élèves en groupes ≤ capacité, géographiquement cohérents</td>
-  <td>7 bus · silhouette routière 0.43 · compacité médiane 725 m · <b>taille ≤ capacité garantie par construction</b> (LP)</td>
+  <td>7 bus · silhouette routière 0.43 · compacité médiane 725 m · <b>taille ≤ capacité garantie par construction</b> (LP) · <b>ablation mesurée</b> : la distance routière vaut <b>−9,7 % de temps à bord par enfant</b>, et le naïf « un bus par quartier » coûte <b>+14,6 % de conduite</b></td>
 </tr>
 <tr>
   <td><b>🗺️ MS5</b><br/>VRP / Tournées</td>
@@ -278,17 +278,26 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 <tr>
   <td><b>⏱️ MS12</b><br/>Prédiction ETA</td>
   <td>Estimer le temps d'arrivée d'un tronçon</td>
-  <td>Gagnant <b>ElasticNet</b> · R² (trajets normaux) 0.82 · MAE 0.86 min · <b>+52.7 %</b> vs baseline OSRM brute</td>
+  <td>Gagnant <b>ElasticNet</b> · R² (trajets normaux) 0.82 · MAE 0.86 min · <b>+52.7 %</b> vs OSRM brut (<b>44 %</b> vs la moyenne historique, baseline plus exigeante) · gagnant <b>significatif</b> (bootstrap apparié) et confirmé <b>après réglage</b> de XGBoost · la garde <code>facteur_contexte</code> est <b>−37 %</b> d'erreur vs extrapoler</td>
 </tr>
 <tr>
   <td><b>🔎 MS11</b><br/>Anomalies</td>
   <td>Repérer les trajets anormaux sans supervision</td>
-  <td>Gagnant <b>Isolation Forest curé</b> · <b>PR-AUC 0.91</b> · rappel 0.88 · le multivarié bat tout seuil univarié</td>
+  <td>Isolation Forest curé · PR-AUC 0.91 sur le split gelé — mais <b>sous validation temporelle glissante (38 anomalies au lieu de 8) le seuil univarié <code>surprise</code> passe devant</b> (0.926 vs 0.847). Les deux sont <b>complémentaires</b> : le seuil attrape le contextuel, le multivarié la surcharge</td>
 </tr>
 </table>
 
-📄 Le **benchmark CVRP vs MS6+TSP** est expliqué pas à pas dans [`docs/MS5_BENCHMARK_CVRP.md`](docs/MS5_BENCHMARK_CVRP.md) :
-pourquoi décomposer un problème d'optimisation peut battre le modèle « tout-en-un », mesuré sur les 300 élèves.
+📄 **La méthode avant les résultats** — [`docs/PROTOCOLE_BENCHMARK_IA.md`](docs/PROTOCOLE_BENCHMARK_IA.md)
+énonce les **six règles** auxquelles les cinq briques ont été soumises, et rassemble les verdicts.
+Il documente aussi le défaut structurel qu'elles ont révélé : **ce qui tournait en production n'était pas
+ce qui avait été benchmarké** (MS6, MS11 et MS12 étaient concernés).
+
+Benchmarks détaillés, chacun expliqué pas à pas :
+[MS5 — CVRP](docs/MS5_BENCHMARK_CVRP.md) ·
+[MS6 — distance routière](docs/MS6_BENCHMARK_DISTANCE.md) ·
+[MS11 — règles live](docs/MS11_BENCHMARK_REGLES_LIVE.md) ·
+[MS12 — garde et ablation](docs/MS12_BENCHMARK_GARDE_ET_ABLATION.md) ·
+[MS9 — évaluation LLM](docs/MS9_EVALUATION.md).
 
 📓 Chaque service embarque ses **notebooks CRISP-DM** (EDA → comparaison de modèles → stratégie de production)
 et une **documentation dédiée** dans [`docs/`](docs/).

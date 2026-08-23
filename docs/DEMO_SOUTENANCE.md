@@ -288,4 +288,80 @@ verrouillée dans les trois implémentations. »*
 - `ms5-planification/notebooks/05_vrp_study.ipynb` · `ms11-analytique/notebooks/04_anomaly_detection.ipynb`
 - `frontend/chauffeur-mobile/test/route_eta_reel_test.dart` (+ sa fixture) — la preuve chiffrée du tableau ci-dessus
 - `html_tests/simulation-control.html` (pilotage de tous les scénarios)
-- `CLAUDE.md`, section « Points d'attention » — les 15 pièges documentés
+- `CLAUDE.md`, section « Points d'attention » — les 18 pièges documentés
+
+---
+
+## 🧪 Le bloc data science à mettre en avant (23/08) — **le protocole de benchmark**
+
+> **C'est ici que se joue une soutenance de spécialité IA / data science.** Le reste du projet montre
+> qu'on sait construire ; ce bloc-là montre qu'on sait **mesurer**, et surtout qu'on sait **se contredire**.
+> Support : [`docs/PROTOCOLE_BENCHMARK_IA.md`](PROTOCOLE_BENCHMARK_IA.md) et les quatre documents de benchmark.
+
+### L'accroche, en une phrase
+
+> « J'ai soumis mes cinq briques IA au **même protocole en six règles**. Dans les cinq cas, la mesure a
+> contredit ou nuancé ce que ma propre documentation affirmait. Je vous montre les trois plus utiles. »
+
+### Le fil rouge : *ce qui tournait en production n'était pas ce qui avait été benchmarké*
+
+Ce défaut touchait **trois briques sur cinq**, et c'est le point que je conseille de placer en premier —
+il est facile à comprendre, il s'illustre en une diapositive, et il ne s'invente pas.
+
+| Brique | Ce que le notebook mesurait | Ce que le service exécute |
+|---|---|---|
+| MS6 | dix algorithmes **euclidiens** | k-médoïdes capacitaire **routier** — absent du benchmark |
+| MS11 | Isolation Forest sur trajets complets, **à la demande** | trois **règles de seuil**, sur **chaque ping GPS** |
+| MS12 | régression sur tronçons de 0,7–4 km | mode **`facteur_contexte`**, sur 6–12 km |
+
+> **Phrase clé :** *« La question qui les a révélés n'est pas “quel notebook ai-je écrit ?” mais
+> “quel code s'exécute quand un parent ouvre l'application ?”. »*
+
+### Les trois résultats à raconter (2 min)
+
+**1. MS6 — j'optimisais la bonne chose, mais je regardais le mauvais indicateur.**
+Ablation propre (un seul facteur : la matrice de distances) : la distance routière apporte **+0,002 de
+silhouette** — invisible — mais **−9,7 % de temps passé dans le bus par chaque enfant**. Et la baseline
+naïve « un bus par quartier », que le dossier n'avait jamais mesurée, coûte **+14,6 % de conduite**.
+> *« La silhouette et les minutes de conduite désignent deux gagnants différents. Il fallait donc décider
+> ce que j'optimise **avant** de comparer : c'est le temps à bord de l'enfant. »*
+
+**2. MS11 — mon classement de modèles ne tenait pas, et je le démontre moi-même.**
+Le benchmark gelé couronne l'Isolation Forest (PR-AUC 0,913) sur un test contenant **8 anomalies**. Bootstrap :
+intervalles de confiance largement recouvrants. Validation temporelle glissante (**38 anomalies**) : le
+classement **s'inverse**, le seuil univarié `surprise` passe devant (0,926 contre 0,847). Et la thèse publiée
+« le seuil rate le contextuel » est **fausse** : c'est l'inverse (12/14 contre 3/14).
+> *« Avant de défendre un gagnant, il faut compter combien d'observations le départagent. »*
+
+**3. MS12 — la décision la plus subtile du projet n'avait aucune preuve. Elle en a une.**
+La garde `facteur_contexte` — *le ML dit de combien ça se dégrade, OSRM dit la distance* — mesurée sur des
+trajets entiers : **−37 % d'erreur** contre l'extrapolation, **−77 %** contre OSRM brut.
+> *« Et ici la mesure m'a donné tort dans l'autre sens : l'écart de 2,7 secondes entre ElasticNet et Ridge,
+> que je croyais être du bruit, est significatif au bootstrap apparié. L'incertitude ne va pas toujours dans
+> le sens qu'on croit. »*
+
+### Si le jury pousse
+
+**« Vous critiquez votre propre travail — pourquoi n'avoir pas corrigé ? »**
+> Parce qu'un benchmark et un correctif sont deux gestes différents. Les modules sont **additifs** : aucun
+> fichier de production n'est modifié, les artefacts gelés sont vérifiés inchangés par `git status`. Les
+> correctifs sont chiffrés et priorisés — abaisser `SEUIL_DEVIATION_M` de 250 à 120 m double la couverture
+> sans aucune fausse alarme mesurée ; corriger le biais de +0,515 min de MS12 fait gagner 15 % de MAE.
+> À quelques jours de la soutenance, mesurer sans déstabiliser était le bon arbitrage.
+
+**« Vos données sont synthétiques. »**
+> Oui, et c'est écrit dans chaque document. MS12 et MS11 reposent sur des générateurs **ancrés sur des durées
+> OSRM réelles** ; MS6 et MS5 utilisent de vraies coordonnées et de vraies routes de Meknès. Je vais plus
+> loin : pour MS12 je signale moi-même que les données étant produites par une **formule multiplicative**, la
+> victoire d'un modèle linéaire est en partie inscrite dans le générateur. Ce que je démontre, c'est le
+> **protocole** ; sa transposition à des durées GPS terrain reste à faire.
+
+**« Qu'est-ce qui prouve que vous n'avez pas choisi les mesures qui vous arrangent ? »**
+> Les jeux de test sont **versionnés** (`ms9-llm/eval/*.jsonl`, la fixture de 753 points) et tous les scripts
+> sont rejouables en une commande. Et trois des cinq verdicts me sont **défavorables**.
+
+### Artefacts à ouvrir pour ce bloc
+- `docs/PROTOCOLE_BENCHMARK_IA.md` — les six règles + le tableau synoptique des cinq verdicts
+- `ms6-clustering/data/ablation_distance.json` · `ms11-analytique/data/ablation_anomaly.json` ·
+  `ms12-prediction/data/ablation/resultats.json` — les chiffres bruts
+- `ms9-llm/eval/questions_parent.jsonl` — un jeu de test que le jury peut lire et rejouer

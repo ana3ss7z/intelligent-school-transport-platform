@@ -1,0 +1,573 @@
+{
+  "tournee": {
+    "points": 753,
+    "longueur_m": 17250.5,
+    "duree_plan_min": 35.99
+  },
+  "seuils_production": {
+    "vitesse_kmh": 90.0,
+    "arret_min": 5.0,
+    "deviation_m": 250.0,
+    "deviation_pings": 2,
+    "cooldown_s": 120.0
+  },
+  "scenarios": [
+    {
+      "scenario": "normal",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 0
+    },
+    {
+      "scenario": "normal_bruite_15m",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 0
+    },
+    {
+      "scenario": "arrets_legitimes",
+      "n_pings": 516,
+      "duree_s": 2575.0,
+      "evenements": [],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 0
+    },
+    {
+      "scenario": "panne_8min",
+      "n_pings": 528,
+      "duree_s": 2635.0,
+      "evenements": [
+        {
+          "libelle": "panne (8 min)",
+          "attendu": "ARRET_PROLONGE",
+          "detecte": true,
+          "t_debut_s": 600,
+          "latence_s": 305.0,
+          "plancher_theorique_s": 300.0,
+          "surcout_s": 5.0,
+          "alertes_repetees": 1
+        }
+      ],
+      "fausses_alarmes": [],
+      "n_alertes": 2,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 1,
+      "n_attendus": 1
+    },
+    {
+      "scenario": "exces_vitesse",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [
+        {
+          "libelle": "pointe a 110 km/h",
+          "attendu": "VITESSE_EXCESSIVE",
+          "detecte": true,
+          "t_debut_s": 700,
+          "latence_s": 0.0,
+          "plancher_theorique_s": 0,
+          "surcout_s": 0.0,
+          "alertes_repetees": 0
+        }
+      ],
+      "fausses_alarmes": [],
+      "n_alertes": 1,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 1,
+      "n_attendus": 1
+    },
+    {
+      "scenario": "deviation_franche_400m",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [
+        {
+          "libelle": "detour de 400 m",
+          "attendu": "DEVIATION_ITINERAIRE",
+          "detecte": true,
+          "t_debut_s": 800,
+          "latence_s": 85.0,
+          "plancher_theorique_s": 10.0,
+          "surcout_s": 75.0,
+          "alertes_repetees": 0
+        }
+      ],
+      "fausses_alarmes": [],
+      "n_alertes": 1,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 1,
+      "n_attendus": 1
+    },
+    {
+      "scenario": "deviation_limite_260m",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [
+        {
+          "libelle": "detour de 260 m (seuil 250)",
+          "attendu": "DEVIATION_ITINERAIRE",
+          "detecte": false,
+          "t_debut_s": 800,
+          "latence_s": null,
+          "plancher_theorique_s": 10.0,
+          "surcout_s": null,
+          "alertes_repetees": 0
+        }
+      ],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 1
+    },
+    {
+      "scenario": "deviation_sous_seuil_150m",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 0
+    },
+    {
+      "scenario": "outlier_gps_isole",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [],
+      "fausses_alarmes": [],
+      "n_alertes": 0,
+      "fausses_alarmes_par_heure": 0.0,
+      "n_detectes": 0,
+      "n_attendus": 0
+    },
+    {
+      "scenario": "pointe_vitesse_isolee",
+      "n_pings": 432,
+      "duree_s": 2155.0,
+      "evenements": [],
+      "fausses_alarmes": [
+        {
+          "t": 800.0,
+          "type": "VITESSE_EXCESSIVE"
+        }
+      ],
+      "n_alertes": 1,
+      "fausses_alarmes_par_heure": 1.67,
+      "n_detectes": 0,
+      "n_attendus": 0
+    }
+  ],
+  "couverture_spatiale_deviation": [
+    {
+      "detour_nominal_m": 100,
+      "ecart_mesure_median_m": 84.8,
+      "ecart_mesure_min_m": 0.0,
+      "ecart_mesure_max_m": 100.0,
+      "part_parcours_detectee_%": 0.0
+    },
+    {
+      "detour_nominal_m": 150,
+      "ecart_mesure_median_m": 79.4,
+      "ecart_mesure_min_m": 0.1,
+      "ecart_mesure_max_m": 150.0,
+      "part_parcours_detectee_%": 0.0
+    },
+    {
+      "detour_nominal_m": 200,
+      "ecart_mesure_median_m": 96.7,
+      "ecart_mesure_min_m": 0.3,
+      "ecart_mesure_max_m": 200.0,
+      "part_parcours_detectee_%": 0.0
+    },
+    {
+      "detour_nominal_m": 250,
+      "ecart_mesure_median_m": 120.4,
+      "ecart_mesure_min_m": 0.7,
+      "ecart_mesure_max_m": 250.0,
+      "part_parcours_detectee_%": 9.6
+    },
+    {
+      "detour_nominal_m": 300,
+      "ecart_mesure_median_m": 149.2,
+      "ecart_mesure_min_m": 1.2,
+      "ecart_mesure_max_m": 300.0,
+      "part_parcours_detectee_%": 29.2
+    },
+    {
+      "detour_nominal_m": 400,
+      "ecart_mesure_median_m": 173.8,
+      "ecart_mesure_min_m": 2.0,
+      "ecart_mesure_max_m": 400.0,
+      "part_parcours_detectee_%": 35.8
+    },
+    {
+      "detour_nominal_m": 600,
+      "ecart_mesure_median_m": 239.0,
+      "ecart_mesure_min_m": 0.3,
+      "ecart_mesure_max_m": 600.0,
+      "part_parcours_detectee_%": 48.8
+    },
+    {
+      "detour_nominal_m": 800,
+      "ecart_mesure_median_m": 358.7,
+      "ecart_mesure_min_m": 0.6,
+      "ecart_mesure_max_m": 800.0,
+      "part_parcours_detectee_%": 61.2
+    }
+  ],
+  "couverture_par_seuil": [
+    {
+      "seuil_m": 50,
+      "detour_200m_%": 66.7,
+      "detour_300m_%": 73.3,
+      "detour_400m_%": 79.2
+    },
+    {
+      "seuil_m": 80,
+      "detour_200m_%": 56.2,
+      "detour_300m_%": 62.5,
+      "detour_400m_%": 72.1
+    },
+    {
+      "seuil_m": 100,
+      "detour_200m_%": 48.3,
+      "detour_300m_%": 58.8,
+      "detour_400m_%": 64.2
+    },
+    {
+      "seuil_m": 120,
+      "detour_200m_%": 43.8,
+      "detour_300m_%": 54.6,
+      "detour_400m_%": 59.2
+    },
+    {
+      "seuil_m": 150,
+      "detour_200m_%": 39.2,
+      "detour_300m_%": 49.6,
+      "detour_400m_%": 54.2
+    },
+    {
+      "seuil_m": 200,
+      "detour_200m_%": 11.7,
+      "detour_300m_%": 38.3,
+      "detour_400m_%": 46.2
+    },
+    {
+      "seuil_m": 250,
+      "detour_200m_%": 0.0,
+      "detour_300m_%": 29.2,
+      "detour_400m_%": 35.8
+    },
+    {
+      "seuil_m": 300,
+      "detour_200m_%": 0.0,
+      "detour_300m_%": 8.3,
+      "detour_400m_%": 27.9
+    }
+  ],
+  "balayage_deviation": [
+    {
+      "seuil_m": 50,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": true,
+      "latence_s": 50.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 50,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": true,
+      "latence_s": 50.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 50,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": true,
+      "latence_s": 50.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 50,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": true,
+      "latence_s": 50.0,
+      "fausses_alarmes_h": 1.67
+    },
+    {
+      "seuil_m": 100,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 100,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 100,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 100,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": true,
+      "latence_s": 50.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 150,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 150,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 150,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": true,
+      "latence_s": 85.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 150,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": true,
+      "latence_s": 95.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 200,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": true,
+      "latence_s": 105.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 200,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": true,
+      "latence_s": 105.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 200,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": true,
+      "latence_s": 105.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 200,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": true,
+      "latence_s": 110.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 250,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": true,
+      "latence_s": 115.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 250,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": true,
+      "latence_s": 115.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 250,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": true,
+      "latence_s": 115.0,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 250,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 300,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 300,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 300,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 300,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 400,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 400,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 400,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 400,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 500,
+      "bruit_m": 0.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 500,
+      "bruit_m": 5.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 500,
+      "bruit_m": 15.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    },
+    {
+      "seuil_m": 500,
+      "bruit_m": 30.0,
+      "detour_300m_detecte": false,
+      "latence_s": null,
+      "fausses_alarmes_h": 0.0
+    }
+  ],
+  "balayage_antirebond": [
+    {
+      "pings_consecutifs": 1,
+      "fausses_alarmes_h": 3.34,
+      "detour_detecte": true,
+      "latence_s": 45.0
+    },
+    {
+      "pings_consecutifs": 2,
+      "fausses_alarmes_h": 0.0,
+      "detour_detecte": true,
+      "latence_s": 50.0
+    },
+    {
+      "pings_consecutifs": 3,
+      "fausses_alarmes_h": 0.0,
+      "detour_detecte": true,
+      "latence_s": 90.0
+    },
+    {
+      "pings_consecutifs": 4,
+      "fausses_alarmes_h": 0.0,
+      "detour_detecte": true,
+      "latence_s": 95.0
+    }
+  ],
+  "balayage_arret": [
+    {
+      "seuil_min": 1,
+      "panne_detectee": true,
+      "latence_s": 65.0,
+      "fausses_alarmes": 1
+    },
+    {
+      "seuil_min": 2,
+      "panne_detectee": true,
+      "latence_s": 125.0,
+      "fausses_alarmes": 1
+    },
+    {
+      "seuil_min": 3,
+      "panne_detectee": true,
+      "latence_s": 185.0,
+      "fausses_alarmes": 0
+    },
+    {
+      "seuil_min": 5,
+      "panne_detectee": true,
+      "latence_s": 305.0,
+      "fausses_alarmes": 0
+    },
+    {
+      "seuil_min": 8,
+      "panne_detectee": false,
+      "latence_s": null,
+      "fausses_alarmes": 0
+    },
+    {
+      "seuil_min": 10,
+      "panne_detectee": false,
+      "latence_s": null,
+      "fausses_alarmes": 0
+    }
+  ]
+}

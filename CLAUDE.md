@@ -309,6 +309,62 @@ incident, écrire à l'administration, diffuser aux parents) et **émet la posit
 > ⚠️ `web-admin` n'a **toujours aucun lanceur de tests** : hors cette vérification ponctuelle, ses corrections
 > ne sont couvertes que par le typecheck.
 
+---
+
+**NOUVEAU (23/08) — Campagne de benchmark des 4 briques IA restantes, sur le modèle du CVRP.**
+La méthode du benchmark CVRP (question réversible · challenger crédible · protocole égalisé · métriques
+opérationnelles · incertitude énoncée · verdict écrit + perdant reclassé) a été **généralisée aux cinq
+briques**, et formalisée dans **`docs/PROTOCOLE_BENCHMARK_IA.md`** — le document méthodologique du mémoire.
+
+**Le défaut structurel qu'elle a révélé, commun à trois briques : *ce qui tournait en production n'était
+pas ce qui avait été benchmarké*.** MS6 comparait dix algorithmes euclidiens sans que le k-médoïdes
+capacitaire **routier** déployé y figure ; MS11 benchmarkait l'Isolation Forest (à la demande) pendant que
+les **règles live** (sur chaque ping GPS) n'avaient aucune métrique ; MS12 publiait des métriques de
+tronçons alors que le service tourne en mode **`facteur_contexte`** sur 6–12 km.
+
+- **MS6** (`ablation_distance.py`, `docs/MS6_BENCHMARK_DISTANCE.md`) — l'algorithme de production entre dans
+  l'arène, avec deux baselines naïves absentes du dossier. **Ablation propre** (un seul facteur : la matrice) :
+  la distance routière vaut **+0,002 de silhouette (invisible)**, **−1,5 % de conduite** et surtout
+  **−1,7 min de temps à bord par enfant (−9,7 %)**. « Un bus par quartier » coûte **+14,6 %** ; aléatoire
+  **+110 %** ; refuser l'infaisable coûte **3,4 %**. ⚠️ **Silhouette et minutes désignent deux gagnants
+  différents** (k-means capacitaire est meilleur en flotte, moins bon à bord) → il faut choisir la métrique
+  avant de comparer. **Défaut confirmé** : `production_config.json` fige k=7/0,4334 alors que
+  `_compute_production` produit **k=8/0,4056** — la référence de `quality.py` est calibrée sur un point de
+  fonctionnement que le service ne reproduit jamais. Variance 10 graines : k=7 stable (±0,0001), k=8/k=9 non.
+- **MS11** (`replay.py`, `ablation_anomaly.py`, `docs/MS11_BENCHMARK_REGLES_LIVE.md`) — rejeu hors ligne des
+  règles live sur la **vraie tournée de 753 points**. **La règle de déviation est largement aveugle** : un
+  détour de 250 m n'est vu que sur **9,6 % du parcours**, 400 m sur 35,8 % — parce qu'elle mesure la distance
+  au point le plus proche de **toute** la polyligne, et qu'une tournée de 50 arrêts repasse dans le même
+  quartier (**c'est le piège n° 13, le cycle fermé, jamais corrigé ici**). Abaisser le seuil à ~120 m
+  doublerait la couverture **sans aucune fausse alarme mesurée** (jusqu'à σ=30 m de bruit GPS). L'anti-rebond
+  à 2 pings est **optimal** (−3,34 fausses alarmes/h pour +5 s) — mais `VITESSE_EXCESSIVE` n'en a aucun.
+  **Et le classement ML s'inverse** : sous validation glissante (38 positifs au lieu de 8), `seuil_surprise`
+  (0,926) **bat** `iforest_curated` (0,847). La thèse « le seuil rate le contextuel » est **fausse** — c'est
+  l'inverse (12/14 contre 3/14) ; l'IF n'apporte en propre que la **surcharge** (7/7 contre 3/7).
+  La **fuite** générateur→feature soupçonnée **n'existe pas** : coefficients ré-estimés depuis les données
+  → +0,003 de PR-AUC.
+- **MS12** (`ablation.py`, `docs/MS12_BENCHMARK_GARDE_ET_ABLATION.md`) — **la garde `facteur_contexte` est
+  validée** sur trajets entiers (6,4–11,8 km, agrégés depuis le dataset sans rien inventer) : MAE **2,17 min**
+  contre **3,45** en extrapolant (**−37 %**) et **9,33** pour OSRM brut (**−77 %**). L'écart ElasticNet/Ridge
+  de 2,7 s **est significatif** (bootstrap apparié) — contrairement à ce qu'on supposait — et tient **après
+  réglage** de XGBoost (1,6729 → 1,3945, toujours derrière 1,3219). Baseline manquante ajoutée : la moyenne
+  historique donne 1,52 → le gain réel est **44 %**, pas 52,7 %. **Biais constant de +0,515 min** : le
+  corriger fait gagner **−14,6 % de MAE**. Ablation : météo+trafic portent tout (+0,48), Ramadan+souk valent
+  **+0,10**, et **`dwell` + `temporel` sont nuisibles** (le modèle ferait mieux avec 10 features de moins).
+  ⚠️ `domaine_entrainement` vaut **`null`** dans `eta_config.json` : sans le CSV au démarrage, la garde se
+  **désarme en silence**.
+- **MS9** (`tests/test_sql_guard.py`, `eval/`, `docs/MS9_EVALUATION.md`) — la brique passe de **zéro artefact
+  d'évaluation** à un jeu de test **versionné et rejouable**. Corpus `sql_guard` de 29 cas : **14/14 attaques
+  bloquées**, 8/8 requêtes légitimes préservées, **4 contournements délibérément déférés à PostgreSQL**
+  (`SELECT *`, catalogues `pg_user`, `LIMIT` imbriqué, produit cartésien) et **3 faux positifs** chiffrés.
+  Golden set parent de 36 questions (fr/ar/darija × opérationnelle/école/hors-sujet/injection/hors-portée/
+  écriture) rejoué **sur chaque modèle** avec la cascade **neutralisée**, plus l'évaluation NL2SQL en
+  **exactitude d'exécution** (jeux de résultats comparés, pas les chaînes SQL).
+
+> **Nature des livrables** : tout est **additif** — un module isolé et un document par brique, aucun fichier
+> de production modifié. Les défauts trouvés sont **rapportés, pas corrigés** (décision de production).
+> Dépendances installées pour la campagne : `pyproj`, `ortools`, `k-means-constrained`, `xgboost`, `lightgbm`.
+
 ## 📁 Structure racine du projet
 
 ```
@@ -1102,6 +1158,33 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
     unsafe »*. Le crash survient en **quittant** l'écran, ce qui le rend difficile à rattacher à sa cause.
     Créer le contrôleur dans `initState`. Trouvé par un test, présent dans les `map_screen.dart` des **deux**
     apps Flutter, corrigé dans les deux.
+
+16. **Benchmarker le code qu'on déploie, pas celui qu'on a écrit dans un notebook.** Le défaut le plus
+    coûteux trouvé le 23/08, et il touchait **trois briques sur cinq** : MS6 comparait dix algorithmes
+    euclidiens sans que le k-médoïdes **routier** déployé y figure ; MS11 benchmarkait le détecteur qui tourne
+    *à la demande* pendant que les **règles live**, seules à tourner en continu, n'avaient aucune métrique ;
+    MS12 publiait un MAE de tronçons alors que le service répond en mode **`facteur_contexte`**. La question
+    qui les a révélés n'est pas « quel notebook ai-je écrit ? » mais **« quel code s'exécute quand un parent
+    ouvre l'application ? »**. Détail : les trois trous étaient *documentés* — MS12 disait même dans son
+    docstring que ses métriques n'y valaient plus rien.
+
+17. **`DEVIATION_ITINERAIRE` est structurellement peu sensible sur une tournée dense — mesuré.** La règle
+    compare la position au point le plus proche de **toute** la polyligne. Une tournée de 50 arrêts repassant
+    dans le même quartier, un bus décalé de 400 m reste en moyenne à **174 m** de sa propre tournée : un
+    détour de 250 m n'est détecté que sur **9,6 %** du parcours, 400 m sur 35,8 %. **C'est le piège n° 13
+    (cycle fermé), corrigé pour l'ETA par `depuisAlongM` et jamais transposé ici.** En attendant, le seuil
+    de **250 m est trop haut** : à 120 m la couverture double **sans aucune fausse alarme** jusqu'à σ=30 m de
+    bruit GPS (mesuré). Et `VITESSE_EXCESSIVE` n'a **aucun anti-rebond**, contrairement à la déviation : un
+    seul ping aberrant déclenche une alerte critique.
+
+18. **Un classement de modèles sur 8 positifs ne tient pas.** MS11 gelait `iforest_curated` (PR-AUC 0,9127)
+    devant `seuil_surprise` (0,8043) sur un split unique de 30 jours contenant **8 anomalies**. Bootstrap :
+    les intervalles de confiance se recouvrent largement. Validation glissante à 4 blocs (**38 positifs**) :
+    **le classement s'inverse** (0,926 contre 0,847). Avant de défendre un gagnant, compter **combien
+    d'observations le départagent**. *Contre-exemple utile, à connaître aussi :* sur MS12, l'écart de
+    **2,7 secondes** entre ElasticNet et Ridge, qui semblait être du bruit, s'est révélé **significatif** —
+    le bootstrap **apparié** compare les erreurs sur les mêmes trajets et l'écart y est systématique.
+    L'incertitude ne va pas toujours dans le sens qu'on croit : il faut la mesurer, pas la supposer.
 
 ---
 
