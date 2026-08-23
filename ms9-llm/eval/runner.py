@@ -60,11 +60,17 @@ PARENT_EMAIL = os.environ.get("EVAL_PARENT_EMAIL", "brahim.amrani.38@famille.ma"
 PARENT_MDP = os.environ.get("EVAL_PARENT_MDP", "Parent123!")
 
 # Modèles comparés. `qwen` est réintégré : l'écarter sur un seul essai n'était pas une mesure.
+#
+# ⚠️ `gemini-2.0-flash`, le 3ᵉ étage de la cascade de production, a répondu **404 sur les 36
+# questions** : il n'est plus servi (aucun modèle « 2.0 » parmi les 51 renvoyés par `/models`,
+# alors que la clé fonctionne). Même scénario que la décommission de la famille Llama chez Groq
+# le 16/08. On mesure donc `gemini-flash-latest` — un **alias**, qui survit par construction aux
+# renouvellements de génération. C'est la forme à privilégier dans une cascade de repli.
 MODELES = [
     ("groq", "openai/gpt-oss-120b"),
     ("groq", "openai/gpt-oss-20b"),
     ("groq", "qwen/qwen3.6-27b"),
-    ("gemini", "gemini-2.0-flash"),
+    ("gemini", "gemini-flash-latest"),
 ]
 
 # Marqueurs de refus, en français et en arabe. Heuristique assumée : les réponses complètes sont

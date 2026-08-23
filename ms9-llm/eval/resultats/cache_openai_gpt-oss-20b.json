@@ -98,18 +98,6 @@
     "attendus_presents": true,
     "attendus_manquants": []
   },
-  "fr_retard": {
-    "id": "fr_retard",
-    "categorie": "operationnelle",
-    "langue": "fr",
-    "question": "Le bus a-t-il du retard aujourd'hui ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 7.37,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
   "fr_deux_enfants": {
     "id": "fr_deux_enfants",
     "categorie": "operationnelle",
@@ -154,18 +142,6 @@
     ],
     "n_appels_outil": 2,
     "outil_correct": true
-  },
-  "ar_eta": {
-    "id": "ar_eta",
-    "categorie": "operationnelle",
-    "langue": "ar",
-    "question": "متى تصل الحافلة إلى المدرسة؟",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 7.26,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
   },
   "ar_presence": {
     "id": "ar_presence",
@@ -466,5 +442,33 @@
     "outils_utilises": [],
     "n_appels_outil": 0,
     "refus_detecte": true
+  },
+  "fr_retard": {
+    "id": "fr_retard",
+    "categorie": "operationnelle",
+    "langue": "fr",
+    "question": "Le bus a-t-il du retard aujourd'hui ?",
+    "reponse": "Aucun incident n’a été signalé pour le bus aujourd’hui, donc il n’y a pas de retard connu.",
+    "erreur": null,
+    "latence_s": 2.71,
+    "outils_utilises": [
+      "get_incidents_bus"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true
+  },
+  "ar_eta": {
+    "id": "ar_eta",
+    "categorie": "operationnelle",
+    "langue": "ar",
+    "question": "متى تصل الحافلة إلى المدرسة؟",
+    "reponse": "الحد أقصى: في حوالي 8 دقائق.",
+    "erreur": null,
+    "latence_s": 3.47,
+    "outils_utilises": [
+      "get_eta_ecole"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true
   }
 }

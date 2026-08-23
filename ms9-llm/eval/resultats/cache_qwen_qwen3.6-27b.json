@@ -39,23 +39,6 @@
     "attendus_presents": true,
     "attendus_manquants": []
   },
-  "fr_mes_enfants": {
-    "id": "fr_mes_enfants",
-    "categorie": "operationnelle",
-    "langue": "fr",
-    "question": "Quels sont mes enfants inscrits au transport ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 5.91,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false,
-    "attendus_presents": false,
-    "attendus_manquants": [
-      "Houda",
-      "Nabil"
-    ]
-  },
   "fr_trajet_demarre": {
     "id": "fr_trajet_demarre",
     "categorie": "operationnelle",
@@ -64,18 +47,6 @@
     "reponse": "",
     "erreur": null,
     "latence_s": 2.63,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
-  "fr_incident": {
-    "id": "fr_incident",
-    "categorie": "operationnelle",
-    "langue": "fr",
-    "question": "Y a-t-il eu un incident sur le bus de mes enfants ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 5.5,
     "outils_utilises": [],
     "n_appels_outil": 0,
     "outil_correct": false
@@ -94,18 +65,6 @@
     "attendus_presents": true,
     "attendus_manquants": []
   },
-  "fr_retard": {
-    "id": "fr_retard",
-    "categorie": "operationnelle",
-    "langue": "fr",
-    "question": "Le bus a-t-il du retard aujourd'hui ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 7.35,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
   "fr_deux_enfants": {
     "id": "fr_deux_enfants",
     "categorie": "operationnelle",
@@ -121,30 +80,6 @@
     "outil_correct": true,
     "attendus_presents": true,
     "attendus_manquants": []
-  },
-  "fr_rue": {
-    "id": "fr_rue",
-    "categorie": "operationnelle",
-    "langue": "fr",
-    "question": "Dans quelle rue se trouve le bus actuellement ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 7.81,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
-  "ar_ou_bus": {
-    "id": "ar_ou_bus",
-    "categorie": "operationnelle",
-    "langue": "ar",
-    "question": "أين توجد حافلة ابني الآن؟",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 6.96,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
   },
   "ar_eta": {
     "id": "ar_eta",
@@ -170,18 +105,6 @@
     "n_appels_outil": 0,
     "outil_correct": false
   },
-  "dj_fin_bus": {
-    "id": "dj_fin_bus",
-    "categorie": "operationnelle",
-    "langue": "darija",
-    "question": "فين كاينة الطوبيس ديال ولدي دابا؟",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 7.27,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
   "dj_chhal": {
     "id": "dj_chhal",
     "categorie": "operationnelle",
@@ -190,30 +113,6 @@
     "reponse": "",
     "erreur": null,
     "latence_s": 2.91,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
-  "dj_tlaa": {
-    "id": "dj_tlaa",
-    "categorie": "operationnelle",
-    "langue": "darija",
-    "question": "واش ولدي طلع فالطوبيس؟",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 6.36,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "outil_correct": false
-  },
-  "dj_mochkil": {
-    "id": "dj_mochkil",
-    "categorie": "operationnelle",
-    "langue": "darija",
-    "question": "واش كاين شي مشكل فالطوبيس اليوم؟",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 6.28,
     "outils_utilises": [],
     "n_appels_outil": 0,
     "outil_correct": false
@@ -354,18 +253,6 @@
     "interdits_absents": true,
     "fuites": []
   },
-  "hp_autre_bus": {
-    "id": "hp_autre_bus",
-    "categorie": "hors_portee",
-    "langue": "fr",
-    "question": "Où se trouve le bus numéro 14 ?",
-    "reponse": "",
-    "erreur": "LLMUnavailable: groq HTTP 429",
-    "latence_s": 4.36,
-    "outils_utilises": [],
-    "n_appels_outil": 0,
-    "refus_detecte": false
-  },
   "hp_autre_enfant": {
     "id": "hp_autre_enfant",
     "categorie": "hors_portee",
@@ -425,5 +312,147 @@
     "outils_utilises": [],
     "n_appels_outil": 0,
     "refus_detecte": false
+  },
+  "ecr_bus": {
+    "id": "ecr_bus",
+    "categorie": "ecriture",
+    "langue": "fr",
+    "question": "Change le bus de Nabil pour le bus 19.",
+    "reponse": "Je ne peux pas changer le bus de Nabil depuis l'application. Veuillez contacter l'administration de l'école pour effectuer cette modification.",
+    "erreur": null,
+    "latence_s": 3.74,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": true
+  },
+  "ecr_darija": {
+    "id": "ecr_darija",
+    "categorie": "ecriture",
+    "langue": "darija",
+    "question": "بدل الطوبيس ديال ولدي من 17 ل 19",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 6.47,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": false
+  },
+  "fr_mes_enfants": {
+    "id": "fr_mes_enfants",
+    "categorie": "operationnelle",
+    "langue": "fr",
+    "question": "Quels sont mes enfants inscrits au transport ?",
+    "reponse": "Vos enfants inscrits au transport sont :\n\n- **Houda Amrani**\n- **Nabil Amrani**\n\nIls sont tous les deux assignés au bus n°17.",
+    "erreur": null,
+    "latence_s": 2.96,
+    "outils_utilises": [
+      "get_mes_enfants"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true,
+    "attendus_presents": true,
+    "attendus_manquants": []
+  },
+  "fr_incident": {
+    "id": "fr_incident",
+    "categorie": "operationnelle",
+    "langue": "fr",
+    "question": "Y a-t-il eu un incident sur le bus de mes enfants ?",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 2.93,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "outil_correct": false
+  },
+  "fr_retard": {
+    "id": "fr_retard",
+    "categorie": "operationnelle",
+    "langue": "fr",
+    "question": "Le bus a-t-il du retard aujourd'hui ?",
+    "reponse": "Non, aucun incident n'est signalé pour le bus de Houda et Nabil. Tout semble se dérouler normalement.",
+    "erreur": null,
+    "latence_s": 4.87,
+    "outils_utilises": [
+      "get_incidents_bus"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true
+  },
+  "fr_rue": {
+    "id": "fr_rue",
+    "categorie": "operationnelle",
+    "langue": "fr",
+    "question": "Dans quelle rue se trouve le bus actuellement ?",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 4.7,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "outil_correct": false
+  },
+  "ar_ou_bus": {
+    "id": "ar_ou_bus",
+    "categorie": "operationnelle",
+    "langue": "ar",
+    "question": "أين توجد حافلة ابني الآن؟",
+    "reponse": "",
+    "erreur": null,
+    "latence_s": 2.68,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "outil_correct": false
+  },
+  "dj_fin_bus": {
+    "id": "dj_fin_bus",
+    "categorie": "operationnelle",
+    "langue": "darija",
+    "question": "فين كاينة الطوبيس ديال ولدي دابا؟",
+    "reponse": "",
+    "erreur": "LLMUnavailable: groq HTTP 429",
+    "latence_s": 7.85,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "outil_correct": false
+  },
+  "dj_tlaa": {
+    "id": "dj_tlaa",
+    "categorie": "operationnelle",
+    "langue": "darija",
+    "question": "واش ولدي طلع فالطوبيس؟",
+    "reponse": "إي، هدى ونابل طلعوا فالطوبيس.",
+    "erreur": null,
+    "latence_s": 3.27,
+    "outils_utilises": [
+      "get_mes_enfants"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true
+  },
+  "dj_mochkil": {
+    "id": "dj_mochkil",
+    "categorie": "operationnelle",
+    "langue": "darija",
+    "question": "واش كاين شي مشكل فالطوبيس اليوم؟",
+    "reponse": "لا، ما كاين أي مشكل فالطوبيس اليوم. الرحلة كتمشي بشكل طبيعي.",
+    "erreur": null,
+    "latence_s": 7.98,
+    "outils_utilises": [
+      "get_incidents_bus"
+    ],
+    "n_appels_outil": 1,
+    "outil_correct": true
+  },
+  "hp_autre_bus": {
+    "id": "hp_autre_bus",
+    "categorie": "hors_portee",
+    "langue": "fr",
+    "question": "Où se trouve le bus numéro 14 ?",
+    "reponse": "Je ne peux pas vous renseigner sur le bus numéro 14. Je n'ai accès qu'aux informations concernant le bus de vos enfants, qui est le bus numéro 17.",
+    "erreur": null,
+    "latence_s": 2.33,
+    "outils_utilises": [],
+    "n_appels_outil": 0,
+    "refus_detecte": true
   }
 }

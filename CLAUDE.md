@@ -358,8 +358,17 @@ tronçons alors que le service tourne en mode **`facteur_contexte`** sur 6–12 
   bloquées**, 8/8 requêtes légitimes préservées, **4 contournements délibérément déférés à PostgreSQL**
   (`SELECT *`, catalogues `pg_user`, `LIMIT` imbriqué, produit cartésien) et **3 faux positifs** chiffrés.
   Golden set parent de 36 questions (fr/ar/darija × opérationnelle/école/hors-sujet/injection/hors-portée/
-  écriture) rejoué **sur chaque modèle** avec la cascade **neutralisée**, plus l'évaluation NL2SQL en
-  **exactitude d'exécution** (jeux de résultats comparés, pas les chaînes SQL).
+  écriture) rejoué **sur chaque modèle** avec la cascade **neutralisée**.
+  **Résultats** : `gpt-oss-120b` **100 %** sur les 4 critères ; `gpt-oss-20b` 88,2 % (il se dégrade
+  **spécifiquement en darija** : il redemande de quel enfant il s'agit au lieu de répondre) ;
+  `qwen3.6-27b` **16 réponses vides sur 36** — l'écarter était juste, c'est désormais mesuré ;
+  `gemini-flash-latest` correct mais **7× plus lent** (p50 11,1 s) et limité à 10/36 par son quota.
+  **⚠️ Panne de production trouvée** : `gemini-2.0-flash`, 3ᵉ et dernier étage du repli, répond
+  **404 sur 36/36** — le modèle n'est plus servi (cf. piège n° 7). MS9 n'avait plus aucun repli.
+  **NL2SQL** : **83,3 % d'exactitude d'exécution stricte / 94,4 % en tolérant les colonnes
+  supplémentaires**, **0 fuite sur 6 attaques** — mais les couches profondes (`sql_guard`, rôle
+  Postgres) **ne sont jamais atteintes** : le modèle refuse avant. La défense en profondeur reste
+  justifiée précisément parce qu'on ne peut pas compter sur la docilité d'un modèle.
 
 > **Nature des livrables** : tout est **additif** — un module isolé et un document par brique, aucun fichier
 > de production modifié. Les défauts trouvés sont **rapportés, pas corrigés** (décision de production).
@@ -1098,11 +1107,21 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 
 6. **Python 3.11 (env conda `nlp`)** : `scikit-learn==1.5.2`, `aio-pika==9.4.1` ; services Python démarrés via `start-all-ms.bat`.
 
-7. **Modèles LLM Groq — durée de vie courte** (19/08/2026) : Groq a décommissionné **toute la famille Llama** le
-   16/08 (`llama-3.3-70b-versatile` **et** `llama-3.1-8b-instant`, alors que l'avis ne citait que le 70b). La
-   cascade MS9 échouait deux fois avant de retomber sur Gemini, **sans erreur visible**. Cascade actuelle :
-   `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → Gemini. **Vérifier `GET https://api.groq.com/openai/v1/models`
-   avant toute démo** — et se rappeler que `ms9-llm/.env` **écrase** les valeurs de `config.py`.
+7. **Modèles LLM — durée de vie courte, chez TOUS les fournisseurs. Épingler des alias, pas des versions.**
+   *(19/08)* Groq a décommissionné **toute la famille Llama** le 16/08 (`llama-3.3-70b-versatile` **et**
+   `llama-3.1-8b-instant`, alors que l'avis ne citait que le 70b). La cascade MS9 échouait deux fois avant de
+   retomber sur Gemini, **sans erreur visible**.
+   *(23/08, trouvé par le benchmark MS9)* **Le repli Gemini est mort à son tour** : `gemini-2.0-flash` renvoie
+   **404 sur 100 % des appels** — la clé est valide, mais **aucun modèle « 2.0 »** ne figure parmi les 51
+   servis par `GET /v1beta/openai/models`. Le **3ᵉ et dernier étage de la cascade** était donc hors service, et
+   personne ne l'avait vu : MS9 ne s'en aperçoit que si les deux étages Groq saturent en même temps — auquel
+   cas il renvoie 503 au lieu de dégrader.
+   **Leçon générale** : viser un **alias** (`gemini-flash-latest`, testé 200) plutôt qu'une version figée
+   (`gemini-2.0-flash`) ; un alias survit par construction aux renouvellements de génération.
+   **Vérifier `GET https://api.groq.com/openai/v1/models` ET `GET
+   https://generativelanguage.googleapis.com/v1beta/openai/models` avant toute démo** — et se rappeler que
+   `ms9-llm/.env` **écrase** les valeurs de `config.py`. Un simple appel à `/models` par fournisseur au
+   démarrage de MS9 transformerait cette panne silencieuse en avertissement au log.
 
 8. **`--surface-deep` ≠ `--header` (web-admin)** : `--header` est une **encre de titre**, elle s'éclaircit en thème
    sombre. L'utiliser comme **fond** sous du texte blanc donne du blanc sur clair. Pour toute surface de marque

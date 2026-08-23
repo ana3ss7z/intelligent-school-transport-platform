@@ -340,6 +340,17 @@ trajets entiers : **−37 % d'erreur** contre l'extrapolation, **−77 %** contr
 > que je croyais être du bruit, est significatif au bootstrap apparié. L'incertitude ne va pas toujours dans
 > le sens qu'on croit. »*
 
+**4. MS9 — le benchmark a trouvé une panne de production que personne n'avait vue. (le meilleur argument
+« mesurer sert à quelque chose »)**
+En rejouant le golden set sur chaque étage de la cascade, **Gemini a répondu 404 sur les 36 questions**. La
+clé était valide : c'est le **modèle** `gemini-2.0-flash` qui n'était plus servi — aucun modèle « 2.0 » parmi
+les 51 disponibles. **Le troisième et dernier étage du repli de MS9 était mort**, et cela ne se serait vu
+qu'un jour où les deux étages Groq auraient saturé en même temps — c'est-à-dire le jour de la démonstration.
+> *« C'est le deuxième décommissionnement en une semaine : Groq avait retiré toute la famille Llama le 16/08.
+> La leçon est architecturale, pas anecdotique — dans une cascade de repli, il faut viser un **alias**
+> (`gemini-flash-latest`) et non une version figée, et vérifier `/models` au démarrage plutôt que de découvrir
+> la panne en production. »*
+
 ### Si le jury pousse
 
 **« Vous critiquez votre propre travail — pourquoi n'avoir pas corrigé ? »**

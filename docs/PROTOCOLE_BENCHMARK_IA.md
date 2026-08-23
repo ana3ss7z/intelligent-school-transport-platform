@@ -121,7 +121,7 @@ s'exécute quand un parent ouvre l'application ? »* plutôt que *« quel notebo
 | **MS6** | La distance routière vaut-elle son coût ? | **Oui, mais pas là où on regardait** : +0,002 de silhouette (invisible), −1,5 % de conduite, et **−9,7 % de temps à bord par enfant**. Le naïf « un bus par quartier » coûte **+14,6 %** |
 | **MS11** | Les règles live détectent-elles ? Le multivarié gagne-t-il ? | **Règles : partiellement** — la déviation est aveugle sur 70 % du parcours. **Multivarié : non** — sous validation glissante le seuil univarié `surprise` passe devant (0,926 vs 0,847) |
 | **MS12** | La garde anti-extrapolation vaut-elle mieux qu'extrapoler ? | **Oui, nettement** : −37 % d'erreur contre l'extrapolation, −77 % contre OSRM brut. Et le gagnant ElasticNet **résiste** au réglage de XGBoost |
-| **MS9** | La cascade de modèles est-elle le bon choix ? | *voir [MS9_EVALUATION.md](MS9_EVALUATION.md)* |
+| **MS9** | La cascade de modèles est-elle le bon choix ? | **Oui pour son ordre** — `gpt-oss-120b` fait 100 % sur les 4 critères contre 88 % pour le 20b, à latence égale. **Non pour son dernier étage** : `gemini-2.0-flash` répondait **404 sur 36/36** — le repli était mort. `qwen` disqualifié pour de bon : **16 réponses vides sur 36**. NL2SQL : **94,4 % d'exactitude d'exécution**, **0 fuite sur 6 attaques** |
 
 ---
 
@@ -140,7 +140,19 @@ Dans MS12, `duree_moyenne_historique_s` est la **7ᵉ importance publiée** (coe
 ablation coûte **0,003 minute** — rien. À l'inverse, retirer le `dwell` **améliore** le modèle.
 Une importance dit ce que le modèle *utilise* ; seule l'ablation dit ce qu'il *perdrait*.
 
-### c) La taille de l'échantillon décide de la conclusion
+### c) Un benchmark trouve des pannes, pas seulement des classements
+
+Le comparatif de modèles de MS9 n'était censé départager que des étages de cascade. Il a révélé que
+**`gemini-2.0-flash`, le troisième et dernier étage du repli, n'existait plus** : 404 sur les 36
+questions, clé pourtant valide, aucun modèle « 2.0 » parmi les 51 servis. Depuis une date inconnue,
+MS9 n'avait plus aucun repli — un défaut qui ne se serait manifesté qu'un jour de saturation
+simultanée des deux étages Groq.
+
+C'est le **deuxième décommissionnement en une semaine** (Groq avait retiré la famille Llama le
+16/08). La leçon est architecturale : dans une cascade, **viser un alias** (`gemini-flash-latest`)
+et non une version figée, et vérifier `/models` au démarrage.
+
+### d) La taille de l'échantillon décide de la conclusion
 
 Dans MS11, le classement des détecteurs repose sur **huit** anomalies de test. Le bootstrap donne
 des intervalles de confiance qui se recouvrent largement ; la validation glissante, qui porte
@@ -180,8 +192,17 @@ cd ms5-planification && python -m jupyter nbconvert --execute --to notebook \
                           --inplace notebooks/06_cvrp_benchmark.ipynb
 
 # Backend complet + clés LLM
-cd ms9-llm && python eval/runner.py && python eval/runner_admin.py
+cd ms9-llm
+python eval/runner.py --pause 20          # comparatif des modèles
+python eval/runner_admin.py --pause 22    # NL2SQL
 ```
+
+> Les deux campagnes LLM sont **reprenables** : chaque réponse est mise en cache dès qu'elle arrive,
+> et une question déjà jouée n'est pas rejouée. C'est indispensable — les quotas gratuits (8 000
+> jetons/minute chez Groq) provoquent des `429` en cours de route. Mieux : `runner.py --recalculer`
+> re-note les réponses en cache **sans rappeler aucun modèle**, et le runner NL2SQL **ré-exécute le
+> SQL mémorisé** pour la même raison. Corriger un critère de notation ne doit jamais coûter une
+> campagne.
 
 **Aucun de ces scripts ne modifie la production.** Les artefacts gelés (`eta_model.pkl`,
 `eta_config.json`, `anomaly_model.pkl`, `production_config.json`) sont lus, jamais réécrits — un
