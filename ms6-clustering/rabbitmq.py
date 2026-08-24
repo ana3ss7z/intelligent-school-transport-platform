@@ -8,12 +8,13 @@ import logging
 import aio_pika
 from config import settings
 from binding import appliquer_bus
-from clustering import production_clustering
+from clustering import production_clustering, verrou_calcul
 from ms2_client import assigner_groupes_bulk, get_all_eleves
 from quality import maybe_maj_baseline
+import etat
 
 logger = logging.getLogger(__name__)
-_clustering_lock = asyncio.Lock()
+# Le verrou vit desormais dans `clustering.py` : il doit etre partage avec main.py.
 
 
 async def publier(routing_key: str, payload: dict) -> None:
@@ -42,7 +43,7 @@ async def signaler_qualite(result) -> None:
 
 
 async def _recalculer_et_ecrire():
-    async with _clustering_lock:
+    async with verrou_calcul:
         logger.info("[MS6] Recalcul clustering déclenché par RabbitMQ…")
         try:
             eleves = await get_all_eleves()
@@ -71,6 +72,8 @@ async def _recalculer_et_ecrire():
                                verdict["niveau"], "; ".join(verdict.get("raisons", [])))
                 await signaler_qualite(result)          # canal admin (D1)
             maybe_maj_baseline(result.metrics, result.extra, verdict)
+            etat.enregistrer(result.k, len(result.labels),
+                             result.extra["capacity"], result.extra["rayon_max_m"])
 
         except Exception as exc:
             logger.error("[MS6] Erreur clustering : %s", exc, exc_info=True)

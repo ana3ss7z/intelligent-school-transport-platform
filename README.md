@@ -288,7 +288,7 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 </table>
 
 📄 **La méthode avant les résultats** — [`docs/PROTOCOLE_BENCHMARK_IA.md`](docs/PROTOCOLE_BENCHMARK_IA.md)
-énonce les **six règles** auxquelles les cinq briques ont été soumises, et rassemble les verdicts.
+énonce les **sept règles** auxquelles les cinq briques ont été soumises, et rassemble les verdicts.
 Il documente aussi le défaut structurel qu'elles ont révélé : **ce qui tournait en production n'était pas
 ce qui avait été benchmarké** (MS6, MS11 et MS12 étaient concernés).
 

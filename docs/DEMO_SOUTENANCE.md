@@ -300,7 +300,7 @@ verrouillée dans les trois implémentations. »*
 
 ### L'accroche, en une phrase
 
-> « J'ai soumis mes cinq briques IA au **même protocole en six règles**. Dans les cinq cas, la mesure a
+> « J'ai soumis mes cinq briques IA au **même protocole en sept règles**. Dans les cinq cas, la mesure a
 > contredit ou nuancé ce que ma propre documentation affirmait. Je vous montre les trois plus utiles. »
 
 ### Le fil rouge : *ce qui tournait en production n'était pas ce qui avait été benchmarké*
@@ -372,7 +372,7 @@ qu'un jour où les deux étages Groq auraient saturé en même temps — c'est-�
 > sont rejouables en une commande. Et trois des cinq verdicts me sont **défavorables**.
 
 ### Artefacts à ouvrir pour ce bloc
-- `docs/PROTOCOLE_BENCHMARK_IA.md` — les six règles + le tableau synoptique des cinq verdicts
+- `docs/PROTOCOLE_BENCHMARK_IA.md` — les sept règles + le tableau synoptique des cinq verdicts
 - `ms6-clustering/data/ablation_distance.json` · `ms11-analytique/data/ablation_anomaly.json` ·
   `ms12-prediction/data/ablation/resultats.json` — les chiffres bruts
 - `ms9-llm/eval/questions_parent.jsonl` — un jeu de test que le jury peut lire et rejouer

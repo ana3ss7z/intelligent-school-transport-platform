@@ -24,7 +24,7 @@ trouvé quelque chose que le dossier ne savait pas.
 
 ---
 
-## 2. Les six règles
+## 2. Les sept règles
 
 ### Règle 1 — La question doit pouvoir se répondre dans les deux sens
 
@@ -86,6 +86,17 @@ Un écart doit être accompagné de sa variabilité, et un résultat de ses limi
 > MS12 — le bootstrap apparié montre au contraire que l'écart de 2,7 s **est** significatif :
 > l'incertitude ne va pas toujours dans le sens qu'on croit.
 
+### Règle 7 — Consommer la **même source de données** que le service *(ajoutée le 24/08)*
+
+Exécuter la vraie fonction de production ne suffit pas : il faut l'alimenter par le vrai chemin.
+
+> *Sinon :* on mesure un comportement que le service n'a jamais.
+> *Comment on l'a appris :* le benchmark MS6 appelait bien `_compute_production`, mais avec les
+> élèves **triés par id depuis le CSV**, alors que le service les reçoit dans l'ordre du tas
+> PostgreSQL renvoyé par MS2. Conclusion publiée : « le pipeline produit k=8 ». Réalité : k=7.
+> **C'est l'utilisateur qui a détecté l'erreur en relançant le clustering** — et le défaut réel
+> s'est révélé bien pire (voir §4.e).
+
 ### Corollaire — Le perdant est reclassé, pas jeté
 
 Un benchmark produit deux informations : qui gagne, et à quoi sert l'autre.
@@ -118,7 +129,7 @@ s'exécute quand un parent ouvre l'application ? »* plutôt que *« quel notebo
 | Brique | Question tranchée | Verdict mesuré |
 |---|---|---|
 | **MS5** | La décomposition MS6→TSP coûte-t-elle du temps de conduite ? | **Non** : à budget égal le CVRP ne gagne jamais plus de 0,2 % et perd jusqu'à 2,3 %. Reclassé en outil de dimensionnement (6 bus au lieu de 7) |
-| **MS6** | La distance routière vaut-elle son coût ? | **Oui, mais pas là où on regardait** : +0,002 de silhouette (invisible), −1,5 % de conduite, et **−9,7 % de temps à bord par enfant**. Le naïf « un bus par quartier » coûte **+14,6 %** |
+| **MS6** | La distance routière vaut-elle son coût ? | **Oui, mais pas là où on regardait** : +0,002 de silhouette (invisible), −1,5 % de conduite, et **−9,7 % de temps à bord par enfant**. Le naïf « un bus par quartier » coûte **+14,6 %**. Et un défaut plus grave a été trouvé ensuite : **le nombre de bus dépend de l'ordre des lignes** (k = 7 / 8 / 9 selon la permutation) |
 | **MS11** | Les règles live détectent-elles ? Le multivarié gagne-t-il ? | **Règles : partiellement** — la déviation est aveugle sur 70 % du parcours. **Multivarié : non** — sous validation glissante le seuil univarié `surprise` passe devant (0,926 vs 0,847) |
 | **MS12** | La garde anti-extrapolation vaut-elle mieux qu'extrapoler ? | **Oui, nettement** : −37 % d'erreur contre l'extrapolation, −77 % contre OSRM brut. Et le gagnant ElasticNet **résiste** au réglage de XGBoost |
 | **MS9** | La cascade de modèles est-elle le bon choix ? | **Oui pour son ordre** — `gpt-oss-120b` fait 100 % sur les 4 critères contre 88 % pour le 20b, à latence égale. **Non pour son dernier étage** : `gemini-2.0-flash` répondait **404 sur 36/36** — le repli était mort. `qwen` disqualifié pour de bon : **16 réponses vides sur 36**. NL2SQL : **94,4 % d'exactitude d'exécution**, **0 fuite sur 6 attaques** |
@@ -151,6 +162,23 @@ simultanée des deux étages Groq.
 C'est le **deuxième décommissionnement en une semaine** (Groq avait retiré la famille Llama le
 16/08). La leçon est architecturale : dans une cascade, **viser un alias** (`gemini-flash-latest`)
 et non une version figée, et vérifier `/models` au démarrage.
+
+### e) Un argmax sur du bruit fabrique du hasard — et le benchmark peut s'y tromper aussi
+
+MS6 choisit son nombre de bus par `argmax` de silhouette sur les candidats du Pareto. Ce document
+mesurait par ailleurs que ces silhouettes ont un bruit d'initialisation de ±0,012 à ±0,020, **plus
+grand que les écarts qui séparent les candidats**. Conséquence mesurée sur **30 permutations des
+mêmes données** : **k = 7 (57 %), k = 8 (7 %), k = 9 (37 %)**. Le nombre de bus n'est pas une
+propriété des données.
+
+Deux enseignements, et le second est inconfortable :
+
+1. **Ne jamais faire d'argmax sans avoir mesuré le bruit des candidats.** La règle robuste — retenir
+   le plus petit `k` dont la médiane est à moins de ε du meilleur — donne k=7 de façon stable.
+2. **Le benchmark lui-même s'était trompé** : il avait publié « le pipeline produit k=8 », faute
+   d'alimenter la fonction par le chemin de production (règle 7). L'erreur a été trouvée par
+   l'utilisateur, pas par l'outil. Le mécanisme était pourtant **déjà mesuré** dans la section
+   voisine du même document, sans être relié. Mesurer ne suffit pas : il faut relier ses mesures.
 
 ### d) La taille de l'échantillon décide de la conclusion
 

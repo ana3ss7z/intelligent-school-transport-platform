@@ -1,0 +1,21 @@
+{
+  "sans_hysteresis": {
+    "moyen": 4.24,
+    "median": 1.08,
+    "max": 17.47,
+    "changements_k": 2,
+    "k": [
+      7,
+      9
+    ]
+  },
+  "avec_hysteresis": {
+    "moyen": 2.49,
+    "median": 1.02,
+    "max": 7.43,
+    "changements_k": 0,
+    "k": [
+      7
+    ]
+  }
+}

@@ -25,8 +25,30 @@ from algorithms import (kmeans as _kmeans, estimer_eps, dbscan_precomputed,
 from selection import pareto, choisir_k
 from evaluation import evaluer
 from quality import evaluer_qualite
+import etat
+
+# Verrou de calcul PARTAGE par les deux chemins qui lancent un clustering : l'endpoint HTTP
+# (`main.py`) et le consumer RabbitMQ (`rabbitmq.py`). Auparavant seul le second le prenait, si
+# bien qu'un clic dans la console pendant un recalcul declenche par une inscription lancait deux
+# calculs en parallele — qui ecrivaient tous deux les memes fichiers d'etat.
+verrou_calcul = asyncio.Lock()
+
 
 logger = logging.getLogger(__name__)
+
+
+async def _nb_bus_actifs() -> int | None:
+    """Taille de la flotte réellement disponible, ou `None` si MS1 ne répond pas.
+
+    Sert uniquement à invalider une mémoire devenue absurde (garder « 7 bus » alors qu'il n'en reste
+    six). En cas d'indisponibilité de MS1 on ne bloque rien : on se prive simplement de ce garde-fou.
+    """
+    try:
+        from ms1_client import get_bus_actifs
+        return len(await get_bus_actifs())
+    except Exception as exc:
+        logger.info("[MS6] Flotte MS1 indisponible (%s) — garde « flotte rétrécie » inactive", exc)
+        return None
 
 
 @dataclass
@@ -40,9 +62,32 @@ class ClusteringResult:
 
 
 # ── Production : k-médoïdes capacitaire routier ──────────────────────────────
-def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters, rayon_max=0.0) -> dict:
+def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters, rayon_max=0.0,
+                        k_precedent=None) -> dict:
     """Cœur synchrone (CPU) de la stratégie de production. D = matrice de distances (m).
-    rayon_max > 0 : contrainte de distance max au médoïde (les élèves trop loin → dispersés/999)."""
+    rayon_max > 0 : contrainte de distance max au médoïde (les élèves trop loin → dispersés/999).
+
+    **Ordre canonique (24/08).** La première chose que fait cette fonction est de trier les élèves
+    par `id`. Ce n'est pas cosmétique : sans cela, le résultat dépend de l'ordre dans lequel MS2
+    renvoie ses lignes — or `EleveService.listerTous()` fait un `repo.findAll()` **sans `ORDER BY`**,
+    donc l'ordre du tas PostgreSQL, que MS6 modifie lui-même à chaque bulk update.
+
+    Mesuré avant ce tri : sur 30 permutations des mêmes 300 élèves, le service répondait **7 bus
+    (57 %), 8 bus (7 %), 9 bus (37 %)**. La règle de sélection durcie (`selection.py`) ramène cela à
+    7 bus dans 23 cas sur 30, mais **ne peut pas** l'éliminer seule : le k-médoïdes converge vers
+    deux bassins distincts pour certains `k`, et aucune statistique sur les essais ne rattrape une
+    distribution bimodale. Le tri, lui, supprime la cause : même ensemble d'élèves → même entrée →
+    même sortie, toujours.
+
+    Les deux correctifs sont complémentaires et **l'ordre entre eux comptait** : trier *avant* de
+    durcir la sélection aurait figé le service sur `k = 8`, le résultat le plus rare (7 % des
+    tirages). Une fois la sélection durcie, l'ordre trié donne `k = 7`.
+    """
+    ordre = np.argsort(np.asarray(ids), kind="stable")
+    ids = np.asarray(ids)[ordre]
+    XY = np.asarray(XY)[ordre]
+    D = np.asarray(D)[np.ix_(ordre, ordre)]
+
     n = len(ids)
 
     # 1) Détection des dispersés (bruit DBSCAN sur la matrice de distances)
@@ -61,7 +106,7 @@ def _compute_production(ids, XY, D, capacity, k_margin, min_sil, iters, rayon_ma
     #    k_min basé sur l'effectif TOTAL pour garantir la capacité d'accueillir tout le monde.
     k_min_total = math.ceil(n / capacity)
     rows = pareto(Dc, XYc, capacity, k_min=k_min_total, k_margin=k_margin, iters=iters, rayon_max=rayon_max)
-    best = choisir_k(rows, min_silhouette=min_sil)
+    best = choisir_k(rows, min_silhouette=min_sil, k_precedent=k_precedent)
     k = best["k"]
     medoids_global = [int(core_idx[m]) for m in best["medoids"]]
 
@@ -117,12 +162,20 @@ async def production_clustering(eleves: list[dict], capacity: int | None = None,
     else:
         D = matrice_euclidienne(XY)
 
+    # Hystérésis : on relit la flotte retenue au dernier calcul APPLIQUÉ, et on ne la garde que si
+    # le contexte est resté comparable (même capacité, même rayon, flotte pas rétrécie sous ce k).
+    # La lecture et l'écriture de cette mémoire vivent ici, pas dans `_compute_production` : le cœur
+    # de calcul reste une fonction pure, donc testable sans état sur le disque.
+    k_precedent = etat.contexte_compatible(etat.charger(), capacity, rayon,
+                                           await _nb_bus_actifs())
+
     res = await asyncio.to_thread(
         _compute_production, ids, XY, D, capacity,
-        settings.k_margin, settings.min_silhouette, settings.kmedoids_iters, rayon)
+        settings.k_margin, settings.min_silhouette, settings.kmedoids_iters, rayon,
+        k_precedent)
 
     extra = {"distance": dist_src, "projection": proj, "capacity": capacity,
-             "rayon_max_m": rayon,
+             "rayon_max_m": rayon, "n_eleves": len(ids),
              "n_disperses": res["n_disperses"], "disperses_ids": res["disperses_ids"],
              "n_non_affectes": res["n_non_affectes"], "non_affectes_ids": res["non_affectes_ids"],
              "pareto": res["pareto"]}

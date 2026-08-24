@@ -12,9 +12,12 @@
     "compacite_med_m": 725.4,
     "compacite_max_m": 2409.5,
     "taille_max": 50,
-    "faisable": true
+    "faisable": true,
+    "silhouette_partition_complete": 0.4256,
+    "_note_silhouette": "silhouette_routier = coeur seul (283 eleves, hors disperses), valeur historique citee dans la documentation. silhouette_partition_complete = partition finale (300 eleves), MEME grandeur que celle publiee par le service : c'est elle que quality.py utilise comme ancre. Mesuree le 24/08 apres le correctif de selection (tri canonique + regle robuste)."
   },
   "gestion_disperses": "détectés (DBSCAN routier), ramassage individuel / médoïde le plus proche",
   "arbitrage_flotte": "courbe de Pareto qualité vs nb de bus (décision admin)",
-  "dateCalcul": null
+  "dateCalcul": null,
+  "rayon_max_m": 0.0
 }

@@ -1,0 +1,152 @@
+[
+  {
+    "perm": "csv_trie",
+    "k": 8,
+    "silhouette": 0.4056
+  },
+  {
+    "perm": "alea1",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea2",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea3",
+    "k": 7,
+    "silhouette": 0.4259
+  },
+  {
+    "perm": "alea4",
+    "k": 7,
+    "silhouette": 0.4052
+  },
+  {
+    "perm": "alea5",
+    "k": 7,
+    "silhouette": 0.4052
+  },
+  {
+    "perm": "alea6",
+    "k": 7,
+    "silhouette": 0.425
+  },
+  {
+    "perm": "alea7",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea8",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea9",
+    "k": 7,
+    "silhouette": 0.4052
+  },
+  {
+    "perm": "alea10",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea11",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea12",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea13",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea14",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea15",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea16",
+    "k": 9,
+    "silhouette": 0.4219
+  },
+  {
+    "perm": "alea17",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea18",
+    "k": 7,
+    "silhouette": 0.4053
+  },
+  {
+    "perm": "alea19",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea20",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea21",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea22",
+    "k": 7,
+    "silhouette": 0.4258
+  },
+  {
+    "perm": "alea23",
+    "k": 9,
+    "silhouette": 0.396
+  },
+  {
+    "perm": "alea24",
+    "k": 7,
+    "silhouette": 0.405
+  },
+  {
+    "perm": "alea25",
+    "k": 8,
+    "silhouette": 0.4056
+  },
+  {
+    "perm": "alea26",
+    "k": 9,
+    "silhouette": 0.4193
+  },
+  {
+    "perm": "alea27",
+    "k": 7,
+    "silhouette": 0.4052
+  },
+  {
+    "perm": "alea28",
+    "k": 7,
+    "silhouette": 0.4049
+  },
+  {
+    "perm": "alea29",
+    "k": 9,
+    "silhouette": 0.4193
+  }
+]

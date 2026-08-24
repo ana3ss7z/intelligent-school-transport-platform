@@ -13,10 +13,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from binding import appliquer_bus
 from clustering import (comparer, run_dbscan, run_kmeans,
-                        production_clustering, pareto_flotte, diagnostics)
+                        production_clustering, pareto_flotte, diagnostics, verrou_calcul)
 from config import settings
 from ms2_client import assigner_groupes_bulk, get_all_eleves, get_eleves_sans_groupe
 from quality import charger_baseline, maybe_maj_baseline
+import etat
 from rabbitmq import start_consumer
 
 # Dernier verdict qualité calculé (exposé par GET /api/clustering/quality)
@@ -177,21 +178,31 @@ async def clustering_production(appliquer: bool = True,
     global _dernier_verdict
     try:
         eleves = await get_all_eleves()
-        result = await production_clustering(eleves, capacity=capacity, use_road=road, rayon=rayon)
-        updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
+        # Verrou PARTAGÉ avec le consumer RabbitMQ : sans lui, un clic dans la console pendant un
+        # recalcul déclenché par une inscription lançait deux clusterings concurrents, qui
+        # écrivaient les mêmes fichiers d'état et faisaient deux bulk updates sur MS2.
+        async with verrou_calcul:
+            result = await production_clustering(eleves, capacity=capacity, use_road=road, rayon=rayon)
+            updated = await assigner_groupes_bulk(result.labels) if appliquer else "non demandé"
 
-        # Liaison groupe↔bus : propage busId (rend notifs MS4 / ETA MS12 fonctionnels)
-        bus_binding = await appliquer_bus(result.labels) if appliquer else "non demandé"
+            # Liaison groupe↔bus : propage busId (rend notifs MS4 / ETA MS12 fonctionnels)
+            bus_binding = await appliquer_bus(result.labels) if appliquer else "non demandé"
 
-        # Garde-fou qualité : verdict informatif ; baseline MAJ seulement si run appliqué ET OK
-        verdict = result.extra["quality"]
-        _dernier_verdict = verdict
+            # Garde-fou qualité : verdict informatif ; baseline MAJ seulement si run appliqué ET OK
+            verdict = result.extra["quality"]
+            _dernier_verdict = verdict
+            if appliquer:
+                maybe_maj_baseline(result.metrics, result.extra, verdict)
+                # Mémoire de la flotte retenue (hystérésis) : uniquement sur un run APPLIQUÉ — une
+                # simulation ne doit pas déplacer la référence.
+                etat.enregistrer(result.k, len(result.labels),
+                                 result.extra["capacity"], result.extra["rayon_max_m"])
+
+        # Hors verrou : publication d'alerte, qui n'écrit aucun état partagé.
         if verdict["niveau"] != "OK":
             logger.warning("[MS6] Qualité clustering %s : %s", verdict["niveau"], "; ".join(verdict["raisons"]))
             from rabbitmq import signaler_qualite
             await signaler_qualite(result)              # canal admin (D1)
-        if appliquer:
-            maybe_maj_baseline(result.metrics, result.extra, verdict)
 
         return {
             "methode": result.methode,

@@ -1,0 +1,20 @@
+{
+  "version": "ms6-clustering-v3-routier",
+  "strategie": "k-médoïdes capacitaire sur distance routière OSRM",
+  "distance": "OSRM driving (réseau Meknès), matrice symétrisée",
+  "capacite_bus": 50,
+  "k_production": 7,
+  "n_eleves": 300,
+  "n_disperses_individuel": 17,
+  "metriques_routieres": {
+    "k": 7,
+    "silhouette_routier": 0.43336200418311355,
+    "compacite_med_m": 725.4,
+    "compacite_max_m": 2409.5,
+    "taille_max": 50,
+    "faisable": true
+  },
+  "gestion_disperses": "détectés (DBSCAN routier), ramassage individuel / médoïde le plus proche",
+  "arbitrage_flotte": "courbe de Pareto qualité vs nb de bus (décision admin)",
+  "dateCalcul": null
+}

@@ -328,9 +328,11 @@ tronçons alors que le service tourne en mode **`facteur_contexte`** sur 6–12 
   **−1,7 min de temps à bord par enfant (−9,7 %)**. « Un bus par quartier » coûte **+14,6 %** ; aléatoire
   **+110 %** ; refuser l'infaisable coûte **3,4 %**. ⚠️ **Silhouette et minutes désignent deux gagnants
   différents** (k-means capacitaire est meilleur en flotte, moins bon à bord) → il faut choisir la métrique
-  avant de comparer. **Défaut confirmé** : `production_config.json` fige k=7/0,4334 alors que
-  `_compute_production` produit **k=8/0,4056** — la référence de `quality.py` est calibrée sur un point de
-  fonctionnement que le service ne reproduit jamais. Variance 10 graines : k=7 stable (±0,0001), k=8/k=9 non.
+  avant de comparer. Variance 10 graines : k=7 stable (±0,0001), k=8 (±0,0119) et k=9 (±0,0204) non.
+  ⚠️ **Correction du 24/08** : ce bilan affirmait initialement que le pipeline produisait **k=8** contre
+  **k=7** dans la config gelée, et y voyait une incohérence. **C'était faux** — le service produit bien
+  k=7. Le benchmark appelait la bonne fonction avec les élèves **triés par id (CSV)** alors que le service
+  les reçoit dans l'ordre du tas PostgreSQL. Le vrai défaut est **pire** : voir piège n° 19.
 - **MS11** (`replay.py`, `ablation_anomaly.py`, `docs/MS11_BENCHMARK_REGLES_LIVE.md`) — rejeu hors ligne des
   règles live sur la **vraie tournée de 753 points**. **La règle de déviation est largement aveugle** : un
   détour de 250 m n'est vu que sur **9,6 % du parcours**, 400 m sur 35,8 % — parce qu'elle mesure la distance
@@ -1204,6 +1206,90 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
     **2,7 secondes** entre ElasticNet et Ridge, qui semblait être du bruit, s'est révélé **significatif** —
     le bootstrap **apparié** compare les erreurs sur les mêmes trajets et l'écart y est systématique.
     L'incertitude ne va pas toujours dans le sens qu'on croit : il faut la mesurer, pas la supposer.
+
+19. **MS6 : le nombre de bus dépendait de l'ORDRE des lignes renvoyées par PostgreSQL.**
+    ✅ **CORRIGÉ le 24/08** (`selection.py`, `clustering.py`, `etat.py` — 63 tests).
+    *Après correctif : **k = 7 sur 30 permutations sur 30, et une seule partition distincte** ;
+    churn moyen par inscription **7,24 % → 2,49 %**, médian **6,42 % → 1,02 %**, et **0 changement
+    de flotte** au lieu de 9. Vérifié de bout en bout via le vrai `get_all_eleves()` de MS2 :
+    ordre MS2 et ordre inversé donnent des affectations **identiques élève par élève**.*
+    ⚠️ **Coût unique au déploiement : 22 élèves sur 300 (7,3 %) changent de bus au premier
+    recalcul** — la partition livrée est désormais le meilleur de 5 redémarrages (silhouette
+    0,405 → 0,4256). À faire à un moment où les familles peuvent être prévenues.
+    *(Diagnostic d'origine, conservé pour mémoire :)*
+    Sur **30 permutations** des mêmes 300 élèves, même graine, même matrice OSRM :
+    **k=7 dans 57 % des cas, k=8 dans 7 %, k=9 dans 37 %.** Deux bus et deux chauffeurs d'écart, sans
+    qu'aucune donnée métier n'ait bougé. *(`ms6-clustering/data/sensibilite_ordre.json`.)*
+    - **Cause racine** : `choisir_k` prend l'**argmax** des silhouettes du Pareto, or celles de k=8 et
+      k=9 ont un bruit d'initialisation (±0,012 et ±0,020) **supérieur aux écarts qui les séparent**
+      (0,006 à 0,017). C'est un argmax sur du bruit ; l'ordre des lignes ne fait que tirer les dés.
+    - **Pourquoi l'ordre n'est pas stable** : `EleveService.listerTous()` fait `repo.findAll()` **sans
+      `ORDER BY`** → ordre du tas. Et MS6 **réécrit les 300 lignes** par bulk update à chaque
+      application, ce qui change ce tas. **Appliquer un clustering peut donc changer le k du suivant.**
+      Comme MS6 recalcule sur `eleve.created`, **chaque inscription en cours d'année rejoue la loterie**
+      et peut faire changer de bus des enfants dont rien n'a changé.
+    - **Ce que ça coûte quand on inscrit un élève** (mesuré de 270 à 300 élèves, `stabilite.py`) :
+      avec la règle actuelle, `k` change **9 fois sur 15 inscriptions** et **12 à 13 % des élèves
+      changent de bus à chaque bascule** — une trentaine d'enfants déplacés pour une inscription.
+    - **Correctifs, mesurés puis classés** :
+      **(1) `choisir_k` robuste** — médiane sur plusieurs initialisations par `k`, puis **plus petit
+      `k` à moins de ε ≈ 0,02 du meilleur**. Mesuré : **k=7 sur 15 permutations sur 15**, churn
+      médian 6,42 % → 1,03 %. Donne k=7, donc **stabilise sans changer la sortie actuelle**.
+      **(2) + hystérésis sur `k`** — ne changer de flotte que si l'ancien `k` est **infaisable** ou
+      battu de plus de ε. Sans elle, la parcimonie saute sur tout `k` plus petit qui devient
+      faisable (pic de churn à 25,4 % au franchissement de ⌈n/50⌉). **Avec (1), c'est la variante
+      qui domine sur les trois métriques : churn moyen 2,25 % vs 7,24 %, max 8,03 % vs 13,27 %,
+      2 changements de flotte vs 9.** Les deux se font ensemble.
+      **(3) Canoniser l'ordre** dans `production_clustering` (côté MS6). ⚠️ **Fait seul, (3)
+      figerait k=8** — l'ordre trié par id tombe précisément sur le k le plus rare (7 %).
+      **(4) Publier le churn** comme métrique de production : c'est ce que les familles subissent.
+      ~~Amorçage à chaud~~ — **proposé, mesuré, retiré** : 0,7–2,7 % de churn contre 0,0–1,7 % à
+      froid. Le churn ne vient pas de la dérive des médoïdes, il vient du changement de `k`.
+    - **Leçon de méthode** : le benchmark exécutait la vraie fonction de production **sans emprunter
+      le chemin de production** (CSV trié au lieu de MS2). C'est le piège n° 16 retourné contre l'outil
+      de mesure lui-même. Un benchmark doit consommer **la même source de données que le service**.
+    - **Trois erreurs de conception commises pendant le correctif, toutes attrapées par la mesure** —
+      à retenir si on retouche `selection.py` :
+      **(a) ε global.** Première version : ε = plus grande dispersion de *tous* les candidats. Un
+      `k=9` très instable élargissait la marge au point de faire passer `k=6` pour l'égal de `k=7`.
+      → ε doit être **propre à la comparaison** (les deux candidats concernés, pas un troisième).
+      **(b) Meilleur essai pour comparer.** Prendre le meilleur de N par `k` favorise
+      **mécaniquement le plus bruité** (on compare des maxima d'échantillons de variances
+      différentes) : le service répondait alors k=9 dans **14 cas sur 30**. → **médiane pour
+      comparer les `k`**, **meilleur essai pour la partition livrée** une fois `k` choisi.
+      **(c) Une seule marge pour deux questions.** ε statistique (« ces deux `k` sont-ils
+      discernables dans ce calcul ? », ~0,005) ≠ marge d'hystérésis (« ce gain justifie-t-il de
+      redistribuer toute l'école ? », 0,03). Avec la seule marge statistique, l'hystérésis ne se
+      déclenchait jamais : un écart de 0,019 entre 292 et 296 élèves suffisait à faire basculer la
+      flotte de 7 à 9 puis revenir. Le MAD n'y aidait pas — il vaut **0** sur une distribution
+      bimodale dont trois essais sur cinq sont dans le même mode.
+
+20. **MS6 : le garde-fou qualité était bloqué en DEGRADE depuis cinq semaines — un cliquet.**
+    ✅ **CORRIGÉ le 24/08** (`quality.py`, 12 tests dans `tests/test_qualite.py`).
+    `maybe_maj_baseline` ne réécrit la référence **que si le verdict est OK** (`quality.py:151`).
+    Une référence trop haute rend donc tout run `DEGRADE`… ce qui l'empêche d'être mise à jour :
+    **trop haute → DEGRADE → jamais réécrite → toujours trop haute.** Constaté : référence à
+    **0,5183** écrite le **17/07** sur un jeu à **14 dispersés**, utilisée jusqu'au 24/08 pour juger
+    des runs à **17 dispersés** et à un niveau réellement atteignable de 0,4334. Cinq semaines de
+    DEGRADE permanent, sans qu'aucune dérive réelle n'ait eu lieu.
+    - **Correctif 1 — plafond** : la référence ne peut jamais **dépasser l'ancre** (le point de
+      conception gelé). Elle peut descendre — la détection de dérive continue de fonctionner —
+      mais un run exceptionnellement bon ne redéfinit plus ce qui est atteignable.
+    - **Correctif 2 — contexte** : la référence enregistre `n_eleves`, `capacity`, `rayon_max_m`.
+      Un changement de **capacité** ou de **rayon** la rend inapplicable (paramètres structurels :
+      ils redéfinissent le problème). L'effectif, lui, bouge naturellement et n'invalide pas.
+    - **Correctif 3 — grandeur comparable** : l'ancre était `silhouette_routier` = 0,43336, mesurée
+      sur le **cœur** (283 élèves), alors que le service publie la silhouette de la partition
+      **complète** (300). Deux grandeurs différentes comparées l'une à l'autre. Ajout **non
+      destructif** de `silhouette_partition_complete` = 0,4256 dans `production_config.json` (la
+      valeur historique est conservée, elle est citée dans la documentation).
+    - ⚠️ **Ne PAS « écrire la référence même sur DEGRADE »** — c'est la correction qui vient à
+      l'esprit en premier, et elle **détruit le garde-fou** : chaque run serait comparé au précédent
+      légèrement moins bon, donc une dérive lente ne déclencherait jamais rien. La grenouille qu'on
+      fait bouillir.
+    - **Vérifié en production** : verdict **OK**, aucune raison, plancher 0,3192, référence
+      0,4256 avec son contexte. *Ancien fichier conservé :
+      `data/quality_baseline.json.perimee-17-07.bak`.*
 
 ---
 
