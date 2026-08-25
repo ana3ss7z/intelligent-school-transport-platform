@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,22 +33,45 @@ public class NotificationService {
 
     // ── Device token ─────────────────────────────────────────────────
 
+    /**
+     * Enregistre — ou réactive — le token FCM d'un appareil.
+     *
+     * <p><b>L'opération doit être idempotente</b>, et ne l'était pas. La version précédente
+     * désactivait la ligne existante <i>sans la supprimer</i>, puis en insérait une nouvelle
+     * portant le même token ; or {@code fcm_token} porte une <b>contrainte UNIQUE</b>
+     * ({@code idx_device_token}). Toute seconde inscription du même token violait donc la
+     * contrainte.
+     *
+     * <p>Ce n'est pas un cas limite : un token FCM est <b>stable pour une installation</b>
+     * (ou un profil de navigateur). La deuxième connexion depuis le même appareil échouait,
+     * et le parent restait sans push sans que rien ne l'indique côté client.
+     *
+     * <p>Le token appartient à l'<b>appareil</b>, pas au compte : quand un autre utilisateur
+     * se connecte depuis le même navigateur, la ligne est <b>réaffectée</b>. C'est le cas
+     * courant dans ce projet, où la console web sert les rôles parent et chauffeur sur une
+     * seule origine — donc un seul service worker, donc un seul token.
+     */
     @Transactional
     public void enregistrerToken(Long parentId, DeviceTokenRequest req) {
-        deviceTokenRepo.findByFcmToken(req.getFcmToken()).ifPresent(existing -> {
-            existing.setActif(false);
-            deviceTokenRepo.save(existing);
-        });
+        String plateforme = normaliserPlateforme(req.getPlateforme());
 
-        DeviceToken token = DeviceToken.builder()
-                .parentId(parentId)
-                .fcmToken(req.getFcmToken())
-                .plateforme(normaliserPlateforme(req.getPlateforme()))
-                .actif(true)
-                .build();
+        DeviceToken token = deviceTokenRepo.findByFcmToken(req.getFcmToken())
+                .map(existant -> {
+                    existant.setParentId(parentId);
+                    existant.setPlateforme(plateforme);
+                    existant.setActif(true);
+                    existant.setDateEnregistrement(LocalDateTime.now());
+                    return existant;
+                })
+                .orElseGet(() -> DeviceToken.builder()
+                        .parentId(parentId)
+                        .fcmToken(req.getFcmToken())
+                        .plateforme(plateforme)
+                        .actif(true)
+                        .build());
 
         deviceTokenRepo.save(token);
-        log.info("[MS4] Token FCM enregistré — parentId={} plateforme={}", parentId, token.getPlateforme());
+        log.info("[MS4] Token FCM enregistré — parentId={} plateforme={}", parentId, plateforme);
     }
 
     /**
