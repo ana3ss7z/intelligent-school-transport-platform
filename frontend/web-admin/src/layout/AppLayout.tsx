@@ -8,6 +8,7 @@ import type { Role } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../hooks/useTheme";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
+import { useParams } from "../params/ParamsContext";
 import { CommandPalette } from "../components/CommandPalette";
 
 interface NavItem { to: string; label: string; Icon: typeof Map; roles: Role[]; }
@@ -97,7 +98,9 @@ export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const items = NAV.filter((i) => (role ? i.roles.includes(role) : false));
-  const unread = useUnreadMessages(role === "ADMIN" || role === "CHAUFFEUR" || role === "PARENT");
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
+  const unread = useUnreadMessages(
+    role === "ADMIN" || role === "CHAUFFEUR" || role === "PARENT", ui.pollUnreadMs);
 
   // Fermer le drawer au changement de route + sur Escape
   useEffect(() => { setDrawer(false); }, [location.pathname]);

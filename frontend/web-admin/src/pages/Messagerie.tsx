@@ -9,6 +9,7 @@ import type { Conversation, Message, User } from "../api/types";
 import { Panel, Button, Spinner, SectionTitle } from "../components/ui";
 import { EmptyState } from "../components/AsyncState";
 import { useToast } from "../components/Toast";
+import { useParams } from "../params/ParamsContext";
 
 /** Diffusion chauffeur → tous les parents de son groupe. */
 function DiffusionParents() {
@@ -91,13 +92,14 @@ function Thread({ messages, mine, onSend, sending, titre, sousTitre }: {
 
 /** Vue chauffeur : une seule conversation avec l'administration. */
 function ChauffeurView() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const toast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
   const charger = () => getMaConversation().then((m) => setMessages(m)).catch(() => {}).finally(() => setLoading(false));
-  useEffect(() => { charger(); const t = setInterval(charger, 10000); return () => clearInterval(t); }, []);
+  useEffect(() => { charger(); const t = setInterval(charger, ui.pollInboxMs); return () => clearInterval(t); }, []);
 
   const envoyer = async (contenu: string) => {
     setSending(true);
@@ -120,6 +122,7 @@ function ChauffeurView() {
 
 /** Vue admin : liste des chauffeurs + fil sélectionné. */
 function AdminView() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const toast = useToast();
   const [chauffeurs, setChauffeurs] = useState<User[]>([]);
   const [convs, setConvs] = useState<Conversation[]>([]);
@@ -130,13 +133,13 @@ function AdminView() {
 
   const chargerListe = () => Promise.all([getUsers("CHAUFFEUR"), getConversationsAdmin()])
     .then(([u, c]) => { setChauffeurs(u); setConvs(c); }).catch(() => {});
-  useEffect(() => { chargerListe(); const t = setInterval(chargerListe, 15000); return () => clearInterval(t); }, []);
+  useEffect(() => { chargerListe(); const t = setInterval(chargerListe, ui.pollInboxMs); return () => clearInterval(t); }, []);
 
   const chargerFil = (id: number) => getConversation(id).then((m) => setMessages(m)).catch(() => {});
   useEffect(() => {
     if (sel == null) return;
     chargerFil(sel);
-    const t = setInterval(() => chargerFil(sel), 10000);
+    const t = setInterval(() => chargerFil(sel), ui.pollInboxMs);
     return () => clearInterval(t);
   }, [sel]);
 

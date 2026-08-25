@@ -1,14 +1,19 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../api/dio_api.dart';
+import '../config/env.dart';
 import '../models/models.dart';
 import '../services/auth_store.dart';
 import '../services/gps_emitter.dart';
 import '../services/gps_socket.dart';
 import '../services/outbox.dart';
 import '../services/outbox_sync.dart';
+import '../services/params_service.dart';
 import '../services/tournee_cache.dart';
 
 /// Client réseau. **Toujours** lu via ce provider, jamais via un singleton :
@@ -43,6 +48,26 @@ final gpsEmitterProvider = Provider<GpsEmitter>((ref) {
   final emitter = GpsEmitter(ref.read(apiProvider));
   ref.onDispose(emitter.dispose);
   return emitter;
+});
+
+/// Paramètres applicatifs (MS13) : coordonnées de l'école, intervalles de sondage.
+///
+/// Volontairement **hors de [ApiClient]** : y ajouter une méthode obligerait à modifier le
+/// faux client des tests, donc à toucher les 84 tests de cette application livrée. La lecture
+/// se fait par un Dio dédié, jeton passé en argument.
+final paramsServiceProvider = Provider<ParamsService>((ref) {
+  return ParamsService(() async {
+    final token = ref.read(authProvider)?.token;
+    if (token == null) return const <dynamic>[];
+    final dio = Dio(BaseOptions(
+      baseUrl: Env.gateway,
+      connectTimeout: Env.httpTimeout,
+      receiveTimeout: Env.httpTimeout,
+      headers: {'Authorization': 'Bearer $token'},
+    ));
+    final r = await dio.get<dynamic>('/api/parametres');
+    return r.data is List ? r.data as List<dynamic> : const <dynamic>[];
+  });
 });
 
 /// Mode de thème (système par défaut, bascule clair/sombre).
@@ -82,6 +107,10 @@ class AuthController extends Notifier<AuthUser?> {
     api.token = user.token;
     await ref.read(authStoreProvider).save(user);
     state = user;
+    // La lecture des paramètres exige un jeton : au premier lancement, c'est ici — et
+    // seulement ici — que MS13 devient interrogeable. Sans await : un service de
+    // configuration lent ou absent ne doit pas retarder l'entrée dans l'application.
+    unawaited(ref.read(paramsServiceProvider).charger());
   }
 
   Future<void> logout() async {

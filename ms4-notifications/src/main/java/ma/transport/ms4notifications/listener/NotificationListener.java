@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import ma.transport.ms4notifications.entity.Notification.TypeNotification;
 import ma.transport.ms4notifications.service.BusLookupService;
 import ma.transport.ms4notifications.service.FcmService;
+import ma.transport.ms4notifications.service.ParametresCache;
 import ma.transport.ms4notifications.service.ParentLookupService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -29,10 +30,16 @@ public class NotificationListener {
     private final BusLookupService    busLookup;
     private final ObjectMapper        objectMapper;
 
-    // Coordonnées de l'école (à adapter selon le projet)
-    private static final double ECOLE_LAT  = 33.8850;
-    private static final double ECOLE_LNG  = -5.5480;
-    private static final double RAYON_METRES = 150.0; // 150m de l'école
+    /**
+     * Coordonnées de l'école et interrupteurs de notification, servis par MS13.
+     *
+     * <p>Remplace trois constantes compilées ({@code ECOLE_LAT = 33.8850},
+     * {@code ECOLE_LNG = -5.5480}, {@code RAYON_METRES = 150}). Les deux premières
+     * <b>divergeaient de ~900 m</b> de la valeur utilisée par tous les autres services
+     * ({@code 33.893 / -5.5455}) : la notification « bus arrivé à l'école » se déclenchait sur
+     * un point qui n'était pas la destination des tournées.
+     */
+    private final ParametresCache parametres;
 
     // ─── 1. Incident signalé ─────────────────────────────────────────────────
 
@@ -96,16 +103,18 @@ public class NotificationListener {
 
     @RabbitListener(queues = "ms4.gps.bus.updated.queue")
     public void onGpsBusUpdated(String message) {
+        if (!parametres.notifArriveeEcole()) return;
         try {
             JsonNode node = objectMapper.readTree(message);
             Long busId    = node.get("cibleId").asLong();
             double lat    = node.get("latitude").asDouble();
             double lng    = node.get("longitude").asDouble();
 
-            // Vérifier si le bus est proche de l'école
-            double distance = calculerDistance(lat, lng, ECOLE_LAT, ECOLE_LNG);
+            // Coordonnées relues à chaque ping : un changement dans la console d'administration
+            // s'applique au ping suivant, sans redémarrage de MS4.
+            double distance = calculerDistance(lat, lng, parametres.ecoleLat(), parametres.ecoleLng());
 
-            if (distance <= RAYON_METRES) {
+            if (distance <= parametres.rayonArriveeM()) {
                 log.info("[MS4] 🏫 Bus {} arrivé à l'école (distance: {}m)", busId, (int)distance);
 
                 String titre = "🏫 Le bus est arrivé à l'école";
@@ -126,6 +135,7 @@ public class NotificationListener {
 
     @RabbitListener(queues = "ms4.eta.arriving.queue")
     public void onEtaArriving(String message) {
+        if (!parametres.notifEta()) return;
         log.info("[MS4] 📨 eta.bus.arriving reçu");
         try {
             JsonNode node  = objectMapper.readTree(message);
@@ -154,6 +164,7 @@ public class NotificationListener {
 
     @RabbitListener(queues = "ms4.eleve.presence.queue")
     public void onElevePresence(String message) {
+        if (!parametres.notifEnfantABord()) return;
         log.info("[MS4] 📨 eleve.presence.updated reçu");
         try {
             JsonNode node   = objectMapper.readTree(message);
@@ -184,6 +195,7 @@ public class NotificationListener {
 
     @RabbitListener(queues = "ms4.quality.queue")
     public void onQualiteDegradee(String message) {
+        if (!parametres.notifAdminQualite()) return;
         log.info("[MS4] 📨 clustering.quality.low reçu");
         try {
             JsonNode node = objectMapper.readTree(message);
@@ -203,6 +215,7 @@ public class NotificationListener {
 
     @RabbitListener(queues = "ms4.anomalie.queue")
     public void onAnomalieDetectee(String message) {
+        if (!parametres.notifAdminAnomalie()) return;
         log.info("[MS4] 📨 anomalie.detectee reçu");
         try {
             JsonNode node = objectMapper.readTree(message);

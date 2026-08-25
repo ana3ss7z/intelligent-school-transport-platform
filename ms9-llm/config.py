@@ -12,9 +12,16 @@ class Settings(BaseSettings):
     ms3_url: str = "http://localhost:8083"   # GPS
     ms10_url: str = "http://localhost:8090"  # incidents
     ms12_url: str = "http://localhost:8088"  # ETA
+    ms13_url: str = "http://localhost:8092"  # paramètres (appel direct : /internal n'est pas routé)
 
     ecole_lat: float = 33.893
     ecole_lng: float = -5.5455
+
+    # MS9 ne publie ni ne consomme d'événement métier ; il s'abonne uniquement à
+    # `parametres.updated` pour recevoir à chaud un changement de modèle ou de clé API —
+    # ce qui évite d'éditer `.env` et de redémarrer quand un fournisseur retire un modèle.
+    rabbitmq_url: str = "amqp://admin:admin123@localhost:5672/"
+    exchange_name: str = "transport.exchange"
 
     # ── Reverse geocoding (coordonnées → rue/quartier), OSM/Nominatim (gratuit, sans clé) ──
     reverse_geocode: bool = True

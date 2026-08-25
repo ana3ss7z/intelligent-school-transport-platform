@@ -10,7 +10,7 @@ import { useTheme } from "../hooks/useTheme";
 import { Panel, Stat, Button, StatusChip, SectionTitle, Spinner } from "../components/ui";
 import { ClusterMap, computeGroups } from "../components/ClusterMap";
 import { useToast } from "../components/Toast";
-import { getPrefs } from "../lib/prefs";
+import { useParams } from "../params/ParamsContext";
 import { lineColor } from "../lib/colors";
 
 const tone = (n?: string) => (n === "CRITIQUE" ? "alert" : n === "DEGRADE" ? "warn" : "ok");
@@ -20,9 +20,12 @@ const dpick = (o: any, ...ks: string[]) => { for (const k of ks) if (o?.[k] != n
 export function Clustering() {
   const toast = useToast();
   const { theme } = useTheme();
-  const prefs = getPrefs();
-  const [capacity, setCapacity] = useState(prefs.capacity);
-  const [rayon, setRayon] = useState(prefs.rayon);
+  // Valeurs de départ du formulaire = configuration réelle de MS6 (page Paramètres), et non
+  // plus une préférence stockée dans ce navigateur. Ce que l'administrateur voit ici est donc
+  // ce que le service utilisera s'il lance un recalcul sans rien changer.
+  const { clustering } = useParams();
+  const [capacity, setCapacity] = useState(clustering.capacity);
+  const [rayon, setRayon] = useState(clustering.rayon);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: diag } = useAsync<any>(getDiagnostics, []);
   const [appliquer, setAppliquer] = useState(false);

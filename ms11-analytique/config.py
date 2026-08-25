@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     port: int = 8091
     osrm_url: str = "http://localhost:5000"
 
+    # Source de vérité des paramètres métier (MS13). Appelée en direct, PAS via la
+    # passerelle : la route /internal n'y est pas publiée (elle renvoie les valeurs en clair).
+    ms13_url: str = "http://localhost:8092"
+
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"
 
@@ -33,6 +37,9 @@ class Settings(BaseSettings):
     seuil_arret_min: float = 5.0      # arrêt prolongé si immobile > N min
     seuil_vitesse_kmh: float = 90.0   # vitesse anormale au-delà (bus scolaire urbain)
     arret_rayon_m: float = 30.0       # déplacement en deçà duquel le bus est considéré immobile
+    # Anti-rebond de la vitesse. 1 = comportement historique (un seul ping aberrant suffit à
+    # lever une alerte critique) ; la déviation, elle, exige 2 pings depuis l'origine.
+    vitesse_pings_consecutifs: int = 1
 
     # ── Déviation d'itinéraire (UC-8, 3ᵉ signal) : nécessite la route figée au démarrage du trajet (MS1) ──
     seuil_deviation_m: float = 250.0          # écart max toléré entre la position et la tournée planifiée

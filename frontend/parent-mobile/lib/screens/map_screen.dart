@@ -246,7 +246,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   final busPos = _busPositions(data);
                   return FlutterMap(
                     mapController: _controller,
-                    options: const MapOptions(
+                    // Plus `const` : les coordonnées de l'école viennent de MS13 et ne sont
+                    // donc plus connues à la compilation.
+                    options: MapOptions(
                       initialCenter: LatLng(Env.ecoleLat, Env.ecoleLng),
                       initialZoom: 13,
                       minZoom: 9,
@@ -273,7 +275,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                       MarkerLayer(
                         markers: [
-                          const Marker(
+                          Marker(
                             point: LatLng(Env.ecoleLat, Env.ecoleLng),
                             width: 42,
                             height: 42,
@@ -351,7 +353,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   _controller.move(
                     pos.isNotEmpty
                         ? pos.first
-                        : const LatLng(Env.ecoleLat, Env.ecoleLng),
+                        : LatLng(Env.ecoleLat, Env.ecoleLng),
                     14.5,
                   );
                 },

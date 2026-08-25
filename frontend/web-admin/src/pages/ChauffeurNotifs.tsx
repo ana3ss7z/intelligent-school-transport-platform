@@ -4,13 +4,15 @@ import { getMesNotifications } from "../api/endpoints";
 import { Panel, StatusChip, SectionTitle } from "../components/ui";
 import { SkeletonTable } from "../components/Skeleton";
 import { EmptyState, ErrorState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const quand = (iso: string) => new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const tone = (t: string) =>
   t === "INCIDENT_RESOLU" ? "ok" : t === "INCIDENT_SIGNALE" ? "alert" : t === "MESSAGE_ADMIN" ? "route" : "neutral";
 
 export function ChauffeurNotifs() {
-  const { data, loading, error, refreshing, refetch } = usePolling(getMesNotifications, 15000);
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
+  const { data, loading, error, refreshing, refetch } = usePolling(getMesNotifications, ui.pollInboxMs);
 
   if (loading) {
     return (

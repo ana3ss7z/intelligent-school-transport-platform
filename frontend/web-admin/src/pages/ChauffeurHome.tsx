@@ -18,6 +18,7 @@ import { EmptyState, ErrorState } from "../components/AsyncState";
 import type { BusPositions } from "../hooks/useGpsSocket";
 import { lineColor } from "../lib/colors";
 import { etaInputsRestants } from "../lib/routeEta";
+import { useParams } from "../params/ParamsContext";
 
 const ECOLE = { lat: 33.893, lng: -5.5455 };
 const TYPES: TypeIncident[] = ["PANNE", "ACCIDENT", "RETARD", "ROUTE_BLOQUEE", "ABSENCE_CHAUFFEUR", "AUTRE"];
@@ -33,6 +34,7 @@ const distM = (a: { lat: number; lng: number }, b: { lat: number; lng: number })
 const fmtDist = (m: number) => (m < 1000 ? `~${Math.round(m / 10) * 10} m` : `~${(m / 1000).toFixed(1)} km`);
 
 export function ChauffeurHome() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { user } = useAuth();
   const { theme } = useTheme();
   const toast = useToast();
@@ -89,7 +91,7 @@ export function ChauffeurHome() {
           return local ? frais.map((x) => (x.id === enVol ? local : x)) : frais;
         });
       } catch { /* réseau instable : on garde la liste courante */ }
-    }, 10000);
+    }, ui.pollTrajetMs);
     return () => clearInterval(t);
   }, [myBus]);
 
@@ -159,7 +161,7 @@ export function ChauffeurHome() {
       } catch { /* ignore */ }
     };
     compute();
-    const t = setInterval(compute, 30000);
+    const t = setInterval(compute, ui.pollEtaMs);
     return () => { alive = false; clearInterval(t); };
   }, [myBus, sens]);
 

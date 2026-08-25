@@ -118,6 +118,19 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(ms4AnomalieQueue).to(transportExchange).with("anomalie.detectee");
     }
 
+    // Paramètres métier (MS13) : coordonnées de l'école et interrupteurs de notification.
+    // File durable, contrairement aux files exclusives des services Python : MS4 est unique,
+    // et une file durable lui permet de rattraper un changement survenu pendant un redémarrage.
+    @Bean
+    public Queue ms4ParametresQueue() {
+        return new Queue("ms4.parametres.queue", true);
+    }
+
+    @Bean
+    public Binding bindingParametres(Queue ms4ParametresQueue, TopicExchange transportExchange) {
+        return BindingBuilder.bind(ms4ParametresQueue).to(transportExchange).with("parametres.updated");
+    }
+
     // ─── JSON message converter ───────────────────────────────────────────────
 
     @Bean

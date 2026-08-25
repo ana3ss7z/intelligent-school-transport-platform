@@ -6,6 +6,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import { ToastProvider } from "./components/Toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ParamsProvider } from "./params/ParamsContext";
 import App from "./App";
 
 // Thème appliqué AVANT le premier rendu. `useTheme` ne pose [data-theme] que depuis les écrans
@@ -23,7 +24,10 @@ createRoot(document.getElementById("root")!).render(
         <ToastProvider>
           <ConfirmProvider>
             <AuthProvider>
-              <App />
+              {/* Sous AuthProvider : la lecture des paramètres exige un jeton (tout rôle). */}
+              <ParamsProvider>
+                <App />
+              </ParamsProvider>
             </AuthProvider>
           </ConfirmProvider>
         </ToastProvider>

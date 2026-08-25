@@ -7,6 +7,16 @@ class Settings(BaseSettings):
     osrm_url: str = "http://localhost:5000"
     ms2_url: str = "http://localhost:8082"
 
+    # Source de vérité des paramètres métier (MS13), appelée en direct — la route /internal
+    # n'est pas publiée par la passerelle.
+    ms13_url: str = "http://localhost:8092"
+
+    # MS5 ne publie ni ne consomme d'événement métier ; il s'abonne uniquement à
+    # `parametres.updated` pour recevoir les changements de configuration à chaud.
+    # Sans courtier, il se rabat sur la relecture périodique.
+    rabbitmq_url: str = "amqp://admin:admin123@localhost:5672/"
+    exchange_name: str = "transport.exchange"
+
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"
 

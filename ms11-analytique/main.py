@@ -54,6 +54,10 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("[MS11] Aucun modèle — lancer `python train_anomaly.py`.")
 
+    # Paramètres métier (MS13) : seuils lus avant le premier ping, puis mis à jour à chaud
+    import params
+    await params.demarrer()
+
     # Monitor GPS live (G3) : anomalies instantanées sur gps.bus.updated (MS3)
     from rabbitmq import start_consumer
     asyncio.create_task(start_consumer())
@@ -110,7 +114,15 @@ async def anomalies_temps_reel(limit: int = 20):
     items = list(anomalies_live)[:limit]
     return {
         "n": len(items),
-        "seuils": {"arret_min": settings.seuil_arret_min, "vitesse_kmh": settings.seuil_vitesse_kmh},
+        # Lus à chaque requête : reflètent donc toujours l'état courant après un changement
+        # depuis la console d'administration, sans redémarrage. C'est aussi ce qui permet de
+        # vérifier de l'extérieur que la propagation MS13 → MS11 a bien eu lieu.
+        "seuils": {"arret_min": settings.seuil_arret_min,
+                   "vitesse_kmh": settings.seuil_vitesse_kmh,
+                   "vitesse_pings": settings.vitesse_pings_consecutifs,
+                   "arret_rayon_m": settings.arret_rayon_m,
+                   "deviation_m": settings.seuil_deviation_m,
+                   "deviation_pings": settings.deviation_pings_consecutifs},
         "anomalies": items,
         "note": "Règles instantanées (arrêt prolongé, vitesse) — complément du détecteur ML par trajet (/scan).",
     }

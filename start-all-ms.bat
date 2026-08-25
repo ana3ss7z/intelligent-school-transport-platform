@@ -24,6 +24,9 @@ REM ---------- 2) Microservices Java (Spring Boot) ----------
 REM   Si "mvn" est introuvable, remplacer par "mvnw.cmd spring-boot:run".
 echo [2/4] Services Java (MS7 d'abord)...
 start "MS7 - Auth (8087)"           cmd /k "cd /d %ROOT%ms7-auth && mvn spring-boot:run"
+REM MS13 tot dans l'ordre : tous les autres services lisent leur configuration chez lui
+REM au demarrage. S'il est absent, ils partent sur les valeurs de leur .env (mode degrade).
+start "MS13 - Parametres (8092)"    cmd /k "cd /d %ROOT%ms13-parametres && mvn spring-boot:run"
 timeout /t 5 >nul
 start "MS1 - Bus (8081)"            cmd /k "cd /d %ROOT%ms1-bus && mvn spring-boot:run"
 start "MS2 - Eleves (8082)"         cmd /k "cd /d %ROOT%ms2-eleves && mvn spring-boot:run"
@@ -51,10 +54,11 @@ echo ============================================================
 echo   Tous les services ont ete lances dans des terminaux
 echo   separes. Fermez une fenetre pour arreter le service.
 echo ============================================================
-echo   Java   : MS7:8087  MS1:8081  MS2:8082  MS3:8083  MS10:8090  MS4:8084  MS8(GW):8080
+echo   Java   : MS7:8087  MS13:8092  MS1:8081  MS2:8082  MS3:8083  MS10:8090  MS4:8084  MS8(GW):8080
 echo   Python : MS6:8086  MS12:8088  MS11:8091  MS5:8085  MS9:8089   (env nlp)
 echo   ---------------------------------------------------------
 echo   Gateway : http://localhost:8080
+echo   Reglages: http://localhost:5173/settings   (config de tout le systeme)
 echo   Console : html_tests\test-console.html
 echo   OSRM    : http://localhost:5000
 echo ============================================================

@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
+from contextlib import asynccontextmanager
 
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -54,7 +55,15 @@ def verify_parent(credentials: HTTPAuthorizationCredentials = Depends(security))
     return payload
 
 
-app = FastAPI(title="MS5 — PlanificationService (VRP)", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Paramètres métier (MS13) : coordonnées de l'école (dépôt) et budget OR-Tools."""
+    import params
+    await params.demarrer()
+    yield
+
+
+app = FastAPI(title="MS5 — PlanificationService (VRP)", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/api/planification/health")

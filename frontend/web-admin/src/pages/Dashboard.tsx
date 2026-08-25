@@ -11,6 +11,7 @@ import {
 import { Panel, Stat, SectionTitle, StatusChip } from "../components/ui";
 import { SkeletonStats } from "../components/Skeleton";
 import { ErrorState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const niveauTone = (n?: string) =>
   n === "CRITIQUE" ? "alert" : n === "DEGRADE" ? "warn" : "ok";
@@ -18,6 +19,7 @@ const niveauTone = (n?: string) =>
 const TT = { background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, fontSize: 12 };
 
 export function Dashboard() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { data, loading, error, refreshing, refetch, lastUpdated } = usePolling(async () => {
     const [eleves, bus, stats, quality, live, eta, ano, incStats] = await Promise.all([
       getEleves(), getBusActifs(), getNotifStats().catch(() => null),
@@ -26,7 +28,7 @@ export function Dashboard() {
       getIncidentStats().catch(() => null),
     ]);
     return { eleves, bus, stats, quality, live, eta, ano, incStats };
-  }, 12000);
+  }, ui.pollListeMs);
 
   if (loading) {
     return (

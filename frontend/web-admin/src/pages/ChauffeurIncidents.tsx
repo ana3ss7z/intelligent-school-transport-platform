@@ -8,17 +8,19 @@ import { useToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
 import { Panel, Stat, StatusChip, SectionTitle, Button, Spinner } from "../components/ui";
 import { EmptyState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const TYPES: TypeIncident[] = ["PANNE", "ACCIDENT", "RETARD", "ROUTE_BLOQUEE", "ABSENCE_CHAUFFEUR", "AUTRE"];
 const typeTone = (t: string) => (["ACCIDENT", "PANNE", "ROUTE_BLOQUEE"].includes(t) ? "alert" : ["RETARD", "ABSENCE_CHAUFFEUR"].includes(t) ? "warn" : "route");
 const statutTone = (s: string) => (s === "RESOLU" ? "ok" : s === "EN_TRAITEMENT" ? "line2" : s === "CONFIRME" ? "route" : "warn");
 
 export function ChauffeurIncidents() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const toast = useToast();
   const { myBus, loading: loadingBus } = useMyBus();
   const busId = myBus?.id ?? 0;
   const { data, loading, refreshing, refetch } = usePolling(
-    () => (busId ? getIncidentsByBus(busId) : Promise.resolve([])), 15000, [busId],
+    () => (busId ? getIncidentsByBus(busId) : Promise.resolve([])), ui.pollListeMs, [busId],
   );
 
   const [show, setShow] = useState(false);

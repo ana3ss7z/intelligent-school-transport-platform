@@ -4,11 +4,13 @@ import { getParentInbox } from "../api/endpoints";
 import { Panel, StatusChip, SectionTitle } from "../components/ui";
 import { SkeletonTable } from "../components/Skeleton";
 import { EmptyState, ErrorState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const quand = (iso: string) => new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export function ParentMessagerie() {
-  const { data, loading, error, refreshing, refetch } = usePolling(getParentInbox, 15000);
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
+  const { data, loading, error, refreshing, refetch } = usePolling(getParentInbox, ui.pollInboxMs);
 
   if (loading) {
     return (

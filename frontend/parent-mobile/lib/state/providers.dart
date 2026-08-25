@@ -1,7 +1,12 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api.dart';
+import '../config/env.dart';
+import '../services/params_service.dart';
 import '../models/models.dart';
 import '../services/auth_store.dart';
 import '../services/gps_socket.dart';
@@ -43,6 +48,10 @@ class AuthController extends Notifier<AuthUser?> {
     Api.instance.token = user.token;
     await ref.read(authStoreProvider).save(user);
     state = user;
+    // La lecture des paramètres exige un jeton : au premier lancement, c'est ici — et
+    // seulement ici — que MS13 devient interrogeable. Sans await : un service de
+    // configuration lent ou absent ne doit pas retarder l'entrée dans l'application.
+    unawaited(ref.read(paramsServiceProvider).charger());
   }
 
   Future<void> logout() async {
@@ -104,4 +113,24 @@ final gpsSocketProvider = Provider.autoDispose<GpsSocket>((ref) {
   final socket = GpsSocket();
   ref.onDispose(socket.dispose);
   return socket;
+});
+
+/// Paramètres applicatifs (MS13) : coordonnées de l'école, intervalles de sondage.
+///
+/// Lit `/api/parametres` avec un Dio dédié plutôt qu'en ajoutant une méthode à [Api] :
+/// l'application est livrée et couverte par ses tests, on ne touche pas à son client réseau
+/// pour un besoin de configuration.
+final paramsServiceProvider = Provider<ParamsService>((ref) {
+  return ParamsService(() async {
+    final token = ref.read(authProvider)?.token;
+    if (token == null) return const <dynamic>[];
+    final dio = Dio(BaseOptions(
+      baseUrl: Env.gateway,
+      connectTimeout: Env.httpTimeout,
+      receiveTimeout: Env.httpTimeout,
+      headers: {'Authorization': 'Bearer $token'},
+    ));
+    final r = await dio.get<dynamic>('/api/parametres');
+    return r.data is List ? r.data as List<dynamic> : const <dynamic>[];
+  });
 });

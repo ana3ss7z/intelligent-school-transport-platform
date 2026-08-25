@@ -53,6 +53,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("[MS6] Démarrage ClusteringService — port %d", settings.port)
+    # Paramètres métier (MS13) : capacité, rayon et seuils du garde-fou qualité.
+    # Chargés AVANT le consumer : un recalcul déclenché par un événement doit partir des
+    # valeurs de la console d'administration, pas de celles du `.env`.
+    import params
+    await params.demarrer()
     asyncio.create_task(start_consumer())
     yield
 

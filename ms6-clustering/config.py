@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     exchange_name: str = "transport.exchange"
     port: int = 8086
 
+    # Source de vérité des paramètres métier (MS13), appelée en direct — la route /internal
+    # n'est pas publiée par la passerelle.
+    ms13_url: str = "http://localhost:8092"
+
     # JWT — doit correspondre exactement à app.jwt.secret dans MS7
     jwt_secret: str = "changeme"
 
@@ -21,6 +25,10 @@ class Settings(BaseSettings):
     min_silhouette: float = 0.50    # garde-fou qualité (CDC) pour la piste exploratoire
     k_margin: int = 3               # marge de bus explorée au-delà de ⌈N/capacité⌉ (Pareto)
     kmedoids_iters: int = 6
+    # Recalcul déclenché par RabbitMQ (inscription, déménagement, nouveau bus). Le couper
+    # permet d'absorber une campagne d'inscriptions sans rejouer le clustering à chaque élève :
+    # un changement du nombre de bus déplace des enfants dont la situation n'a pas changé.
+    recalcul_auto: bool = True
 
     # ── Garde-fou qualité (dynamique, calibré sur notre point réel ~0.43, PAS 0.5) ──
     quality_baseline_path: str = "data/quality_baseline.json"          # référence roulante (écrite au runtime)

@@ -165,6 +165,20 @@ spring:
           filters:
             - JwtAuthFilter
 
+        # MS13 — ParametreService
+        # ⚠️ Le prédicat couvre /api/parametres et /api/parametres/schema|reset, mais MS13 expose
+        # aussi /api/parametres/internal, qui renvoie les CLÉS API EN CLAIR. Cette route est
+        # protégée par le fait qu'elle n'est joignable qu'en localhost:8092 — pas par un rôle.
+        # Spring Cloud Gateway ne sait pas exclure un sous-chemin d'un Path=/**, donc les
+        # préfixes sont énumérés explicitement ci-dessous. Ne PAS les remplacer par
+        # Path=/api/parametres/** : cela publierait les clés API sur le web.
+        - id: ms13-parametres
+          uri: http://localhost:8092
+          predicates:
+            - Path=/api/parametres, /api/parametres/schema, /api/parametres/reset
+          filters:
+            - JwtAuthFilter
+
 # ============================================
 # Actuator
 # ============================================

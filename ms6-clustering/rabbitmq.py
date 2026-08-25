@@ -88,8 +88,17 @@ _TRIGGERS = (
 async def _on_message(message: aio_pika.IncomingMessage):
     async with message.process():
         logger.info("[MS6] Message reçu — routing_key=%s", message.routing_key)
-        if message.routing_key in _TRIGGERS:
-            asyncio.create_task(_recalculer_et_ecrire())
+        if message.routing_key not in _TRIGGERS:
+            return
+        # Interrupteur d'exploitation (MS13, `ms6.recalcul_auto`). Le message est bien consommé
+        # et acquitté : on ne veut pas qu'il s'accumule dans la file pour se déverser d'un coup
+        # à la réactivation — ce serait précisément la rafale de recalculs qu'on cherche à éviter.
+        # Le recalcul reste disponible à la demande via POST /api/clustering/production.
+        if not settings.recalcul_auto:
+            logger.info("[MS6] Recalcul automatique désactivé (ms6.recalcul_auto) — %s ignoré",
+                        message.routing_key)
+            return
+        asyncio.create_task(_recalculer_et_ecrire())
 
 
 async def start_consumer():

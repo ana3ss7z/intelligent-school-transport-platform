@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -26,6 +28,14 @@ Future<void> main() async {
   // suite, pas apparaître quelques secondes après l'ouverture.
   await container.read(outboxProvider).init();
   await container.read(gpsEmitterProvider).init();
+
+  // Paramètres applicatifs (MS13). Le cache local est appliqué d'abord, de façon à ce que
+  // le premier rendu utilise déjà les bonnes coordonnées d'école — sinon, sur un réseau lent,
+  // la carte se centrerait un instant au mauvais endroit. La lecture réseau suit, sans
+  // bloquer le démarrage : une application de transport doit s'ouvrir dans un sous-sol.
+  final params = container.read(paramsServiceProvider);
+  await params.chargerDepuisCache();
+  if (user != null) unawaited(params.charger());
 
   runApp(
     UncontrolledProviderScope(

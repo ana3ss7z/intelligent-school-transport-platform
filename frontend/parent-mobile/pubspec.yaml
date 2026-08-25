@@ -41,6 +41,11 @@ dependencies:
   latlong2: ^0.10.1
   web_socket_channel: ^3.0.3
   intl: ^0.20.3
+  # Cache local des paramètres servis par MS13 (voir services/params_service.dart).
+  # Choisi comme dans l'app chauffeur : contrairement à sqflite (indisponible sur le web)
+  # et à hive (génération de code), shared_preferences ne tire PAS `path_provider` — elle
+  # reste donc à l'écart du conflit `jni`/AGP 9 traité par l'override ci-dessous.
+  shared_preferences: ^2.5.3
 
 # Correctif build Android : path_provider_android >= 2.3 tire le package `jni`,
 # dont le build.gradle utilise l'ancienne syntaxe `kotlin()` — incompatible avec

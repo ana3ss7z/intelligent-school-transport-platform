@@ -10,11 +10,13 @@ import type { Trajet } from "../api/types";
 import { Panel, Stat, StatusChip, Spinner, SectionTitle } from "../components/ui";
 import { EmptyState, ErrorState } from "../components/AsyncState";
 import { lineColor } from "../lib/colors";
+import { useParams } from "../params/ParamsContext";
 
 const ECOLE = { lat: 33.893, lng: -5.5455 };
 const statutTone = (s?: string) => (s === "ACTIF" ? "ok" : s === "EN_PANNE" ? "alert" : "neutral");
 
 export function ParentHome() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { user } = useAuth();
   const { enfants, busById, busIds, loading, error, refetch } = useMyChildren();
   const { positions } = useGpsSocket(true);
@@ -33,7 +35,7 @@ export function ParentHome() {
       if (alive) setTrajets(Object.fromEntries(entries));
     };
     charger();
-    const t = setInterval(charger, 15000);
+    const t = setInterval(charger, ui.pollTrajetMs);
     return () => { alive = false; clearInterval(t); };
   }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -113,7 +115,7 @@ export function ParentHome() {
       if (alive) setEtas(Object.fromEntries(res.filter((x): x is readonly [number, number] => x[1] != null)));
     };
     compute();
-    const t = setInterval(compute, 30000);
+    const t = setInterval(compute, ui.pollEtaMs);
     return () => { alive = false; clearInterval(t); };
   }, [enfantsKey, trajetsKey, routesKey]);
 

@@ -195,8 +195,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   return FlutterMap(
                     mapController: _controller,
                     options: MapOptions(
+                      // Plus `const` : les coordonnées de l'école viennent de MS13 et ne sont
+                      // donc plus connues à la compilation.
                       initialCenter:
-                          position ?? const LatLng(Env.ecoleLat, Env.ecoleLng),
+                          position ?? LatLng(Env.ecoleLat, Env.ecoleLng),
                       initialZoom: 13,
                       minZoom: 9,
                       maxZoom: 18,
@@ -238,7 +240,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ),
                       MarkerLayer(
                         markers: [
-                          const Marker(
+                          Marker(
                             point: LatLng(Env.ecoleLat, Env.ecoleLng),
                             width: 40,
                             height: 40,

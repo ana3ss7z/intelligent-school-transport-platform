@@ -30,6 +30,7 @@
         <module>ms3-localisation</module>
         <module>ms10-incidents</module>
         <module>ms4-notifications</module>
+        <module>ms13-parametres</module>
     </modules>
 
     <!-- ============================================

@@ -58,6 +58,10 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("[MS12] Aucun modèle — lancer `python train.py`. /predict renverra 503.")
 
+    # Paramètres métier (MS13) : seuils, coordonnées de l'école et contexte imposé
+    import params
+    await params.demarrer()
+
     # Pipeline ETA temps réel (G1) : consomme gps.bus.updated (MS3) → publie eta.bus.arriving (→ MS4)
     from rabbitmq import start_consumer
     asyncio.create_task(start_consumer())
@@ -162,10 +166,36 @@ async def predict(req: PredictRequest):
             return src_auto[0]
         return defaut
 
+    # ── Contexte imposé par l'administration (MS13) ──
+    # Priorité inchangée : une valeur explicitement fournie dans la requête gagne toujours.
+    # Le mode manuel ne remplace que l'approvisionnement AUTOMATIQUE — il ne peut pas
+    # contredire un appelant qui sait ce qu'il demande (le rejeu d'un dataset, par exemple).
+    manuel = settings.contexte_mode == "manuel"
+
+    def _force_calendrier(brut: str):
+        """« auto » laisse le calendrier décider ; « 0 »/« 1 » l'imposent."""
+        return None if brut == "auto" else int(brut)
+
     # ── Calendrier (ramadan / souk) ──
-    ramadan = _resolu(req.ramadan, 0, (calendar_ma.est_ramadan(date_obj), "calendrier"), "ramadan")
-    jour_souk = _resolu(req.jour_souk, 0, (calendar_ma.jour_souk(date_obj), "calendrier"), "jour_souk")
-    travaux_prevus = req.travaux_prevus if req.travaux_prevus is not None else 0
+    _ram = _force_calendrier(settings.ramadan_manuel) if manuel else None
+    _souk = _force_calendrier(settings.jour_souk_manuel) if manuel else None
+    if _ram is not None and req.ramadan is None:
+        ramadan = _ram; sources["ramadan"] = "manuel (admin)"
+    else:
+        ramadan = _resolu(req.ramadan, 0, (calendar_ma.est_ramadan(date_obj), "calendrier"), "ramadan")
+    if _souk is not None and req.jour_souk is None:
+        jour_souk = _souk; sources["jour_souk"] = "manuel (admin)"
+    else:
+        jour_souk = _resolu(req.jour_souk, 0, (calendar_ma.jour_souk(date_obj), "calendrier"), "jour_souk")
+
+    # `travaux_prevus` n'a aucune source automatique : la valeur déclarée par l'administration
+    # s'applique donc dans les deux modes, faute de quoi elle vaudrait toujours 0.
+    if req.travaux_prevus is not None:
+        travaux_prevus = req.travaux_prevus; sources["travaux_prevus"] = "fourni"
+    elif settings.travaux_prevus_defaut:
+        travaux_prevus = 1; sources["travaux_prevus"] = "manuel (admin)"
+    else:
+        travaux_prevus = 0
 
     # ── Attributs statiques du circuit ──
     attrs = circuits_ctx.circuit_attrs(req.circuit_id) if (auto and req.circuit_id) else {}
@@ -178,6 +208,8 @@ async def predict(req: PredictRequest):
     # ── Météo (Open-Meteo) ──
     if req.meteo is not None:
         meteo = req.meteo; sources["meteo"] = "fournie"
+    elif manuel:
+        meteo = settings.meteo_manuelle; sources["meteo"] = "manuel (admin)"
     elif auto:
         lat = req.bus_lat if req.bus_lat is not None else (req.dest_lat if req.dest_lat is not None else circuits_ctx.ECOLE["lat"])
         lng = req.bus_lng if req.bus_lng is not None else (req.dest_lng if req.dest_lng is not None else circuits_ctx.ECOLE["lng"])
@@ -188,6 +220,8 @@ async def predict(req: PredictRequest):
     # ── Trafic (heuristique horaire) ──
     if req.trafic is not None:
         trafic_cat = req.trafic; sources["trafic"] = "fourni"
+    elif manuel:
+        trafic_cat = settings.trafic_manuel; sources["trafic"] = "manuel (admin)"
     elif auto:
         trafic_cat, src = traffic.get_trafic(heure, jour_semaine); sources["trafic"] = src
     else:

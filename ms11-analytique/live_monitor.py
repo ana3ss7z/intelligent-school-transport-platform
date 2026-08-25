@@ -105,7 +105,7 @@ def observer(bus_id: int, lat: float, lng: float,
 
     if st is None:
         _state[bus_id] = {"last_pos": pos, "last_ts": now, "immobile_depuis": now,
-                          "last_alert": {}, "hors_couloir": 0}
+                          "last_alert": {}, "hors_couloir": 0, "vitesse_hors_seuil": 0}
         return detections
 
     dt = max(1e-6, now - st["last_ts"])
@@ -118,11 +118,21 @@ def observer(bus_id: int, lat: float, lng: float,
         return now - st["last_alert"].get(kind, 0.0) >= _ALERT_COOLDOWN_S
 
     # ── Vitesse excessive ──
-    if v > settings.seuil_vitesse_kmh and _cooldown_ok("VITESSE_EXCESSIVE"):
-        st["last_alert"]["VITESSE_EXCESSIVE"] = now
-        detections.append(_emit(bus_id, "VITESSE_EXCESSIVE",
-                                {"vitesse_kmh": round(v, 1), "seuil": settings.seuil_vitesse_kmh,
-                                 "niveau": "critique"}))
+    # Anti-rebond, calqué sur le compteur `hors_couloir` de la déviation. Il manquait ici :
+    # la vitesse est soit relevée par le téléphone du chauffeur, soit dérivée de deux
+    # positions successives — dans les deux cas un seul point aberrant (rebond GPS, tunnel,
+    # reprise après perte de signal) produit une vitesse absurde. Sans compteur, ce point
+    # unique déclenchait une alerte CRITIQUE. `vitesse_pings_consecutifs = 1` conserve le
+    # comportement historique ; le porter à 2 exige une confirmation, comme pour la déviation.
+    if v > settings.seuil_vitesse_kmh:
+        st["vitesse_hors_seuil"] = st.get("vitesse_hors_seuil", 0) + 1
+        if st["vitesse_hors_seuil"] >= settings.vitesse_pings_consecutifs and _cooldown_ok("VITESSE_EXCESSIVE"):
+            st["last_alert"]["VITESSE_EXCESSIVE"] = now
+            detections.append(_emit(bus_id, "VITESSE_EXCESSIVE",
+                                    {"vitesse_kmh": round(v, 1), "seuil": settings.seuil_vitesse_kmh,
+                                     "pings": st["vitesse_hors_seuil"], "niveau": "critique"}))
+    else:
+        st["vitesse_hors_seuil"] = 0      # repassé sous le seuil → on réarme
 
     # ── Arrêt prolongé ──
     if dist < settings.arret_rayon_m:

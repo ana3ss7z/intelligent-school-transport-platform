@@ -183,3 +183,73 @@ export const createUser = (p: UserInput) => api.post<User>("/api/auth/users", p)
 export const updateUser = (id: number, p: UserInput) => api.put<User>(`/api/auth/users/${id}`, p).then((r) => r.data);
 export const deleteUser = (id: number) => api.delete(`/api/auth/users/${id}`).then((r) => r.data);
 
+
+// ── Paramètres (MS13) ────────────────────────────────────────
+/** Un réglage servi par MS13. Les métadonnées viennent du catalogue serveur : aucun libellé en dur ici. */
+export interface Parametre {
+  cle: string;
+  valeur: string;
+  type: "NUMBER" | "BOOLEAN" | "STRING" | "ENUM" | "SECRET";
+  groupe: string;
+  ordre: number;
+  libelle: string;
+  description: string | null;
+  unite: string | null;
+  valeurDefaut: string;
+  min: number | null;
+  max: number | null;
+  options: string | null;   // valeurs permises, séparées par des virgules (type ENUM)
+  sensible: boolean;
+  impact: "IMMEDIAT" | "PROCHAIN_CALCUL" | "PROCHAIN_TRAJET" | "REDEMARRAGE";
+  modifie: boolean;
+  /** Pour un secret : une valeur est-elle enregistrée ? (le masque ne permet pas de le déduire) */
+  defini: boolean;
+  dateModif: string | null;
+  modifiePar: string | null;
+}
+
+export interface ParametreSchema {
+  groupes: string[];
+  parametres: Record<string, Parametre[]>;
+  total: number;
+}
+
+/** Valeurs effectives, secrets masqués. Ouvert à tous les rôles (les 3 espaces en dépendent). */
+export const getParametres = () => api.get<Parametre[]>("/api/parametres").then((r) => r.data);
+
+/** Catalogue groupé par onglet (ADMIN) — construit le formulaire. */
+export const getParametresSchema = () =>
+  api.get<ParametreSchema>("/api/parametres/schema").then((r) => r.data);
+
+/**
+ * Écriture par lot (ADMIN). Le serveur valide TOUT avant d'écrire quoi que ce soit :
+ * une seule valeur refusée annule l'enregistrement entier (400), ce qui évite un jeu de
+ * seuils à moitié appliqué.
+ *
+ * Un champ secret laissé vide — ou contenant encore son masque — est ignoré côté serveur,
+ * jamais écrit : réenregistrer un onglet ne détruit pas une clé API.
+ */
+export const updateParametres = (valeurs: Record<string, string>) =>
+  api.put<{ modifiees: string[]; n: number; parametres: Parametre[] }>(
+    "/api/parametres", { valeurs }).then((r) => r.data);
+
+/** Retour aux défauts du catalogue. Sans argument : tout, sauf les secrets. */
+export const resetParametres = (p?: { cle?: string; groupe?: string }) => {
+  const q = new URLSearchParams();
+  if (p?.cle) q.set("cle", p.cle);
+  if (p?.groupe) q.set("groupe", p.groupe);
+  return api.post<{ modifiees: string[]; n: number; parametres: Parametre[] }>(
+    `/api/parametres/reset${q.toString() ? `?${q}` : ""}`).then((r) => r.data);
+};
+
+// ── Vérification des modèles LLM (MS9) ───────────────────────
+export interface ModelesCheck {
+  resultats: { fournisseur: string; statut: string; detail?: string; n_servis?: number;
+               modeles: { modele: string; servi: boolean }[] }[];
+  cascade: string[];
+  modeles_absents: string[];
+  verdict: "OK" | "MODELES_ABSENTS";
+}
+/** Demande à chaque fournisseur la liste de ses modèles servis et confronte la cascade configurée. */
+export const verifierModelesLlm = () =>
+  api.get<ModelesCheck>("/api/llm/admin/models-check", LONG).then((r) => r.data);

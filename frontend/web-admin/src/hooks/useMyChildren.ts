@@ -4,6 +4,7 @@ import { usePolling } from "./usePolling";
 import { useAuth } from "../auth/AuthContext";
 import { getBus, getElevesParParent } from "../api/endpoints";
 import type { Bus, Eleve } from "../api/types";
+import { useParams } from "../params/ParamsContext";
 
 /**
  * Résout les enfants du parent connecté + les bus associés.
@@ -14,11 +15,12 @@ import type { Bus, Eleve } from "../api/types";
  * jusqu'au rechargement de la page.
  */
 export function useMyChildren() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { user } = useAuth();
   const parentId = user?.userId ?? 0;
   const { data: eleves, loading: le, error, refetch } = usePolling<Eleve[]>(
     () => (parentId ? getElevesParParent(parentId) : Promise.resolve([])),
-    20000,
+    ui.pollTrajetMs,
     [parentId],
   );
   const { data: buses, loading: lb } = useAsync(getBus, []);

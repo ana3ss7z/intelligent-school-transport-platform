@@ -4,6 +4,7 @@ import { getTrajetsActifs } from "../api/endpoints";
 import { Panel, Stat, StatusChip, SectionTitle } from "../components/ui";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const ecoule = (iso: string) => {
   const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -11,7 +12,8 @@ const ecoule = (iso: string) => {
 };
 
 export function TrajetsEnCours() {
-  const { data, loading, error, refreshing, refetch } = usePolling(getTrajetsActifs, 10000);
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
+  const { data, loading, error, refreshing, refetch } = usePolling(getTrajetsActifs, ui.pollListeMs);
 
   if (loading) {
     return (

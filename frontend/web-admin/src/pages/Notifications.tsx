@@ -9,6 +9,7 @@ import { Pager, SortTh } from "../components/Pager";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
 import { exportCsv } from "../lib/csv";
+import { useParams } from "../params/ParamsContext";
 
 const ADMIN_TYPES = ["ALERTE_QUALITE", "ANOMALIE_DETECTEE"];
 const typeTone = (t: string) =>
@@ -18,10 +19,11 @@ const typeTone = (t: string) =>
 const envoiTone = (s: string) => (s === "ENVOYE" ? "ok" : s === "ECHEC" ? "alert" : "warn");
 
 export function Notifications() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { data, loading, error, refreshing, refetch } = usePolling(async () => {
     const [items, stats] = await Promise.all([getNotifications(), getNotifStats().catch(() => null)]);
     return { items, stats };
-  }, 15000);
+  }, ui.pollListeMs);
   const [onlyAdmin, setOnlyAdmin] = useState(false);
 
   const items = [...(data?.items ?? [])].sort((a, b) => b.id - a.id);

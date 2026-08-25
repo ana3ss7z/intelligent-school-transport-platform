@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -18,9 +20,21 @@ Future<void> main() async {
   final user = await store.load();
   if (user != null) Api.instance.token = user.token;
 
+  final container = ProviderContainer(
+    overrides: [initialUserProvider.overrideWithValue(user)],
+  );
+
+  // Paramètres applicatifs (MS13). Le cache local est appliqué d'abord, de façon à ce que
+  // le premier rendu utilise déjà les bonnes coordonnées d'école — sinon, sur un réseau lent,
+  // la carte se centrerait un instant au mauvais endroit. La lecture réseau suit, sans
+  // bloquer le démarrage.
+  final params = container.read(paramsServiceProvider);
+  await params.chargerDepuisCache();
+  if (user != null) unawaited(params.charger());
+
   runApp(
-    ProviderScope(
-      overrides: [initialUserProvider.overrideWithValue(user)],
+    UncontrolledProviderScope(
+      container: container,
       child: const ParentApp(),
     ),
   );

@@ -12,6 +12,7 @@ import { MapLive, type RouteTrace } from "../components/MapLive";
 import { Panel, Button, StatusChip, Spinner } from "../components/ui";
 import { lineColor } from "../lib/colors";
 import type { Eleve } from "../api/types";
+import { useParams } from "../params/ParamsContext";
 
 interface Summary { n: number; distance_km: number; duree_min: number; gain: number; stops?: { n: number; label: string }[] }
 
@@ -25,6 +26,7 @@ function buildStops(ordre: number[], byId: Map<number, Eleve>) {
 }
 
 export function CarteLive() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { theme } = useTheme();
   const toast = useToast();
   const { data: eleves, loading } = useAsync(getEleves, []);
@@ -60,7 +62,7 @@ export function CarteLive() {
       if (alive) setEtas(Object.fromEntries(res.filter((x): x is readonly [number, number] => x[1] != null)));
     };
     compute();
-    const t = setInterval(compute, 30000);
+    const t = setInterval(compute, ui.pollEtaMs);
     return () => { alive = false; clearInterval(t); };
   }, [sens]);
 

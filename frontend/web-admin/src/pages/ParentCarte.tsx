@@ -10,10 +10,12 @@ import type { Trajet } from "../api/types";
 import { MapLive } from "../components/MapLive";
 import { Panel, StatusChip, Spinner } from "../components/ui";
 import { EmptyState } from "../components/AsyncState";
+import { useParams } from "../params/ParamsContext";
 
 const ECOLE = { lat: 33.893, lng: -5.5455 };
 
 export function ParentCarte() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { theme } = useTheme();
   const { enfants, mesBus, busIds, loading } = useMyChildren();
   const { positions, trails, connected } = useGpsSocket(true);
@@ -47,7 +49,7 @@ export function ParentCarte() {
       if (alive) setTrajets(Object.fromEntries(res));
     };
     charger();
-    const t = setInterval(charger, 15000);
+    const t = setInterval(charger, ui.pollTrajetMs);
     return () => { alive = false; clearInterval(t); };
   }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +120,7 @@ export function ParentCarte() {
       }
     };
     compute();
-    const t = setInterval(compute, 30000);
+    const t = setInterval(compute, ui.pollEtaMs);
     return () => { alive = false; clearInterval(t); };
   }, [busIds.length, presenceKey, routesKey]);
 

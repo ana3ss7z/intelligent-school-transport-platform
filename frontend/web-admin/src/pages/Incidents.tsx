@@ -12,6 +12,7 @@ import { Panel, Stat, StatusChip, SectionTitle } from "../components/ui";
 import { SkeletonStats, SkeletonTable } from "../components/Skeleton";
 import { ErrorState, EmptyState } from "../components/AsyncState";
 import { exportCsv } from "../lib/csv";
+import { useParams } from "../params/ParamsContext";
 
 const STATUTS: StatutIncident[] = ["SIGNALE", "CONFIRME", "EN_TRAITEMENT", "RESOLU"];
 
@@ -22,6 +23,7 @@ const statutTone = (s: string) =>
   s === "RESOLU" ? "ok" : s === "EN_TRAITEMENT" ? "line2" : s === "CONFIRME" ? "route" : "warn";
 
 export function Incidents() {
+  const { ui } = useParams();   // intervalles de sondage pilotés depuis la page Paramètres
   const { role } = useAuth();
   const isAdmin = role === "ADMIN";
   const toast = useToast();
@@ -29,7 +31,7 @@ export function Incidents() {
   const { data, loading, error, refreshing, refetch } = usePolling(async () => {
     const [items, stats] = await Promise.all([getIncidents(), getIncidentStats().catch(() => null)]);
     return { items, stats };
-  }, 15000);
+  }, ui.pollListeMs);
   const [filtre, setFiltre] = useState<StatutIncident | "">("");
 
   const majStatut = async (id: number, statut: StatutIncident) => {

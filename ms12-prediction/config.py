@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     ms3_url: str = "http://localhost:8083"
     ms2_url: str = "http://localhost:8082"
 
+    # Source de vérité des paramètres métier (MS13), appelée en direct — la route /internal
+    # n'est pas publiée par la passerelle.
+    ms13_url: str = "http://localhost:8092"
+
     # ── Pipeline ETA temps réel (G1) : MS3 gps.bus.updated → ETA → MS4 ─
     rabbitmq_url: str = "amqp://admin:admin123@localhost:5672/"
     exchange_name: str = "transport.exchange"
@@ -24,6 +28,21 @@ class Settings(BaseSettings):
     traffic_provider: str = "heuristic"                          # heuristic | tomtom
     tomtom_key: str = ""                                         # optionnel (free-tier)
     history_path: str = "data/eta_history.csv"                   # historique réel (bootstrap = dataset)
+
+    # ── Contexte imposé par l'administration (MS13) ──────────────────
+    # `auto` : chaque feature vient de sa source réelle (Open-Meteo, heuristique horaire,
+    # calendrier marocain). `manuel` : les valeurs ci-dessous s'imposent. Sert quand une source
+    # est injoignable, quand l'exploitant sait quelque chose que les sources ignorent (chantier,
+    # souk exceptionnel), et pour démontrer l'effet du contexte sans attendre qu'il pleuve.
+    # Le champ `sources` de la réponse indique alors « manuel (admin) » : rien n'est masqué.
+    contexte_mode: str = "auto"          # auto | manuel
+    meteo_manuelle: str = "ensoleille"   # cf. features.METEO_CATS
+    trafic_manuel: str = "fluide"        # cf. features.TRAFIC_CATS
+    ramadan_manuel: str = "auto"         # auto | 0 | 1
+    jour_souk_manuel: str = "auto"       # auto | 0 | 1
+    # `travaux_prevus` n'a AUCUNE source automatique : sans déclaration il vaut toujours 0.
+    # C'est donc une valeur par défaut, applicable dans les deux modes.
+    travaux_prevus_defaut: bool = False
 
     # JWT — DOIT être identique à app.jwt.secret dans MS7 / Gateway
     jwt_secret: str = "transport_scolaire_secret_key_2026_super_long"

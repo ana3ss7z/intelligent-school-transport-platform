@@ -376,6 +376,80 @@ tronçons alors que le service tourne en mode **`facteur_contexte`** sur 6–12 
 > de production modifié. Les défauts trouvés sont **rapportés, pas corrigés** (décision de production).
 > Dépendances installées pour la campagne : `pyproj`, `ortools`, `k-means-constrained`, `xgboost`, `lightgbm`.
 
+---
+
+**NOUVEAU (25/08) — MS13 ParametreService : la configuration devient pilotable depuis `/settings`.**
+
+Avant : **aucun paramètre métier n'était modifiable sans éditer du code**. `/settings` n'écrivait que
+`{capacity, rayon}` dans le `localStorage` du navigateur, et tout le reste vivait dans un `.env` ou une
+constante compilée. Trois conséquences déjà payées : les coordonnées de l'école écrites à **6 endroits**
+(dont **MS4 en désaccord de ~900 m** avec les cinq autres), les correctifs mesurés au benchmark
+inapplicables sans redémarrage, et deux pannes de modèle LLM qui ont exigé d'éditer `.env` puis relancer.
+
+**Service `ms13-parametres/` (Spring Boot :8092)** — source de vérité unique, **59 réglages** sur
+9 onglets. Le **catalogue est du code** (`ParametreCatalogue.java`) : au démarrage, un *upsert non
+destructif* réécrit les métadonnées (libellé, bornes, défaut) et **ne touche jamais les valeurs**.
+Ajouter un réglage = une ligne, aucune migration. *(Vérifié : au 2ᵉ démarrage, « 0 créés, 59 mis à jour ».)*
+- `GET /api/parametres` (tout rôle, **secrets masqués**) · `GET /schema` (ADMIN) · `PUT` (ADMIN, lot
+  **validé en bloc** : une valeur refusée ⇒ rien n'est écrit) · `POST /reset` · **`GET /internal`**
+  (valeurs **en clair**, **non routée par la passerelle** — motif déjà retenu pour MS4→MS2).
+- **Propagation à chaud** : `parametres.updated` (RabbitMQ, `text/plain`) + relecture périodique en
+  filet + lecture au démarrage. Le message ne porte **que les clés changées** ; chacun relit la source,
+  donc un message perdu ou réordonné ne peut pas désynchroniser deux services — et **aucun secret ne
+  transite par le bus**.
+- **Consommateurs** : `params.py` **dupliqué à l'identique** dans MS5/6/9/11/12 (machinerie vérifiée
+  par empreinte MD5 ; seul le `MAPPING` diffère) et `ParametresCache.java` dans MS4. Muter le singleton
+  pydantic suffit : ces services lisent `settings.x` **au moment de l'appel**, jamais à l'import.
+- **Front** : `ParamsContext` (web-admin, 3 espaces) remplace `lib/prefs.ts` (supprimé) et **~20
+  intervalles en dur**. `Settings.tsx` réécrite : onglets et champs **entièrement pilotés par `/schema`**,
+  aucun libellé en dur. **Flutter** : `params_service.dart` alimente `Env`, dont les `static const`
+  deviennent des accesseurs — **aucun site d'appel modifié**, les constantes restent le repli hors ligne.
+
+**Deltas de production livrés avec** :
+- **MS4** : les constantes `ECOLE_LAT/LNG/RAYON_METRES` disparaissent → **la divergence de 900 m est
+  corrigée** ; 5 interrupteurs de notification.
+- **MS12 — contexte `auto | manuel`** : l'administration peut **imposer** météo, trafic, ramadan, souk et
+  travaux au lieu des sources automatiques. Le champ `sources` de la réponse porte alors
+  `"manuel (admin)"`. *Mesuré en réel : pluie + embouteillage + travaux contre beau + fluide = **×2,25**
+  sur le même tronçon.* Utile quand Open-Meteo est injoignable, quand l'exploitant sait ce que les
+  sources ignorent, et pour démontrer l'effet du contexte sans attendre qu'il pleuve.
+- **MS11** : **anti-rebond de `VITESSE_EXCESSIVE`** (`vitesse_pings_consecutifs`, défaut **1** = comportement
+  historique) — comble le manque du piège n° 17. `/live` publie désormais les 6 seuils, ce qui rend la
+  propagation vérifiable de l'extérieur.
+- **MS6** : interrupteur `recalcul_auto` (couper le recalcul RabbitMQ pendant une campagne d'inscriptions,
+  cf. piège n° 19) — le message est **consommé et acquitté**, pas accumulé.
+- **MS9** : **`GET /api/llm/admin/models-check`** — confronte la cascade configurée à ce que servent
+  réellement les fournisseurs. C'est la vérification que le CLAUDE.md réclamait avant chaque démo.
+
+> **Vérifié contre le backend réel** : MS13 **25/25** (validation, bornes, énumérations, atomicité du lot,
+> masquage, RBAC parent) · routage **9/9** (dont `GET /api/parametres/internal` via la passerelle → **404**,
+> le test qui compte) · **propagation à chaud MS13→MS11 en 3,15 s sans redémarrage** · MS4 lit bien
+> `33.893,-5.5455` · contexte manuel MS12 ×2,25 · `models-check` : `gemini-2.0-flash` **confirmé mort**
+> (absent des 51 modèles servis), corrigé **à chaud** en `gemini-flash-latest` → verdict OK.
+> `bun run build` ✅ (et **aucune clé ni route interne dans le bundle**) · `flutter analyze` 0 issue ×2 ·
+> `flutter test` **93/93** (chauffeur, +9) et **33/33** (parent, +8) · `mvn compile` ✅.
+
+> ⚠️ **Trois défauts trouvés *pendant* l'implémentation, par la vérification et non par la relecture** —
+> ils valent d'être connus, les trois étaient silencieux :
+> 1. **Renvoyer le masque détruisait la clé API.** Le formulaire reçoit `••••••4f2a` et le garde dans son
+>    état ; modifier un autre champ de l'onglet renvoyait le masque, que le serveur écrivait
+>    consciencieusement (**HTTP 200**). Garde ajoutée **côté serveur** (une valeur commençant par `•`
+>    n'est jamais écrite), pas dans le formulaire : elle doit tenir quel que soit le client.
+> 2. **Une valeur vide de MS13 écrasait un secret local.** Constaté en réel dans les journaux : MS9 a
+>    remplacé ses clés Groq et Gemini — valides, lues de son `.env` — par des chaînes vides, parce que le
+>    catalogue n'a pas de défaut pour un secret. L'assistant serait tombé au premier message. **Le `.env`
+>    reste l'amorçage** : MS13 ne prend le dessus que lorsqu'il a effectivement une valeur.
+> 3. **`models-check` déclarait tous les modèles Gemini morts.** Gemini renvoie `models/gemini-flash-latest`
+>    quand on l'appelle avec `gemini-flash-latest` ; la comparaison exacte produisait une **fausse alerte** —
+>    pire qu'aucune vérification, puisqu'elle aurait discrédité l'alerte le jour où elle est vraie.
+>    Préfixe normalisé, et la distinction est vérifiée dans les deux sens.
+
+> **Exclusions délibérées, à savoir défendre** : les paramètres de **génération de dataset**
+> (`seed`, `n_jours`, `incident_rate`, `contamination`…) ne sont **pas** exposés — les artefacts ML sont
+> gelés, les modifier depuis l'écran n'aurait aucun effet et **l'interface mentirait**. Idem pour les
+> quotas de la passerelle (routes Spring Cloud non rechargeables à chaud), le `JWT_SECRET` et les mots de
+> passe Postgres.
+
 ## 📁 Structure racine du projet
 
 ```
@@ -957,6 +1031,8 @@ chauffeur économisés pour +0,4 % de conduite. Arbitrage, pas erreur — le 7�
 | `trajet.termine` | **MS1** | MS4 | `ms4.trajet.queue` ← **NOUVEAU (alerte admin trajet terminé)** |
 | `trajet.demarre` | **MS1** | **MS11** | `ms11.trajet.queue` ← **NOUVEAU (fige la route → surveillance déviation UC-8)** |
 | `trajet.termine` | **MS1** | **MS11** | `ms11.trajet.queue` ← **NOUVEAU (purge la route de référence)** |
+| `parametres.updated` | **MS13** | MS4 | `ms4.parametres.queue` (durable) ← **NOUVEAU** |
+| `parametres.updated` | **MS13** | MS5·MS6·MS9·MS11·MS12 | file **exclusive par service** (cf. piège n° 22) ← **NOUVEAU** |
 
 > **Pipeline ETA temps réel (G1) :** `MS3 gps.bus.updated → MS12` calcule l'ETA bus→école (modèle + OSRM),
 > et dès que l'ETA ≤ `ETA_ALERT_MIN` (10 min) publie `eta.bus.arriving → MS4` qui pousse la notification
@@ -1011,6 +1087,7 @@ docker start osrm_meknes
 
 # 2. Java microservices (ordre important)
 cd ms7-auth      && mvn spring-boot:run   # 8087
+cd ms13-parametres && mvn spring-boot:run # 8092 (tôt : les autres y lisent leur config)
 cd ms1-bus       && mvn spring-boot:run   # 8081
 cd ms2-eleves    && mvn spring-boot:run   # 8082
 cd ms3-localisation && mvn spring-boot:run # 8083
@@ -1291,6 +1368,44 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
       0,4256 avec son contexte. *Ancien fichier conservé :
       `data/quality_baseline.json.perimee-17-07.bak`.*
 
+21. **Centraliser une configuration crée trois façons neuves de casser la production — toutes
+    silencieuses.** Les trois ont été trouvées en exécutant MS13 contre le vrai backend, aucune
+    par relecture du code. À relire avant de toucher à `params.py`, à `ParametresCache` ou au
+    formulaire.
+    - **(a) Un masque renvoyé n'est pas une valeur.** Le formulaire reçoit `••••••4f2a` depuis
+      `GET /api/parametres` et le conserve dans son état. L'administrateur modifie un tout autre
+      champ du même onglet, enregistre — et le masque part avec le lot. Vérifié avant correctif :
+      **la clé API était remplacée par des puces, HTTP 200**, sans erreur nulle part. La garde est
+      **côté serveur** (`valider()` refuse toute valeur commençant par `•`) et non dans le
+      formulaire : elle doit tenir pour un client mobile, un script ou un `curl`.
+    - **(b) « Absent » ne veut pas dire « à effacer ».** MS13 démarre avec ses secrets vides — un
+      secret n'a pas de défaut dans le catalogue. Au premier démarrage après branchement, MS9 a
+      donc remplacé ses clés Groq **et** Gemini, pourtant valides et lues de son `.env`, par des
+      chaînes vides ; l'assistant serait tombé au premier message parent avec pour seule trace un
+      « mode dégradé » au journal. Règle retenue : **le `.env` est l'amorçage, MS13 ne prend le
+      dessus que s'il a effectivement une valeur** (`if valeurs[cle] == "" and actuel != "": continue`).
+      Corollaire : on ne vide pas un réglage textuel depuis la console, on passe par le `.env`.
+    - **(c) Une fausse alerte est pire que pas d'alerte.** `models-check` comparait les
+      identifiants tels quels : Groq renvoie `openai/gpt-oss-120b`, mais Gemini renvoie
+      `models/gemini-flash-latest` quand on l'appelle avec `gemini-flash-latest`. **Tous** les
+      modèles Gemini étaient donc déclarés morts. Un outil de diagnostic qui crie au loup envoie
+      corriger une panne inexistante, puis n'est plus cru le jour où la panne est réelle. Préfixe
+      normalisé, et la distinction re-vérifiée **dans les deux sens** (l'alias passe OK, le
+      `gemini-2.0-flash` réellement retiré reste signalé).
+    - **Fil conducteur** : dans les trois cas, le système faisait *exactement ce qu'on lui avait
+      demandé* — écrire la valeur reçue, appliquer la configuration centrale, comparer deux
+      chaînes. Aucune exception, aucun code d'erreur. C'est le propre d'une couche de
+      configuration : elle ne plante pas, elle applique.
+
+22. **Une file durable partagée ne convient PAS à un événement de configuration.** RabbitMQ
+    distribue les messages d'une file en tourniquet entre ses consommateurs : avec une file
+    durable commune, **un seul** service recevrait chaque `parametres.updated` et les autres
+    resteraient sur d'anciennes valeurs — une flotte configurée de façon incohérente, sans
+    aucune erreur. Les services Python déclarent donc chacun une file **exclusive et
+    auto-supprimée** (`declare_queue("", exclusive=True, auto_delete=True)`). MS4 fait
+    l'inverse — file **durable** `ms4.parametres.queue` — parce qu'il est unique et qu'il doit
+    rattraper un changement survenu pendant son redémarrage.
+
 ---
 
 ## 💡 Décisions architecturales clés
@@ -1316,4 +1431,9 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 | **Réconcilier plutôt que rejouer (`trajetDemarrer`)** | **MS1 refuse un second démarrage ; relire `mon-actif` et adopter le trajet existant évite une erreur permanente pour un effet déjà obtenu** |
 | **Positions GPS jamais rejouées** | **`PositionRequest` n'a pas d'horodatage : un point rejoué deviendrait une fausse position courante** |
 | **`ApiClient` injectable (≠ singleton `Api.instance`)** | **Sans cette couture les tests s'arrêtent au login — c'est ce qui limitait `parent-mobile` à 16 tests** |
+| **Config centralisée (MS13) plutôt que `.env` par service** | **Les coordonnées de l'école vivaient à 6 endroits et MS4 en avait une version fausse de 900 m que rien ne pouvait révéler** |
+| **Catalogue en code, valeurs en base** | **Ajouter un réglage = une ligne ; corriger un libellé = un redéploiement. Aucune migration, et `reset` sait toujours à quoi revenir** |
+| **`/internal` non routée par la passerelle** | **Les clés API doivent sortir en clair pour MS9, mais jamais vers le web. La protection est le routage, pas un rôle** |
+| **`.env` = amorçage, MS13 = surcharge** | **Une valeur vide côté MS13 signifie « non renseignée », pas « effacer » — sans cette règle, MS9 a réellement perdu ses clés API (piège n° 21b)** |
+| **Le lot de paramètres est validé en bloc** | **Un jeu de seuils à moitié appliqué est pire qu'un enregistrement refusé** |
 | **Socle Flutter dupliqué (pas de package partagé)** | **`parent-mobile` est livrée et validée ; on ne la déstabilise pas avant la soutenance. Divergence gardée par les tests de parité `route_eta` copiés** |
