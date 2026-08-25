@@ -101,6 +101,9 @@ public class ParametresCache {
     public boolean notifAdminQualite()  { return booleen("ms4.notif_admin_qualite", true); }
     public boolean notifAdminAnomalie() { return booleen("ms4.notif_admin_anomalie", true); }
 
+    /** Filet de sécurité derrière le verrou d'entrée de zone (0 = verrou seul). */
+    public long arriveeEcoleCooldownMin() { return (long) nombre("ms4.arrivee_ecole_cooldown_min", 30.0); }
+
     private double nombre(String cle, double defaut) {
         String v = valeurs.get(cle);
         if (v == null || v.isBlank()) return defaut;

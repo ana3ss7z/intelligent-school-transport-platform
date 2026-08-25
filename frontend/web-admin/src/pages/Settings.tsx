@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Save, RotateCcw, AlertTriangle, Check, Loader2, Eye, EyeOff, Zap } from "lucide-react";
+import { Save, RotateCcw, AlertTriangle, Check, Loader2, Eye, EyeOff, Zap, Lock } from "lucide-react";
 import {
   getParametresSchema, updateParametres, resetParametres, verifierModelesLlm,
 } from "../api/endpoints";
@@ -49,7 +49,7 @@ const STRUCTURANTS = new Set(["ms6.bus_capacity", "ms6.rayon_max_m"]);
 
 const champ =
   "w-full rounded-lg border border-line bg-panel px-3 py-2 tabular text-sm outline-none " +
-  "focus:border-route disabled:opacity-50";
+  "focus:border-route disabled:opacity-50 disabled:cursor-not-allowed";
 
 export function Settings() {
   const toast = useToast();
@@ -88,6 +88,32 @@ export function Settings() {
 
   const modifie = (p: Parametre) => brouillon[p.cle] !== undefined && brouillon[p.cle] !== p.valeur;
   const nbModifs = params.filter(modifie).length;
+
+  /**
+   * Un réglage conditionnel est-il actif ?
+   *
+   * La condition est évaluée sur **l'état courant du formulaire** (`brouillon` d'abord, valeur
+   * enregistrée ensuite), et non sur ce qui est en base. C'est ce qui permet de basculer le mode
+   * sur « manuel » et de voir les champs se déverrouiller aussitôt, sans passer par un
+   * enregistrement intermédiaire.
+   *
+   * Le réglage dont dépend celui-ci est cherché dans tout le schéma, pas seulement dans l'onglet
+   * courant : rien n'oblige les deux à cohabiter (la clé TomTom est dans « Arrivées », la source
+   * de trafic aussi, mais une dépendance inter-onglets doit rester possible).
+   */
+  const conditionRemplie = (p: Parametre): boolean => {
+    if (!p.dependDe) return true;
+    const source = schema
+      ? Object.values(schema.parametres).flat().find((q) => q.cle === p.dependDe)
+      : undefined;
+    const courant = brouillon[p.dependDe] ?? source?.valeur;
+    return courant === p.dependValeur;
+  };
+
+  /** Libellé du réglage dont dépend celui-ci — pour expliquer le verrou en français. */
+  const libelleSource = (cle: string) =>
+    (schema ? Object.values(schema.parametres).flat().find((q) => q.cle === cle) : undefined)
+      ?.libelle ?? cle;
 
   const set = (cle: string, v: string) => setBrouillon((b) => ({ ...b, [cle]: v }));
 
@@ -216,6 +242,8 @@ export function Settings() {
               p={p}
               valeur={valeurAffichee(p)}
               modifie={modifie(p)}
+              actif={conditionRemplie(p)}
+              libelleSource={p.dependDe ? libelleSource(p.dependDe) : ""}
               secretVisible={!!secretsVisibles[p.cle]}
               onBasculerSecret={() =>
                 setSecretsVisibles((s) => ({ ...s, [p.cle]: !s[p.cle] }))}
@@ -267,19 +295,28 @@ export function Settings() {
 // ── Un réglage ───────────────────────────────────────────────────────────────
 
 function ChampParametre({
-  p, valeur, modifie, secretVisible, onBasculerSecret, onChange,
+  p, valeur, modifie, actif, libelleSource, secretVisible, onBasculerSecret, onChange,
 }: {
-  p: Parametre; valeur: string; modifie: boolean; secretVisible: boolean;
-  onBasculerSecret: () => void; onChange: (v: string) => void;
+  p: Parametre; valeur: string; modifie: boolean; actif: boolean; libelleSource: string;
+  secretVisible: boolean; onBasculerSecret: () => void; onChange: (v: string) => void;
 }) {
   const impact = IMPACT[p.impact];
   const id = `param-${p.cle}`;
 
+  // Seul le widget est atténué, pas le bloc entier : la phrase qui explique le verrou doit
+  // rester parfaitement lisible — c'est elle qui dit quoi faire pour déverrouiller. Atténuer
+  // le conteneur aurait aussi cumulé son opacité avec celle du champ désactivé.
   return (
     <div className="py-4 grid gap-3 md:grid-cols-[1fr_16rem] md:items-start">
       <div className="min-w-0">
         <label htmlFor={id} className="text-sm font-medium flex flex-wrap items-center gap-2">
           {p.libelle}
+          {!actif && (
+            <StatusChip tone="line2">
+              <Lock size={11} className="inline -mt-0.5 mr-1" aria-hidden="true" />
+              inactif
+            </StatusChip>
+          )}
           {modifie && <StatusChip tone="warn">non enregistré</StatusChip>}
           {!modifie && p.modifie && <StatusChip tone="line2">personnalisé</StatusChip>}
           {impact && p.impact !== "IMMEDIAT" && (
@@ -288,6 +325,19 @@ function ChampParametre({
         </label>
         {p.description && (
           <p className="text-xs text-ink-soft mt-1 leading-relaxed">{p.description}</p>
+        )}
+        {/*
+          Le verrou n'est pas qu'un grisage : sans phrase, l'admin ne saurait pas quoi changer
+          pour rendre le champ modifiable. On nomme le réglage à basculer et la valeur attendue.
+        */}
+        {!actif && (
+          <p className="text-xs text-warn mt-1.5 flex items-start gap-1.5">
+            <Lock size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>
+              Sans effet tant que « {libelleSource} » n'est pas réglé sur
+              {" "}<span className="font-mono">{p.dependValeur}</span>.
+            </span>
+          </p>
         )}
         <p className="text-[11px] font-mono text-ink-soft/70 mt-1.5">
           {p.cle}
@@ -304,13 +354,15 @@ function ChampParametre({
           <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
             <input
               id={id} type="checkbox" checked={valeur === "true"}
+              disabled={!actif}
               onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-              className="size-4 accent-(--route)"
+              className="size-4 accent-(--route) disabled:cursor-not-allowed"
             />
             <span className="text-ink-soft">{valeur === "true" ? "Activé" : "Désactivé"}</span>
           </label>
         ) : p.type === "ENUM" ? (
-          <select id={id} value={valeur} onChange={(e) => onChange(e.target.value)} className={champ}>
+          <select id={id} value={valeur} disabled={!actif}
+                  onChange={(e) => onChange(e.target.value)} className={champ}>
             {(p.options ?? "").split(",").map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
@@ -322,6 +374,7 @@ function ChampParametre({
                 id={id}
                 type={secretVisible ? "text" : "password"}
                 value={valeur}
+                disabled={!actif}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={p.defini ? "valeur enregistrée — laisser vide" : "non renseignée"}
                 autoComplete="off" spellCheck={false}
@@ -350,6 +403,7 @@ function ChampParametre({
               min={p.min ?? undefined}
               max={p.max ?? undefined}
               step={p.type === "NUMBER" ? "any" : undefined}
+              disabled={!actif}
               onChange={(e) => onChange(e.target.value)}
               className={champ}
             />

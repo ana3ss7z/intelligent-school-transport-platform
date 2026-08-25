@@ -32,6 +32,16 @@ public class ParametreResponse {
     private Boolean sensible;
     private String  impact;
 
+    /**
+     * Condition d'activation : ce réglage n'a de sens que si le paramètre {@code dependDe}
+     * vaut {@code dependValeur}. Null si le réglage est toujours actif.
+     *
+     * <p>L'interface verrouille alors le champ en expliquant pourquoi. Le serveur, lui,
+     * accepte toujours l'écriture — voir {@code ParametreCatalogue.depend}.
+     */
+    private String  dependDe;
+    private String  dependValeur;
+
     /** Vrai si la valeur courante diffère du défaut du catalogue (pastille « modifié » dans l'UI). */
     private Boolean modifie;
 
@@ -59,6 +69,8 @@ public class ParametreResponse {
                 .options(p.getOptions())
                 .sensible(sensible)
                 .impact(p.getImpact().name())
+                .dependDe(p.getDependDe())
+                .dependValeur(p.getDependValeur())
                 .modifie(p.estModifie())
                 .defini(defini)
                 .dateModif(p.getDateModif())

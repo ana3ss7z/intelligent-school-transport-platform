@@ -45,31 +45,52 @@ public final class ParametreCatalogue {
             String cle, Groupe groupe, TypeParam type, String defaut,
             Double min, Double max, String options,
             String libelle, String description, String unite,
-            boolean sensible, Impact impact
+            boolean sensible, Impact impact,
+            String dependDe, String dependValeur
     ) {}
+
+    /**
+     * Déclare qu'un réglage n'a de sens que si un autre porte une valeur précise.
+     *
+     * <p>Sert à l'interface : tant que la condition n'est pas remplie, le champ est présenté
+     * verrouillé, avec la raison. Sans cela, un administrateur peut renseigner consciencieusement
+     * une météo imposée qui ne sera jamais lue parce que le mode est resté sur {@code auto} —
+     * l'écran affiche alors une valeur que le système ignore, ce qui est pire que pas de valeur.
+     *
+     * <p><b>Ce n'est PAS une règle de validation.</b> Le serveur continue d'accepter l'écriture
+     * d'un réglage dont la condition n'est pas remplie, et c'est voulu : on doit pouvoir préparer
+     * un jeu de valeurs puis basculer le mode, ou basculer le mode puis ajuster. Refuser
+     * l'écriture transformerait une aide à la saisie en piège, et rendrait l'ordre des
+     * enregistrements significatif.
+     */
+    private static Def depend(Def d, String cle, String valeur) {
+        return new Def(d.cle(), d.groupe(), d.type(), d.defaut(), d.min(), d.max(), d.options(),
+                       d.libelle(), d.description(), d.unite(), d.sensible(), d.impact(),
+                       cle, valeur);
+    }
 
     // ── Fabriques : rendent la liste lisible d'un coup d'œil ──────────────────
 
     private static Def num(String cle, Groupe g, String defaut, double min, double max,
                            String unite, String libelle, String desc, Impact im) {
-        return new Def(cle, g, TypeParam.NUMBER, defaut, min, max, null, libelle, desc, unite, false, im);
+        return new Def(cle, g, TypeParam.NUMBER, defaut, min, max, null, libelle, desc, unite, false, im, null, null);
     }
 
     private static Def bool(String cle, Groupe g, String defaut, String libelle, String desc, Impact im) {
-        return new Def(cle, g, TypeParam.BOOLEAN, defaut, null, null, null, libelle, desc, null, false, im);
+        return new Def(cle, g, TypeParam.BOOLEAN, defaut, null, null, null, libelle, desc, null, false, im, null, null);
     }
 
     private static Def enumere(String cle, Groupe g, String defaut, String options,
                                String libelle, String desc, Impact im) {
-        return new Def(cle, g, TypeParam.ENUM, defaut, null, null, options, libelle, desc, null, false, im);
+        return new Def(cle, g, TypeParam.ENUM, defaut, null, null, options, libelle, desc, null, false, im, null, null);
     }
 
     private static Def texte(String cle, Groupe g, String defaut, String libelle, String desc, Impact im) {
-        return new Def(cle, g, TypeParam.STRING, defaut, null, null, null, libelle, desc, null, false, im);
+        return new Def(cle, g, TypeParam.STRING, defaut, null, null, null, libelle, desc, null, false, im, null, null);
     }
 
     private static Def secret(String cle, Groupe g, String libelle, String desc) {
-        return new Def(cle, g, TypeParam.SECRET, "", null, null, null, libelle, desc, null, true, IMMEDIAT);
+        return new Def(cle, g, TypeParam.SECRET, "", null, null, null, libelle, desc, null, true, IMMEDIAT, null, null);
     }
 
     /** L'ordre de cette liste est l'ordre d'affichage dans chaque onglet. */
@@ -170,8 +191,9 @@ public final class ParametreCatalogue {
                 "Source trafic",
                 "heuristic : niveau déduit de l'heure et du jour. tomtom : nécessite une clé "
                 + "(intégration non activée à ce jour, repli heuristique).", IMMEDIAT),
-        secret("ms12.tomtom_key", ETA, "Clé API TomTom",
+        depend(secret("ms12.tomtom_key", ETA, "Clé API TomTom",
                "Optionnelle. Laisser vide conserve la valeur enregistrée."),
+               "ms12.traffic_provider", "tomtom"),
 
         // ══ CONTEXTE DES PRÉDICTIONS (MS12) ════════════════════════════════════
         enumere("ms12.contexte_mode", CONTEXTE_PRED, "auto", "auto,manuel",
@@ -180,24 +202,28 @@ public final class ParametreCatalogue {
                 + "calendrier. manuel : les valeurs ci-dessous s'imposent. Le champ « sources » de "
                 + "la réponse indique alors « manuel (admin) » — la prédiction reste traçable.",
                 IMMEDIAT),
-        enumere("ms12.meteo_manuelle", CONTEXTE_PRED, "ensoleille",
+        depend(enumere("ms12.meteo_manuelle", CONTEXTE_PRED, "ensoleille",
                 "ensoleille,nuageux,pluie,brouillard",
                 "Météo imposée",
                 "Utilisée uniquement en mode manuel. Catégories identiques à celles vues par le "
                 + "modèle à l'entraînement.", IMMEDIAT),
-        enumere("ms12.trafic_manuel", CONTEXTE_PRED, "fluide",
+               "ms12.contexte_mode", "manuel"),
+        depend(enumere("ms12.trafic_manuel", CONTEXTE_PRED, "fluide",
                 "fluide,modere,dense,embouteillage",
                 "Trafic imposé",
                 "Utilisé uniquement en mode manuel. L'écart entre « fluide » et « embouteillage » "
                 + "combiné à la pluie porte le facteur d'inflation de ×1,32 à ×2,36.", IMMEDIAT),
-        enumere("ms12.ramadan_manuel", CONTEXTE_PRED, "auto", "auto,0,1",
+               "ms12.contexte_mode", "manuel"),
+        depend(enumere("ms12.ramadan_manuel", CONTEXTE_PRED, "auto", "auto,0,1",
                 "Ramadan",
                 "auto : déduit du calendrier marocain intégré. Forcer permet de couvrir un décalage "
                 + "d'observation lunaire.", IMMEDIAT),
-        enumere("ms12.jour_souk_manuel", CONTEXTE_PRED, "auto", "auto,0,1",
+               "ms12.contexte_mode", "manuel"),
+        depend(enumere("ms12.jour_souk_manuel", CONTEXTE_PRED, "auto", "auto,0,1",
                 "Jour de souk",
                 "auto : déduit du calendrier. Forcer permet de tenir compte d'un souk exceptionnel.",
                 IMMEDIAT),
+               "ms12.contexte_mode", "manuel"),
         bool("ms12.travaux_prevus", CONTEXTE_PRED, "false",
              "Travaux en cours sur le réseau",
              "Aucune source automatique n'existe pour cette feature : sans déclaration, elle vaut "
@@ -249,6 +275,13 @@ public final class ParametreCatalogue {
         bool("ms4.notif_admin_anomalie", NOTIFICATIONS, "true",
              "Alerter l'administration en cas d'anomalie",
              "Vitesse excessive, arrêt prolongé, déviation d'itinéraire.", IMMEDIAT),
+        num("ms4.arrivee_ecole_cooldown_min", NOTIFICATIONS, "30", 0, 240, "min",
+            "Délai minimal entre deux annonces d'arrivée pour un même bus",
+            "Filet de sécurité derrière le verrou d'entrée de zone. Le verrou seul suffit dans "
+            + "le cas normal : il n'annonce l'arrivée qu'au franchissement du rayon, puis se "
+            + "réarme quand le bus s'en éloigne. Ce délai couvre le cas où un bus ferait des "
+            + "allers-retours autour du rayon. 0 désactive le filet et laisse agir le seul verrou.",
+            IMMEDIAT),
 
         // ══ ASSISTANT (MS9) ════════════════════════════════════════════════════
         enumere("ms9.primary_provider", ASSISTANT, "groq", "groq,gemini",

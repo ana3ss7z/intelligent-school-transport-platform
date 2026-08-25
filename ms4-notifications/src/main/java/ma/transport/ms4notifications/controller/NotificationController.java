@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.transport.ms4notifications.dto.DeviceTokenRequest;
 import ma.transport.ms4notifications.dto.NotificationResponse;
+import ma.transport.ms4notifications.dto.PageResponse;
 import ma.transport.ms4notifications.service.NotificationService;
 import ma.transport.mscommon.security.UserPrincipal;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +24,15 @@ public class NotificationController {
 
     /**
      * POST /api/notifications/device-token
-     * Enregistrer le token FCM de l'appareil (appelé au login app mobile).
-     * PARENT uniquement.
+     * Enregistrer le token FCM de l'appareil (appelé au login des clients).
+     *
+     * <p>Ouvert à CHAUFFEUR en plus de PARENT : MS4 envoie déjà des notifications aux
+     * chauffeurs (incident résolu sur leur bus, message de l'administration) et
+     * {@code /mes-notifications} leur est ouvert depuis l'origine. Seul cet endpoint restait
+     * réservé aux parents, ce qui rendait le push structurellement impossible pour eux.
      */
     @PostMapping("/device-token")
-    @PreAuthorize("hasRole('PARENT')")
+    @PreAuthorize("hasAnyRole('PARENT','CHAUFFEUR')")
     public ResponseEntity<Void> enregistrerToken(
             @Valid @RequestBody DeviceTokenRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -37,10 +42,10 @@ public class NotificationController {
 
     /**
      * DELETE /api/notifications/device-token/{token}
-     * Désactiver un token (logout app mobile).
+     * Désactiver un token (logout des clients) — mêmes rôles que l'enregistrement.
      */
     @DeleteMapping("/device-token/{token}")
-    @PreAuthorize("hasRole('PARENT')")
+    @PreAuthorize("hasAnyRole('PARENT','CHAUFFEUR')")
     public ResponseEntity<Void> supprimerToken(@PathVariable String token) {
         service.supprimerToken(token);
         return ResponseEntity.noContent().build();
@@ -63,8 +68,13 @@ public class NotificationController {
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<NotificationResponse>> getToutesNotifications() {
-        return ResponseEntity.ok(service.getToutesNotifications());
+    public ResponseEntity<PageResponse<NotificationResponse>> getToutesNotifications(
+            @RequestParam(defaultValue = "0")     int page,
+            @RequestParam(defaultValue = "25")    int size,
+            @RequestParam(defaultValue = "id")    String tri,
+            @RequestParam(defaultValue = "desc")  String sens,
+            @RequestParam(defaultValue = "false") boolean adminSeulement) {
+        return ResponseEntity.ok(service.getToutesNotifications(page, size, tri, sens, adminSeulement));
     }
 
     /**

@@ -12,6 +12,11 @@ import ma.transport.ms4notifications.service.ParentLookupService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * RabbitMQ Listeners — MS4 écoute 3 événements :
  *
@@ -40,6 +45,36 @@ public class NotificationListener {
      * un point qui n'était pas la destination des tournées.
      */
     private final ParametresCache parametres;
+
+    // ─── Verrou d'arrivée à l'école ──────────────────────────────────────────
+
+    /**
+     * État d'un bus vis-à-vis du rayon de l'école.
+     *
+     * <p>{@code dansZone} est un <b>verrou</b> : il est posé au franchissement du rayon et n'est
+     * levé que lorsque le bus s'en est franchement éloigné. Sans lui, {@code onGpsBusUpdated}
+     * notifiait <b>à chaque ping</b> passé dans le rayon — mesuré en production sur l'export du
+     * 24/08 : <b>150 notifications identiques par parent, espacées de 1,2 s</b>, avec un pic à
+     * 1110 notifications pour un seul bus en une minute, parce qu'un bus stationné à l'école
+     * continue d'émettre sa position. Ces envois échouaient tous faute de device FCM enregistré,
+     * ce qui <b>masquait le défaut</b> : le jour où le canal push est raccordé, chaque famille
+     * reçoit 150 alertes en trois minutes.
+     */
+    private static final class EtatArrivee {
+        boolean dansZone;
+        LocalDateTime derniereNotif;
+    }
+
+    /**
+     * Marge d'hystérésis pour lever le verrou. Le bus doit s'éloigner à {@code rayon × 1.5}
+     * (225 m pour le rayon par défaut de 150 m) avant qu'une nouvelle arrivée puisse être
+     * annoncée. Une simple sortie du rayon suffirait à réarmer le verrou sur du bruit GPS
+     * (±10 à 30 m), ce qui ferait clignoter l'alerte pour un bus immobile posé sur la frontière.
+     */
+    private static final double MARGE_SORTIE = 1.5;
+
+    /** Borné par la taille de la flotte (une dizaine d'entrées) — pas de purge nécessaire. */
+    private final Map<Long, EtatArrivee> etatsArrivee = new ConcurrentHashMap<>();
 
     // ─── 1. Incident signalé ─────────────────────────────────────────────────
 
@@ -112,19 +147,20 @@ public class NotificationListener {
 
             // Coordonnées relues à chaque ping : un changement dans la console d'administration
             // s'applique au ping suivant, sans redémarrage de MS4.
+            double rayon    = parametres.rayonArriveeM();
             double distance = calculerDistance(lat, lng, parametres.ecoleLat(), parametres.ecoleLng());
 
-            if (distance <= parametres.rayonArriveeM()) {
-                log.info("[MS4] 🏫 Bus {} arrivé à l'école (distance: {}m)", busId, (int)distance);
+            if (!doitAnnoncerArrivee(busId, distance, rayon)) return;
 
-                String titre = "🏫 Le bus est arrivé à l'école";
-                String corps = String.format("Le bus de votre enfant est arrivé à l'école (distance: %dm).", (int)distance);
+            log.info("[MS4] 🏫 Bus {} arrivé à l'école (distance: {}m)", busId, (int)distance);
 
-                parentLookup.getParentsParBus(busId).forEach(parentId ->
-                    fcmService.envoyerAuParent(parentId, TypeNotification.BUS_ARRIVE_ECOLE,
-                                               titre, corps, busId, "BUS")
-                );
-            }
+            String titre = "🏫 Le bus est arrivé à l'école";
+            String corps = String.format("Le bus de votre enfant est arrivé à l'école (distance: %dm).", (int)distance);
+
+            parentLookup.getParentsParBus(busId).forEach(parentId ->
+                fcmService.envoyerAuParent(parentId, TypeNotification.BUS_ARRIVE_ECOLE,
+                                           titre, corps, busId, "BUS")
+            );
 
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement gps.bus.updated : {}", e.getMessage());
@@ -247,8 +283,61 @@ public class NotificationListener {
                     sens.toLowerCase(), demarre ? "démarré" : "terminé", chauffeurId, matricule);
             TypeNotification type = demarre ? TypeNotification.TRAJET_DEMARRE : TypeNotification.TRAJET_TERMINE;
             fcmService.envoyerAuParent(null, type, titre, corps, busId, "ADMIN");
+
+            // La tournée part de l'école et y revient : au démarrage, le bus est DANS le rayon
+            // d'arrivée. On pose donc le verrou sans notifier, sinon le premier ping du trajet
+            // annoncerait une « arrivée » au moment même du départ — le cas se produit à chaque
+            // redémarrage de MS4, qui perd les verrous en mémoire.
+            if (demarre && busId != null) {
+                etatsArrivee.compute(busId, (id, etat) -> {
+                    EtatArrivee e = etat != null ? etat : new EtatArrivee();
+                    synchronized (e) { e.dansZone = true; }
+                    return e;
+                });
+            }
         } catch (Exception e) {
             log.error("[MS4] Erreur traitement trajet.* : {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Décide si l'arrivée doit être annoncée pour ce ping — une fois par arrivée réelle.
+     *
+     * <p>Trois filtres successifs, du plus structurant au plus défensif :
+     * <ol>
+     *   <li><b>hors du rayon</b> — rien à annoncer ; le verrou se lève si le bus a dépassé la
+     *       marge d'hystérésis, ce qui autorise la prochaine arrivée (retour du soir) ;</li>
+     *   <li><b>verrou déjà posé</b> — le bus était déjà dans le rayon au ping précédent :
+     *       l'arrivée a été annoncée, il n'y a pas de nouvelle arrivée ;</li>
+     *   <li><b>délai minimal</b> — filet configurable, pour un bus qui ferait des allers-retours
+     *       autour de la frontière malgré la marge.</li>
+     * </ol>
+     *
+     * <p>Le verrou est posé dans tous les cas où le bus est dans le rayon, y compris quand le
+     * délai minimal a supprimé l'annonce : sans cela, le prochain ping serait à nouveau traité
+     * comme une entrée et le filet serait consulté à chaque ping plutôt qu'à chaque arrivée.
+     */
+    private boolean doitAnnoncerArrivee(Long busId, double distance, double rayon) {
+        EtatArrivee etat = etatsArrivee.computeIfAbsent(busId, id -> new EtatArrivee());
+
+        synchronized (etat) {
+            if (distance > rayon) {
+                if (distance > rayon * MARGE_SORTIE) etat.dansZone = false;
+                return false;
+            }
+            if (etat.dansZone) return false;
+
+            etat.dansZone = true;
+
+            long cooldown = parametres.arriveeEcoleCooldownMin();
+            if (cooldown > 0 && etat.derniereNotif != null
+                    && Duration.between(etat.derniereNotif, LocalDateTime.now()).toMinutes() < cooldown) {
+                log.debug("[MS4] Arrivée du bus {} ignorée — annoncée il y a moins de {} min", busId, cooldown);
+                return false;
+            }
+
+            etat.derniereNotif = LocalDateTime.now();
+            return true;
         }
     }
 

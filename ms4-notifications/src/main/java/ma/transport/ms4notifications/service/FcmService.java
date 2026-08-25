@@ -31,7 +31,21 @@ public class FcmService {
     private final NotificationRepository notifRepo;
 
     /**
-     * Envoie une notification push à tous les devices d'un parent.
+     * Envoie une notification push à tous les appareils d'un destinataire, et l'historise
+     * <b>une seule fois</b>.
+     *
+     * <p>La persistance était auparavant faite <i>dans</i> la boucle d'envoi : une ligne par
+     * appareil. Tant qu'aucun client n'enregistrait de token, le défaut restait invisible —
+     * zéro appareil produit exactement une ligne. Dès qu'un même parent est connecté sur
+     * plusieurs origines (console web, application parent, téléphone), le <b>même événement
+     * métier</b> aurait produit autant de lignes que d'appareils, et
+     * {@code GET /mes-notifications} aurait affiché le message en double dans l'application
+     * de la famille.
+     *
+     * <p>Une ligne décrit donc désormais l'événement, pas la tentative :
+     * {@link StatutEnvoi#ENVOYE} dès qu'<b>au moins un</b> appareil a reçu. La contrepartie
+     * assumée est la perte du diagnostic par appareil — un échec partiel n'apparaît qu'au
+     * journal. Le suivi fin exigerait une table de livraison séparée.
      */
     public void envoyerAuParent(Long parentId, TypeNotification type,
                                  String titre, String message,
@@ -41,32 +55,57 @@ public class FcmService {
 
         if (tokens.isEmpty()) {
             log.debug("[FCM] Aucun device enregistré pour parent {}", parentId);
-            // Persister quand même pour l'historique
+            // Persister quand même pour l'historique : l'absence de push ne doit pas faire
+            // disparaître la notification de l'application, qui la lit sans filtrer le statut.
             sauvegarder(parentId, null, type, titre, message, sourceId, sourceType,
                         StatutEnvoi.ECHEC, "Aucun device FCM enregistré");
             return;
         }
 
+        int envoyes = 0;
+        String premiereErreur = null;
         for (DeviceToken device : tokens) {
-            envoyerAuToken(device.getFcmToken(), parentId, type,
-                           titre, message, sourceId, sourceType);
+            String erreur = envoyerAuToken(device.getFcmToken(), parentId, type,
+                                           titre, message, sourceId, sourceType);
+            if (erreur == null) envoyes++;
+            else if (premiereErreur == null) premiereErreur = erreur;
         }
+
+        if (envoyes > 0 && envoyes < tokens.size()) {
+            log.warn("[FCM] Envoi partiel — parent={} : {}/{} appareils, 1ʳᵉ erreur : {}",
+                     parentId, envoyes, tokens.size(), premiereErreur);
+        }
+
+        // Le token n'est tracé que s'il est sans ambiguïté ; au-delà d'un appareil, la ligne
+        // décrit l'événement et non un envoi particulier.
+        String tokenTrace = tokens.size() == 1 ? tokens.get(0).getFcmToken() : null;
+        String erreur = envoyes > 0 ? null
+                : tokens.size() == 1 ? premiereErreur
+                : String.format("%d appareils en échec — 1ʳᵉ erreur : %s", tokens.size(), premiereErreur);
+
+        sauvegarder(parentId, tokenTrace, type, titre, message, sourceId, sourceType,
+                    envoyes > 0 ? StatutEnvoi.ENVOYE : StatutEnvoi.ECHEC, erreur);
     }
 
     /**
-     * Envoie une notification à un token FCM spécifique.
+     * Envoie la notification à un appareil précis.
+     *
+     * <p>N'historise plus rien : la persistance appartient à {@link #envoyerAuParent}, qui écrit
+     * une ligne unique pour l'événement. La <b>désactivation d'un token rejeté reste ici</b>,
+     * par appareil — c'est bien une propriété de l'appareil, et cette logique fonctionne déjà
+     * (les deux faux tokens e2e du parent 31 ont été désactivés ainsi).
+     *
+     * @return {@code null} si l'envoi a réussi, sinon le motif de l'échec.
      */
-    private void envoyerAuToken(String fcmToken, Long parentId,
-                                 TypeNotification type, String titre,
-                                 String message, Long sourceId, String sourceType) {
+    private String envoyerAuToken(String fcmToken, Long parentId,
+                                  TypeNotification type, String titre,
+                                  String message, Long sourceId, String sourceType) {
 
         // Firebase non configuré (placeholder JSON) → mode dégradé
         if (firebaseApp == null) {
             log.warn("[FCM] Firebase non configuré — notification simulée pour parent {}", parentId);
             log.warn("[FCM] Titre: {} | Message: {}", titre, message);
-            sauvegarder(parentId, fcmToken, type, titre, message, sourceId, sourceType,
-                        StatutEnvoi.ECHEC, "Firebase non configuré — remplacer firebase-service-account.json");
-            return;
+            return "Firebase non configuré — remplacer firebase-service-account.json";
         }
 
         try {
@@ -86,9 +125,7 @@ public class FcmService {
 
             String messageId = FirebaseMessaging.getInstance(firebaseApp).send(fcmMessage);
             log.info("[FCM] ✅ Notification envoyée — parent={} messageId={}", parentId, messageId);
-
-            sauvegarder(parentId, fcmToken, type, titre, message, sourceId, sourceType,
-                        StatutEnvoi.ENVOYE, null);
+            return null;
 
         } catch (FirebaseMessagingException e) {
             log.error("[FCM] ❌ Erreur envoi — parent={} : {}", parentId, e.getMessage());
@@ -103,8 +140,7 @@ public class FcmService {
                 });
             }
 
-            sauvegarder(parentId, fcmToken, type, titre, message, sourceId, sourceType,
-                        StatutEnvoi.ECHEC, e.getMessage());
+            return e.getMessage();
         }
     }
 

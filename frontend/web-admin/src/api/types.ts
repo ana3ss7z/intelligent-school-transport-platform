@@ -48,6 +48,17 @@ export interface NotifStats {
   envoyes: number;
   echecs: number;
   attente: number;
+  /** Compté en base : la console ne reçoit plus qu'une page et ne peut plus le dériver. */
+  alertesAdmin: number;
+}
+
+/** Enveloppe de pagination renvoyée par les listes paginées côté serveur (MS4). */
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface QualityVerdict {

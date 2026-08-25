@@ -386,10 +386,10 @@ constante compilée. Trois conséquences déjà payées : les coordonnées de l'
 (dont **MS4 en désaccord de ~900 m** avec les cinq autres), les correctifs mesurés au benchmark
 inapplicables sans redémarrage, et deux pannes de modèle LLM qui ont exigé d'éditer `.env` puis relancer.
 
-**Service `ms13-parametres/` (Spring Boot :8092)** — source de vérité unique, **59 réglages** sur
+**Service `ms13-parametres/` (Spring Boot :8092)** — source de vérité unique, **60 réglages** sur
 9 onglets. Le **catalogue est du code** (`ParametreCatalogue.java`) : au démarrage, un *upsert non
 destructif* réécrit les métadonnées (libellé, bornes, défaut) et **ne touche jamais les valeurs**.
-Ajouter un réglage = une ligne, aucune migration. *(Vérifié : au 2ᵉ démarrage, « 0 créés, 59 mis à jour ».)*
+Ajouter un réglage = une ligne, aucune migration. *(Vérifié : au 2ᵉ démarrage, « 0 créés, 60 mis à jour ».)*
 - `GET /api/parametres` (tout rôle, **secrets masqués**) · `GET /schema` (ADMIN) · `PUT` (ADMIN, lot
   **validé en bloc** : une valeur refusée ⇒ rien n'est écrit) · `POST /reset` · **`GET /internal`**
   (valeurs **en clair**, **non routée par la passerelle** — motif déjà retenu pour MS4→MS2).

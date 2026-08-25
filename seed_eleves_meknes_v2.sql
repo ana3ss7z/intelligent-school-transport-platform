@@ -13,7 +13,7 @@ VALUES
   ('Berrada', 'Nora', 33.876687, -5.526447, NULL, NULL, false),
   ('Rhazi', 'Anas', 33.890773, -5.543394, NULL, NULL, false),
   ('Ziani', 'Youssef', 33.871134, -5.5556, NULL, NULL, false),
-  ('Filali', 'Ibrahim', 33.869304, -5.538795, NULL, NULL, false),
+  ('Samia', 'Iness', 33.869304, -5.538795, NULL, NULL, false),
   ('Rhazi', 'Sara', 33.876742, -5.526712, NULL, NULL, false),
   ('Sebbata', 'Imane', 33.90757, -5.546805, NULL, NULL, false),
   ('Benhaddou', 'Aisha', 33.885993, -5.560142, NULL, NULL, false),

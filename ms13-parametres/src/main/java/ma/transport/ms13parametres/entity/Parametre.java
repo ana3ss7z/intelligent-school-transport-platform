@@ -89,6 +89,25 @@ public class Parametre {
     @Column(nullable = false, length = 20)
     private Impact impact;
 
+    /**
+     * Clé d'un autre paramètre dont ce réglage dépend, ou null s'il est toujours actif.
+     *
+     * <p>Avec {@link #dependValeur}, exprime « ce champ n'a de sens que si {@code dependDe}
+     * vaut {@code dependValeur} ». L'interface s'en sert pour verrouiller le champ et afficher
+     * la raison — un administrateur ne doit pas pouvoir renseigner soigneusement une météo
+     * imposée que le système n'ira jamais lire parce que le mode est resté sur {@code auto}.
+     *
+     * <p>Purement indicatif côté serveur : l'écriture reste autorisée, afin qu'on puisse
+     * préparer les valeurs avant de basculer le mode, ou l'inverse.
+     *
+     * <p>Colonnes nullables : {@code ddl-auto=update} les ajoute seul, sans migration.
+     */
+    @Column(name = "depend_de", length = 80)
+    private String dependDe;
+
+    @Column(name = "depend_valeur", length = 80)
+    private String dependValeur;
+
     @Column(name = "date_modif")
     private LocalDateTime dateModif;
 

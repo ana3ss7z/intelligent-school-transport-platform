@@ -70,6 +70,8 @@ public class ParametreService {
             p.setOptions(d.options());
             p.setSensible(d.sensible());
             p.setImpact(d.impact());
+            p.setDependDe(d.dependDe());
+            p.setDependValeur(d.dependValeur());
 
             repo.save(p);
             if (existant.isPresent()) majs++; else crees++;

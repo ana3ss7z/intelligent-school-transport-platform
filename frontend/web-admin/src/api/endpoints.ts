@@ -1,7 +1,7 @@
 import { api } from "./client";
 import type {
   AuthResponse, Bus, Conversation, Eleve, EleveInput, Incident, IncidentStats, LiveAnomaly,
-  IncidentInput, Message, NotifStats, NotificationItem, ProductionResult, StatutIncident,
+  IncidentInput, Message, NotifStats, NotificationItem, PageResponse, ProductionResult, StatutIncident,
   Trajet, SensTrajet, User, UserInput,
 } from "./types";
 
@@ -117,8 +117,19 @@ export const getTournees = (sens: "matin" | "soir" = "matin") =>
   api.post(`/api/planification/tournees?sens=${sens}&persister=true`, undefined, LONG).then((r) => r.data);
 
 // ── Notifications (MS4) ──────────────────────────────────────
-export const getNotifications = () =>
-  api.get<NotificationItem[]>("/api/notifications").then((r) => r.data);
+/**
+ * Journal d'administration, paginé côté serveur.
+ *
+ * <p>Auparavant sans paramètres : MS4 renvoyait la table entière (plus de 10 000 lignes) à
+ * chaque sondage, pour 25 lignes affichées. Le journal grossit de plus de mille lignes par
+ * minute pendant une simulation, donc la charge n'était pas stable.
+ */
+export const getNotifications = (params: {
+  page?: number; size?: number; tri?: string; sens?: "asc" | "desc"; adminSeulement?: boolean;
+} = {}) =>
+  api
+    .get<PageResponse<NotificationItem>>("/api/notifications", { params })
+    .then((r) => r.data);
 export const getNotifStats = () => api.get<NotifStats>("/api/notifications/stats").then((r) => r.data);
 export const getMesNotifications = () =>
   api.get<NotificationItem[]>("/api/notifications/mes-notifications").then((r) => r.data);
@@ -204,6 +215,15 @@ export interface Parametre {
   modifie: boolean;
   /** Pour un secret : une valeur est-elle enregistrée ? (le masque ne permet pas de le déduire) */
   defini: boolean;
+  /**
+   * Condition d'activation : ce réglage n'a de sens que si le paramètre `dependDe` vaut
+   * `dependValeur`. `null` quand le réglage est toujours actif.
+   *
+   * Le serveur accepte malgré tout l'écriture d'un champ dont la condition n'est pas remplie :
+   * c'est une aide à la saisie, pas une règle de validation.
+   */
+  dependDe: string | null;
+  dependValeur: string | null;
   dateModif: string | null;
   modifiePar: string | null;
 }
