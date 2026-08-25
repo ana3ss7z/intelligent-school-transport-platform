@@ -450,6 +450,62 @@ Ajouter un réglage = une ligne, aucune migration. *(Vérifié : au 2ᵉ démarr
 > quotas de la passerelle (routes Spring Cloud non rechargeables à chaud), le `JWT_SECRET` et les mots de
 > passe Postgres.
 
+---
+
+**NOUVEAU (25/08) — MS4 : le canal de notifications poussées est branché (lots 0-2 et 5).**
+📄 **Document autonome : [`docs/MS4_NOTIFICATIONS_FCM.md`](docs/MS4_NOTIFICATIONS_FCM.md).**
+
+Point de départ : la console affichait **10 157 notifications sur 10 157 en ECHEC**, motif unique
+« Aucun device FCM enregistré ». Diagnostic : `device_tokens` contenait **2 lignes, 0 active**, et
+**aucun client n'appelait `POST /device-token`** — ni le web-admin, ni les deux applications Flutter,
+dont aucun `pubspec.yaml` ne déclarait Firebase. Le canal push n'avait **jamais** été raccordé.
+Firebase côté serveur, lui, était correctement configuré depuis l'origine.
+
+**L'échec de 100 % n'était pas la vraie nouvelle.** Les notifications in-app fonctionnaient
+(`getMesNotifications` ne filtre pas le statut) ; `ECHEC` signifiait seulement « le téléphone n'a
+pas sonné ». Le vrai défaut, c'est ce que cet échec **masquait** — quatre bugs qui se seraient tous
+manifestés le jour du branchement :
+
+- **Rafale `BUS_ARRIVE_ECOLE`** (**94 % du volume**, 9 546 lignes) : la règle notifiait à **chaque
+  ping GPS** dans le rayon, or un bus stationné continue d'émettre. Mesuré : **150 notifications
+  identiques par parent espacées de 1,2 s**, un parent à 210, **pic à 1 110 pour un bus en une
+  minute**. Corrigé par un **verrou d'entrée de zone** (annonce au franchissement seulement) +
+  **marge d'hystérésis `rayon × 1,5`** (sinon un bruit GPS de ±20 m fait clignoter l'alerte sur un
+  bus immobile posé sur la frontière) + délai minimal MS13 `ms4.arrivee_ecole_cooldown_min` (30 min,
+  `0` = verrou seul). **Le verrou est aussi posé à `trajet.demarre` sans notifier** : la tournée part
+  de l'école, donc sans cela le premier ping annoncerait une « arrivée » au moment du départ — cas
+  rejoué à chaque redémarrage de MS4.
+- **Une ligne d'historique par appareil** (`sauvegarder` était *dans* la boucle d'envoi) : invisible
+  à zéro appareil, mais un parent connecté sur trois origines aurait vu le message **en triple**.
+  Sortie de la boucle → **une ligne par événement métier**, `ENVOYE` dès qu'un appareil a reçu.
+- **Enregistrement non idempotent** : `fcm_token` porte une contrainte **UNIQUE**, et le code
+  désactivait la ligne existante *sans la supprimer* avant d'en insérer une nouvelle avec le même
+  jeton → **HTTP 500**. Comme un jeton FCM est **stable par installation**, *toute deuxième connexion
+  depuis le même appareil échouait*. La ligne est désormais **réaffectée** (le jeton appartient à
+  l'appareil, pas au compte).
+- **Journal non paginé** : `GET /api/notifications` faisait un `findAll()` — plus de 10 000 lignes
+  transportées à chaque sondage pour 25 affichées, sur une table qui grossit de 1 100 lignes/min en
+  simulation. Pagination serveur (`page/size/tri/sens/adminSeulement`, tri en **liste blanche**), et
+  le total des alertes admin vient maintenant de `/stats` puisque la page ne voit plus qu'une tranche.
+
+**Deltas** : MS4 `FcmService`/`NotificationService`/`NotificationController` ; `/device-token` ouvert
+au rôle **CHAUFFEUR** (il recevait déjà des notifications et lisait déjà `/mes-notifications` — seul
+l'enregistrement restait fermé) ; plateforme normalisée, repli **`INCONNU`** et non `ANDROID`
+(l'appel explicite du constructeur écrasait le `@Builder.Default`, un client web omettant le champ
+s'enregistrait à `null`). MS13 : 1 paramètre. `parent-mobile` : `firebase_core`/`firebase_messaging`,
+`web/firebase-messaging-sw.js`, `push_service.dart` (ne lève jamais, dépendances injectées,
+réabonnement `onTokenRefresh`), câblé sur `login`/`logout` — **détachement avant l'effacement du
+JWT**, l'appel étant authentifié.
+
+> **Vérifié** : MS4 `mvn test` **17/17** (verrou 6 · FcmService 5 · DeviceToken 5 · contexte) ·
+> `parent-mobile` `flutter analyze` **0 issue**, `flutter test` **38/38**, `build web` ✅,
+> **`build apk --release` ✅ 53,4 Mo** · `web-admin` `bun run build` ✅.
+> **Spike Gradle concluant** : `google-services` 4.3.15 passe sur **AGP 9.0.1 / Gradle 9.1 /
+> Kotlin 2.3.20** sans échappatoire — mais Flutter avertit que **`firebase_core` applique KGP** et
+> que *« future versions of Flutter will fail to build »* (cf. piège n° 25).
+> **Non vérifié** : bout en bout réel (MS4 doit être redémarré), push sur téléphone physique,
+> `web-admin` et `chauffeur-mobile` (lots 3 et 4, non faits).
+
 ## 📁 Structure racine du projet
 
 ```
@@ -466,7 +522,8 @@ C:\Users\Anass\Desktop\SDIA\S9\PFE\transport-scolaire\
 │   ├── web-admin/                   ← Console admin React 18 + Vite + TS + Bun + Tailwind v4 (port 5173) ← NOUVEAU
 │   │   └── src/ (api · auth · components · hooks · layout · lib · pages)
 │   ├── parent-mobile/               ← App mobile PARENT Flutter 3.44 (Chrome :5174 / Android) ← NOUVEAU (27/07)
-│   │   └── lib/ (config · models · api · services · state · screens · widgets)
+│   │   ├── lib/ (config · models · api · services[+push_service] · state · screens · widgets)
+│   │   └── web/firebase-messaging-sw.js  ← service worker FCM (obligatoire sur le web) ← 25/08
 │   └── chauffeur-mobile/            ← App mobile CHAUFFEUR Flutter (Chrome :5175 / Android) ← NOUVEAU (20/08)
 │       └── lib/ (api[api_client·dio_api] · models · services[outbox·gps_emitter·tournee_cache·route_eta]
 │                 · state · screens · widgets) + test/ (55 tests, fake ApiClient)
@@ -645,10 +702,10 @@ public enum StatutEnvoi { EN_ATTENTE, ENVOYE, ECHEC }
 **Endpoints :**
 | Route | Auth | Description |
 |-------|------|-------------|
-| `POST /api/notifications/device-token` | PARENT | Enregistrer token FCM |
-| `DELETE /api/notifications/device-token/{token}` | PARENT | Désactiver token |
-| `GET /api/notifications/mes-notifications` | PARENT | Historique personnel |
-| `GET /api/notifications` | ADMIN | Toutes les notifs |
+| `POST /api/notifications/device-token` | **PARENT/CHAUFFEUR** | Enregistrer token FCM — **idempotent** : réaffecte la ligne si le token existe (un token est stable par installation) ← **25/08** |
+| `DELETE /api/notifications/device-token/{token}` | **PARENT/CHAUFFEUR** | Désactiver token (au logout, **avant** d'effacer le JWT) ← **25/08** |
+| `GET /api/notifications/mes-notifications` | PARENT/CHAUFFEUR | Historique personnel (ne filtre **pas** sur `statutEnvoi` : un `ECHEC` de push reste lisible en app) |
+| `GET /api/notifications?page=&size=&tri=&sens=&adminSeulement=` | ADMIN | Journal **paginé côté serveur** (tri en liste blanche, page ≤ 500) ← **25/08** |
 | `GET /api/notifications/stats` | ADMIN | Stats globales |
 
 **Repository — méthode clé bugfix :**
@@ -661,7 +718,7 @@ long countByStatutEnvoi(Notification.StatutEnvoi statut);  // bugfix echecs=0
 - `supprimerToken(String fcmToken)`
 - `getMesNotifications(Long parentId)` → `List<NotificationResponse>`
 - `getToutesNotifications()` → `List<NotificationResponse>`
-- `getStats()` → `Map<String, Long>` (total, envoyes, echecs, attente)
+- `getStats()` → `Map<String, Long>` (total, envoyes, echecs, attente, **alertesAdmin** — compté en base depuis que la console ne reçoit plus qu'une page) ← **25/08**
 - `envoyerAuParent(Long, TypeNotification, String, String, Long, String)`
 
 **FcmService.envoyerAuParent signature exacte :**
@@ -1145,6 +1202,7 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | **S14** | **19/08** | **✅** | **ETA « le long de la tournée » (5 écrans) + garde anti-extrapolation MS12 + page Prévisions parent (web `/parent/eta` + mobile 6ᵉ onglet, MS5 `/mes-enfants` scopé JWT) + fix présence figée + refonte page de connexion (2 bugs thème sombre) + migration LLM forcée (Llama décommissionné → gpt-oss)** |
 | **S15** | **20/08** | **✅** | **App mobile CHAUFFEUR Flutter (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) : 7 écrans miroir de l'espace chauffeur web, le téléphone devient la **source GPS réelle** (foreground service, m/s→km/h), **file d'écritures hors ligne persistée** (FIFO, fusion des présences, réconciliation des démarrages non idempotents), démarrage refusé sans itinéraire (protège la détection de déviation MS11), `ApiClient` injectable → **55 tests** dont les écrans à actions. Aucun delta backend.** |
 | **S15** | **22/08** | **✅** | **Campagne de correction issue de l'exécution contre le backend réel : (1) ETA « cycle fermé » — le compte à rebours bondissait de 1,1 à 35,4 min pile à l'arrivée à l'école — corrigé dans les **3 implémentations** (`routeEta` Dart ×2 + TS) et les **6 écrans** ; (2) MS5 `continue_straight=false` — `geometrie` et `distance_m` décrivaient deux trajets (+10,92 %), convergence ramenée à 0,05 %, référence de déviation MS11 assainie ; (3) figeage de l'écran « Prévisions » (ListView imbriqué) ; (4) crash au `dispose` des cartes (`late final AnimationController`) ; (5) couverture chauffeur portée à 84 tests (shell + 3 écrans de consultation), parent à 25.** |
+| **S15** | **25/08** | **✅** | **MS4 — canal de notifications poussées branché (`docs/MS4_NOTIFICATIONS_FCM.md`). Diagnostic de 10 157 échecs → 4 bugs masqués corrigés : rafale `BUS_ARRIVE_ECOLE` (150 notifs/parent → 1), une ligne par événement, enregistrement idempotent (HTTP 500 à la 2ᵉ connexion), journal paginé côté serveur. `parent-mobile` équipée (web + Android), spike Gradle concluant. Reste : `web-admin`, `chauffeur-mobile`, téléphone physique.** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---
@@ -1408,6 +1466,62 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 
 ---
 
+23. **Un canal jamais branché ne signale pas son absence — il signale un échec, ce qui n'est pas
+    pareil.** MS4 historisait 100 % de ses notifications en `ECHEC` (« Aucun device FCM
+    enregistré ») depuis toujours. Le tableau de bord était rouge en permanence, donc **plus
+    personne ne le regardait** : l'alerte permanente est équivalente à l'absence d'alerte
+    (même mécanique que le cliquet du piège n° 20 et la fausse alerte du n° 21c). Et surtout,
+    cet échec **masquait quatre bugs** qui se seraient tous déclenchés le jour du branchement —
+    dont une rafale de **150 notifications par famille en trois minutes**. **Un statut d'échec
+    structurel doit être distingué d'un échec réel**, sinon il devient un tapis sous lequel
+    s'accumulent les vrais défauts.
+
+24. **Ce qui n'est jamais exercé n'est pas « qui marche », c'est « dont on ne sait rien ».**
+    Trois des quatre bugs trouvés ici étaient dans du code écrit depuis des mois et jamais
+    parcouru : la boucle d'envoi multi-appareils (jamais plus d'un appareil… puisque zéro),
+    la réinscription d'un jeton (jamais deux fois… puisque jamais une), la rafale d'arrivée
+    (jamais visible… puisque rien n'était livré). Le cas de la contrainte **UNIQUE** sur
+    `fcm_token` est le plus net : le code désactivait la ligne existante *sans la supprimer*
+    puis en insérait une nouvelle avec le même jeton — **HTTP 500 à la deuxième connexion du
+    même appareil**, c'est-à-dire dans le cas *normal*, un jeton FCM étant stable par
+    installation. ⚠️ **Corollaire de méthode** : avant de brancher un canal resté inerte,
+    relire ce qu'il fait quand il reçoit *plus d'un* élément — c'est là que se logent les
+    hypothèses jamais mises à l'épreuve.
+
+25. **`firebase_core` applique l'ancien plugin Kotlin (KGP) — sursis, pas feu vert.** L'APK se
+    construit sur **AGP 9.0.1 / Gradle 9.1 / Kotlin 2.3.20** (53,4 Mo, vérifié), mais Flutter
+    avertit : *« Your app uses plugins that apply Kotlin Gradle Plugin (KGP) […] future versions
+    of Flutter will fail to build »*. C'est la même famille que le ticket FlutterFire
+    [#17987](https://github.com/firebase/flutterfire/issues/17987) (qui ne visait que
+    `firebase_analytics` et `firebase_performance` — d'où le choix de n'ajouter **ni l'un ni
+    l'autre**), et la même famille que l'épinglage de `path_provider_android: 2.2.17` contre
+    `jni`. Échappatoire connue si le blocage survient : `android.builtInKotlin=false` +
+    réintroduction manuelle de `kotlin-android`, **temporaire** (retirée avant AGP 10).
+    À revérifier à chaque montée de Flutter ou d'AGP.
+
+26. **Sur le web, deux fichiers manquants font échouer FCM *en silence*, et différemment.**
+    Sans **clé VAPID**, `getToken()` renvoie `null` — aucun jeton, donc aucune inscription.
+    Sans **`web/firebase-messaging-sw.js`**, le jeton est obtenu normalement mais **aucun
+    message n'est jamais délivré** ; l'erreur trompeuse *« unsupported MIME type
+    ('text/html') »* signifie seulement que le fichier est absent et que le serveur de dev
+    renvoie `index.html` à sa place. Aucun des deux n'est un secret (clé publique d'un côté,
+    fichier servi au navigateur de l'autre) — les mettre dans les secrets MS13 serait une
+    perte de temps. Et **aucune empreinte SHA-1 n'est requise** pour FCM : elle sert à Google
+    Sign-In, aux Dynamic Links et à l'auth par téléphone. C'est le principal gouffre de temps
+    de cette configuration.
+
+27. **Un jeton FCM identifie un appareil, jamais une personne — et sur le web, une *origine*.**
+    Le jeton est lié au couple *origine + service worker*. La console web servant les **trois
+    rôles sur `localhost:5173`**, admin, parent et chauffeur y **partagent le même jeton** :
+    une seule application Firebase suffit pour les trois espaces, et un changement de rôle sur
+    le même navigateur **réaffecte** le jeton au lieu d'en créer un. D'où deux règles :
+    réenregistrer à **chaque** connexion (c'est ce qui réaffecte), et détacher le jeton
+    **avant** d'effacer le JWT à la déconnexion (l'appel est authentifié). Corollaire de
+    développement : `flutter run -d chrome` crée un **profil de navigateur temporaire**
+    (vérifié dans `flutter_tools/lib/src/web/chrome.dart`), donc autorisation et jeton sont
+    remis à zéro à chaque lancement et les jetons morts s'accumulent —
+    `--web-browser-flag=--user-data-dir=…` est désormais dans les quatre lanceurs VS Code.
+
 ## 💡 Décisions architecturales clés
 
 | Décision | Raison |
@@ -1436,4 +1550,8 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
 | **`/internal` non routée par la passerelle** | **Les clés API doivent sortir en clair pour MS9, mais jamais vers le web. La protection est le routage, pas un rôle** |
 | **`.env` = amorçage, MS13 = surcharge** | **Une valeur vide côté MS13 signifie « non renseignée », pas « effacer » — sans cette règle, MS9 a réellement perdu ses clés API (piège n° 21b)** |
 | **Le lot de paramètres est validé en bloc** | **Un jeu de seuils à moitié appliqué est pire qu'un enregistrement refusé** |
+| **Une ligne de notification par ÉVÉNEMENT, pas par appareil** | **Un parent connecté sur trois origines aurait vu le même message en triple dans son application. On perd le diagnostic par appareil ; une table de livraison séparée serait la réponse en production** |
+| **L'enregistrement d'un jeton FCM est idempotent** | **Un jeton est stable par installation : il revient à chaque connexion. Insérer au lieu de réaffecter violait la contrainte UNIQUE dès la 2ᵉ connexion du même appareil** |
+| **Verrou d'entrée de zone plutôt que simple cooldown** | **Le métier veut « une annonce par arrivée », pas « une annonce toutes les N minutes ». Le verrou traite le cas dominant — le bus stationné à l'école qui continue d'émettre sa position** |
+| **`push_service` injecté et qui ne lève jamais** | **Le push est un confort : Firebase absent, navigateur sans Push API ou MS4 injoignable ne doivent ni bloquer la connexion ni empêcher les tests de tourner sans réseau** |
 | **Socle Flutter dupliqué (pas de package partagé)** | **`parent-mobile` est livrée et validée ; on ne la déstabilise pas avant la soutenance. Divergence gardée par les tests de parité `route_eta` copiés** |
