@@ -46,6 +46,11 @@ dependencies:
   # et à hive (génération de code), shared_preferences ne tire PAS `path_provider` — elle
   # reste donc à l'écart du conflit `jni`/AGP 9 traité par l'override ci-dessous.
   shared_preferences: ^2.5.3
+  # Notifications poussées. `firebase_messaging` couvre officiellement le web via le paquet
+  # d'implémentation `firebase_messaging_web` (interop JavaScript pure : il ne touche pas
+  # Gradle, donc la cible navigateur échappe au conflit AGP 9 traité par l'override ci-dessous).
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.6.0
 
 # Correctif build Android : path_provider_android >= 2.3 tire le package `jni`,
 # dont le build.gradle utilise l'ancienne syntaxe `kotlin()` — incompatible avec

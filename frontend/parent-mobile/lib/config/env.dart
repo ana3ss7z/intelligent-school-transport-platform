@@ -14,6 +14,15 @@ class Env {
     defaultValue: 'ws://localhost:8083/ws/gps',
   );
 
+  /// Clé VAPID publique, exigée par `getToken()` sur le web.
+  ///
+  /// Injectée au build comme [gateway], et non servie par MS13 : c'est une **clé publique**
+  /// (le pendant privé reste chez Firebase), et surtout elle est nécessaire *avant* toute
+  /// requête authentifiée — MS13 n'est interrogeable qu'une fois connecté.
+  ///
+  /// Vide sur les cibles non-web : Android n'en a pas besoin.
+  static const String vapidKey = String.fromEnvironment('VAPID_KEY');
+
   // ══ Valeurs pilotées par la console d'administration (MS13) ══════════════
   //
   // Ces réglages étaient des `static const` : les changer imposait de recompiler et de

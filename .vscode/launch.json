@@ -10,7 +10,8 @@
       "deviceId": "chrome",
       "args": [
         "--web-port=5174",
-        "--dart-define-from-file=config/env.chrome.json"
+        "--dart-define-from-file=config/env.chrome.json",
+        "--web-browser-flag=--user-data-dir=${workspaceFolder}/.chrome-profile-parent"
       ]
     },
     {
@@ -33,7 +34,8 @@
       "deviceId": "chrome",
       "args": [
         "--web-port=5174",
-        "--dart-define-from-file=config/env.chrome.json"
+        "--dart-define-from-file=config/env.chrome.json",
+        "--web-browser-flag=--user-data-dir=${workspaceFolder}/.chrome-profile-parent"
       ]
     },
     {
@@ -45,7 +47,8 @@
       "deviceId": "chrome",
       "args": [
         "--web-port=5175",
-        "--dart-define-from-file=config/env.chrome.json"
+        "--dart-define-from-file=config/env.chrome.json",
+        "--web-browser-flag=--user-data-dir=${workspaceFolder}/.chrome-profile-chauffeur"
       ]
     },
     {
@@ -68,7 +71,8 @@
       "deviceId": "chrome",
       "args": [
         "--web-port=5175",
-        "--dart-define-from-file=config/env.chrome.json"
+        "--dart-define-from-file=config/env.chrome.json",
+        "--web-browser-flag=--user-data-dir=${workspaceFolder}/.chrome-profile-chauffeur"
       ]
     }
   ]

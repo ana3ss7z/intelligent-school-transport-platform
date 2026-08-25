@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'api/api.dart';
+import 'firebase_options.dart';
 import 'services/auth_store.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
@@ -14,6 +16,16 @@ import 'theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
+
+  // Firebase doit être prêt avant toute demande de jeton FCM. L'échec est toléré : une
+  // configuration absente ou un navigateur sans Push API ne doit pas empêcher l'application
+  // de démarrer — les notifications restent consultables dans l'application, seul le push
+  // manque. C'est d'ailleurs l'état dans lequel le projet a vécu jusqu'ici.
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    debugPrint('[push] Firebase indisponible, notifications poussées désactivées : $e');
+  }
 
   // Restaure la session avant de démarrer l'UI.
   final store = AuthStore();

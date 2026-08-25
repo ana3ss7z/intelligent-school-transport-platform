@@ -190,6 +190,24 @@ class Api {
     return _list(r).map((e) => NotificationItem.fromJson(e)).toList();
   }
 
+  /// Associe cet appareil au compte connecté, pour les notifications poussées.
+  ///
+  /// Idempotent côté MS4 : le token appartient à l'appareil, pas au compte. Réenregistrer le
+  /// même token réaffecte simplement la ligne existante — indispensable puisqu'un token FCM
+  /// est stable pour une installation et qu'il est donc renvoyé à chaque connexion.
+  Future<void> enregistrerDeviceToken(String token, String plateforme) async {
+    await _dio.post(
+      '/api/notifications/device-token',
+      data: {'fcmToken': token, 'plateforme': plateforme},
+    );
+  }
+
+  /// Détache l'appareil du compte, à la déconnexion. L'appel est authentifié : il doit partir
+  /// AVANT que le jeton ne soit effacé.
+  Future<void> supprimerDeviceToken(String token) async {
+    await _dio.delete('/api/notifications/device-token/${Uri.encodeComponent(token)}');
+  }
+
   // -------------------------------------------------------- Assistant LLM
   Future<ChatReply> chat(String message, List<ChatTurn> history) async {
     final r = await _dio.post(

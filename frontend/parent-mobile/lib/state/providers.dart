@@ -10,8 +10,19 @@ import '../services/params_service.dart';
 import '../models/models.dart';
 import '../services/auth_store.dart';
 import '../services/gps_socket.dart';
+import '../services/push_service.dart';
 
 final authStoreProvider = Provider<AuthStore>((ref) => AuthStore());
+
+/// Notifications poussées. Les appels réseau sont injectés plutôt que pris sur
+/// `Api.instance`, pour que les tests puissent observer l'enregistrement sans Firebase.
+final pushServiceProvider = Provider<PushService>((ref) {
+  return PushService(
+    enregistrer: (token, plateforme) =>
+        Api.instance.enregistrerDeviceToken(token, plateforme),
+    supprimer: (token) => Api.instance.supprimerDeviceToken(token),
+  );
+});
 
 /// Mode de thème (système par défaut, bascule clair/sombre).
 class ThemeModeController extends Notifier<ThemeMode> {
@@ -52,9 +63,15 @@ class AuthController extends Notifier<AuthUser?> {
     // seulement ici — que MS13 devient interrogeable. Sans await : un service de
     // configuration lent ou absent ne doit pas retarder l'entrée dans l'application.
     unawaited(ref.read(paramsServiceProvider).charger());
+    // Même motif, et pour la même raison : demander l'autorisation puis joindre Firebase et
+    // MS4 peut prendre plusieurs secondes. Rejoué à chaque connexion — c'est ce qui réaffecte
+    // le jeton au bon compte quand l'appareil change de main.
+    unawaited(ref.read(pushServiceProvider).activer());
   }
 
   Future<void> logout() async {
+    // Avant d'effacer le jeton de session : l'appel de détachement est authentifié.
+    await ref.read(pushServiceProvider).desactiver();
     Api.instance.token = null;
     await ref.read(authStoreProvider).clear();
     state = null;

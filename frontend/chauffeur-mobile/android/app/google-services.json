@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "780428837188",
+    "project_id": "transport-scolaire-meknes",
+    "storage_bucket": "transport-scolaire-meknes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:780428837188:android:6a18c7d195598aacdbd711",
+        "android_client_info": {
+          "package_name": "ma.transport.chauffeur_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4OAsWEV5def3IWQ-eTke-4I-QRItAbVA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:780428837188:android:b2699244f5190b39dbd711",
+        "android_client_info": {
+          "package_name": "ma.transport.parent_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4OAsWEV5def3IWQ-eTke-4I-QRItAbVA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
