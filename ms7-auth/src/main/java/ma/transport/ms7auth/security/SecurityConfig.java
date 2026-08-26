@@ -41,6 +41,15 @@ public class SecurityConfig {
                     }
                     response.getWriter().write("{\"error\": \"" + message + "\"}");
                 })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // Sans ce gestionnaire, un refus d'AUTORISATION ressortait en 401, que le
+                    // client HTTP du front interprete comme une session expiree : un chauffeur
+                    // qui touchait une route d'administration etait DECONNECTE de la console au
+                    // lieu de voir un refus (defaut C2 de la recette du 26/08).
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\": \"Acces refuse\"}");
+                })
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()

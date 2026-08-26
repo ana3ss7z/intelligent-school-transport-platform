@@ -1,0 +1,98 @@
+{
+  "date": "2026-08-26 01:49:46",
+  "total": 13,
+  "ecarts": 0,
+  "assertions": [
+    {
+      "nom": "MS13-1 · Les secrets sont déclarés `sensible` dans le catalogue",
+      "attendu": "au moins un",
+      "obtenu": "3 : ms9.groq_api_key, ms9.gemini_api_key, ms12.tomtom_key",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "nom": "MS13-2 · Secrets vides côté MS13 mais MS9 garde ses clés (piège 21b)",
+      "attendu": "MS9 configured=True",
+      "obtenu": "3/3 secrets vides côté MS13, MS9 configured=True",
+      "ok": true,
+      "commentaire": "une valeur vide signifie « non renseignée », jamais « effacer »"
+    },
+    {
+      "nom": "MS13-3 · Une valeur sensible renseignée est MASQUÉE en lecture",
+      "attendu": "masque, pas la clé",
+      "obtenu": "'••••••1234'",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "nom": "MS13-4 · Renvoyer le masque n'écrase PAS le secret (piège 21a)",
+      "attendu": "valeur d'origine intacte",
+      "obtenu": "stockée='RECETTE-CLE-FICTIVE-abcd1234'",
+      "ok": true,
+      "commentaire": "garde CÔTÉ SERVEUR : elle doit tenir pour curl, mobile ou script"
+    },
+    {
+      "nom": "MS13-5 · POST /reset restaure le défaut du catalogue",
+      "attendu": "vide",
+      "obtenu": "HTTP 200, valeur=''",
+      "ok": true,
+      "commentaire": "seule voie pour VIDER un réglage textuel depuis la console"
+    },
+    {
+      "nom": "MS13-6 · Lot avec une valeur hors bornes → refus ATOMIQUE",
+      "attendu": "4xx et aucune écriture",
+      "obtenu": "HTTP 400, ms11.seuil_vitesse_kmh=90",
+      "ok": true,
+      "commentaire": "un jeu de seuils à moitié appliqué serait pire qu'un refus"
+    },
+    {
+      "nom": "MS13-7 · Propagation à chaud MS13 → MS11, SANS redémarrage",
+      "attendu": "< 10 s",
+      "obtenu": "2.30 s",
+      "ok": true,
+      "commentaire": "ms11.seuil_vitesse_kmh : 90 → 85"
+    },
+    {
+      "nom": "MS13-8 · Restauration de la valeur initiale",
+      "attendu": "90",
+      "obtenu": "90.0",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "nom": "MS4-1 · Réenregistrer le MÊME jeton FCM (piège 24 : HTTP 500 avant correctif)",
+      "attendu": "3 succès",
+      "obtenu": "200, 200, 200",
+      "ok": true,
+      "commentaire": "un jeton est stable par installation : il revient à CHAQUE connexion"
+    },
+    {
+      "nom": "MS4-2 · Bus GARÉ à l'école, 30 pings → verrou d'entrée de zone (piège 23)",
+      "attendu": "≤ 27 (1 par parent)",
+      "obtenu": "26 notification(s) pour 27 parents",
+      "ok": true,
+      "commentaire": "avant correctif : 150 par parent en 3 min ; 30 pings envoyés ici"
+    },
+    {
+      "nom": "MS4-3 · Pagination SERVEUR du journal (piège 23 : findAll de 10 000 lignes)",
+      "attendu": "5 lignes transportées",
+      "obtenu": "5 ligne(s), total annoncé = None",
+      "ok": true,
+      "commentaire": "la page ne transporte qu'une tranche ; le total vient de /stats"
+    },
+    {
+      "nom": "MS4-4 · Tri hors liste blanche refusé ou ignoré",
+      "attendu": "4xx ou repli sûr",
+      "obtenu": "HTTP 200",
+      "ok": true,
+      "commentaire": "jamais d'injection dans l'ORDER BY"
+    },
+    {
+      "nom": "MS4-5 · /stats fournit les totaux (la page n'en voit plus qu'une tranche)",
+      "attendu": "clés total/envoyes/echecs",
+      "obtenu": "{\"echecs\": 10267, \"envoyes\": 0, \"alertesAdmin\": 19, \"total\": 10267, \"attente\": 0}",
+      "ok": true,
+      "commentaire": ""
+    }
+  ]
+}

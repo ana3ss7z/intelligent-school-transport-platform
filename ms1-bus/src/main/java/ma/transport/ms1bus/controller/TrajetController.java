@@ -22,12 +22,17 @@ import ma.transport.mscommon.security.UserPrincipal;
 public class TrajetController {
 
     private final TrajetService service;
+    private final ma.transport.ms1bus.service.PorteeService portee;
 
     @PostMapping("/demarrer")
     @PreAuthorize("hasAnyRole('CHAUFFEUR', 'ADMIN')")
     public ResponseEntity<TrajetResponse> demarrer(
             @AuthenticationPrincipal UserPrincipal user,
             @Valid @RequestBody TrajetRequest req) {
+        // Le busId vient du corps de la requete : sans ce controle, un chauffeur demarre un
+        // trajet sur le bus d'un collegue, ce qui arme la surveillance MS11 et notifie
+        // l'administration pour un vehicule qu'il ne conduit pas (defaut P9).
+        portee.exigerBusDuChauffeur(user, req.getBusId());
         return ResponseEntity.status(HttpStatus.CREATED).body(service.demarrer(user.getUserId(), req));
     }
 
@@ -36,7 +41,7 @@ public class TrajetController {
     public ResponseEntity<TrajetResponse> terminer(
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long id) {
-        return ResponseEntity.ok(service.terminer(id, user.getUserId()));
+        return ResponseEntity.ok(service.terminer(id, user.getUserId(), user.getRole()));
     }
 
     @GetMapping("/actifs")
@@ -61,7 +66,10 @@ public class TrajetController {
     /** Trajet EN_COURS d'un bus (suivi parent : ETA selon le sens). 204 si aucun. */
     @GetMapping("/bus/{busId}/actif")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
-    public ResponseEntity<TrajetResponse> actifParBus(@PathVariable Long busId) {
+    public ResponseEntity<TrajetResponse> actifParBus(
+            @AuthenticationPrincipal UserPrincipal user,
+            @PathVariable Long busId) {
+        portee.exigerAccesAuBus(user, busId);
         TrajetResponse t = service.actifParBus(busId);
         return t == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(t);
     }
@@ -75,7 +83,12 @@ public class TrajetController {
      */
     @GetMapping("/bus/{busId}/route")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
-    public ResponseEntity<TrajetRouteResponse> routeParBus(@PathVariable Long busId) {
+    public ResponseEntity<TrajetRouteResponse> routeParBus(
+            @AuthenticationPrincipal UserPrincipal user,
+            @PathVariable Long busId) {
+        // La polyligne trace la rue de chaque famille du bus : la lecture doit etre
+        // reservee aux familles concernees, pas ouverte a tout parent (defaut P7).
+        portee.exigerAccesAuBus(user, busId);
         TrajetRouteResponse r = service.routeParBus(busId);
         return r == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(r);
     }

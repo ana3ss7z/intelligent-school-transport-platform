@@ -45,6 +45,10 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
             .requestMatchers(HttpMethod.GET, "/api/bus/actifs").permitAll()
             // Route interne (MS4 → MS1, sans JWT) : chauffeur d'un bus (notif chauffeur sur incident)
             .requestMatchers(HttpMethod.GET, "/api/bus/*/chauffeur").permitAll()
+                // MS3 · MS10 → MS1 : bus d'un chauffeur, pour le controle de propriete.
+                // Chemin hors de /api/bus/** : la passerelle route /api/bus/** en entier.
+                // ⚠️ Ne jamais router /internal/** dans ms8-gateway/application.yml.
+                .requestMatchers(HttpMethod.GET, "/internal/bus/chauffeur/*").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

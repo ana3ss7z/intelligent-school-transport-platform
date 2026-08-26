@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     port: int = 8085
     osrm_url: str = "http://localhost:5000"
     ms2_url: str = "http://localhost:8082"
+    # Route interne de MS1 : bus d'un chauffeur, pour le contrôle de portée du /tournee
+    ms1_url: str = "http://localhost:8081"
 
     # Source de vérité des paramètres métier (MS13), appelée en direct — la route /internal
     # n'est pas publiée par la passerelle.

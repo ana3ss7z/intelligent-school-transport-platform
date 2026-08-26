@@ -28,7 +28,7 @@
 scolaire — de la gestion des bus et des élèves au suivi GPS temps réel, en passant par l'**optimisation par
 intelligence artificielle** des groupes de ramassage, des tournées et de la prédiction des temps d'arrivée.
 
-L'architecture repose sur **12 microservices** répartis en deux écosystèmes complémentaires :
+L'architecture repose sur **13 microservices** répartis en deux écosystèmes complémentaires :
 
 - **Cœur métier (Java / Spring Boot)** — authentification, bus, élèves, localisation, incidents, notifications, passerelle API.
 - **Intelligence & optimisation (Python / FastAPI)** — clustering capacitaire, planification de tournées (VRP),
@@ -95,8 +95,9 @@ flowchart TB
 | **MS1** | **BusService** | `8081` | CRUD flotte, statut (`ACTIF·INACTIF·EN_PANNE`), position |
 | **MS2** | **EleveService** | `8082` | CRUD élèves, affectation bus/groupe, présence, événements RabbitMQ |
 | **MS3** | **LocalisationService** | `8083` | GPS temps réel via **WebSocket**, cache Redis, routage OSRM |
-| **MS4** | **NotificationService** | `8084` | Notifications push **FCM** (Firebase), historique, statistiques |
+| **MS4** | **NotificationService** | `8084` | Notifications **push FCM** (Firebase) + historique in-app, messagerie chauffeur↔administration, statistiques. Une ligne d'historique **par événement** (et non par appareil), annonce d'arrivée à l'école protégée par un **verrou d'entrée de zone** |
 | **MS10** | **IncidentService** | `8090` | Cycle de vie des incidents (`SIGNALE→…→RESOLU`), publication d'événements |
+| **MS13** | **ParametreService** | `8092` | **Source de vérité de la configuration métier** : 60 réglages sur 9 onglets, catalogue en code / valeurs en base, propagation **à chaud** par RabbitMQ. Supprime les constantes compilées — dont les coordonnées de l'école, qui vivaient à 6 endroits avec une version fausse de 900 m |
 | **MS8** | **API Gateway** | `8080` | Point d'entrée unique : validation JWT, rate-limiting Redis, CORS global |
 
 ### 🐍 Intelligence & optimisation (Python 3.11 / FastAPI)
@@ -107,7 +108,7 @@ flowchart TB
 | **MS5** | **PlanificationService (VRP)** | `8085` | **Ordre de tournée optimal** par bus : **TSP OR-Tools**, dépôt = école, distances OSRM réelles, gain mesuré vs baseline |
 | **MS12** | **PredictionService (ETA)** | `8088` | **Prédiction du temps d'arrivée** : benchmark multi-modèles, dataset semi-réel ancré OSRM (180 j), split temporel |
 | **MS11** | **AnalytiqueService (Anomalies)** | `8091` | **Détection d'anomalies** de trajet : Isolation Forest curé, feature `surprise` contextuelle, évaluation PR-AUC/ROC |
-| **MS9** | **Assistant LLM (parent + admin)** | `8089` | **Agent tool-calling** (sans LangChain), **agnostique** (cascade Groq 70b→8b→Gemini) : le parent demande position/ETA/présence/incidents ; outils scopés à ses enfants (JWT), reverse geocoding OSM, **FR/AR/darija**. **Phase B — NL2SQL admin** : question en langage naturel → SQL → synthèse, avec un **rôle Postgres `ms9_readonly`** et une transaction `READ ONLY` (la sécurité est dans la base, pas seulement dans le prompt) |
+| **MS9** | **Assistant LLM (parent + admin)** | `8089` | **Agent tool-calling** (sans LangChain), **agnostique** (cascade `gpt-oss-120b` → `gpt-oss-20b` → Gemini) : le parent demande position/ETA/présence/incidents ; outils scopés à ses enfants (JWT), reverse geocoding OSM, **FR/AR/darija**. **Phase B — NL2SQL admin** : question en langage naturel → SQL → synthèse, avec un **rôle Postgres `ms9_readonly`** et une transaction `READ ONLY` (la sécurité est dans la base, pas seulement dans le prompt) |
 
 > `ms-common` est un module Java partagé (JWT, rôles) sans dépendance Spring.
 
@@ -302,6 +303,12 @@ Benchmarks détaillés, chacun expliqué pas à pas :
 📓 Chaque service embarque ses **notebooks CRISP-DM** (EDA → comparaison de modèles → stratégie de production)
 et une **documentation dédiée** dans [`docs/`](docs/).
 
+📗 **Guides d'exploitation**, lisibles sans connaître le code :
+[Réglages de la plateforme](docs/GUIDE_PARAMETRES.md) ·
+[Les notifications, expliquées simplement](docs/MS4_NOTIFICATIONS_FCM.md) ·
+[Le correctif MS6, expliqué simplement](docs/MS6_CORRECTIF_EXPLIQUE.md) ·
+[Guide de soutenance](docs/DEMO_SOUTENANCE.md).
+
 ---
 
 ## 🛠️ Stack technique
@@ -347,6 +354,7 @@ start-all-ms.bat
 ```bash
 # Java (Spring Boot) — la Gateway en dernier
 cd ms7-auth          && mvn spring-boot:run   # :8087
+cd ms13-parametres   && mvn spring-boot:run   # :8092  (tôt : les autres y lisent leur config)
 cd ms1-bus           && mvn spring-boot:run   # :8081
 cd ms2-eleves        && mvn spring-boot:run   # :8082
 cd ms3-localisation  && mvn spring-boot:run   # :8083
@@ -392,6 +400,7 @@ Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](htm
 | Localisation (MS3) | `8083` | | **Assistant LLM (MS9)** | `8089` |
 | Notifications (MS4) | `8084` | | Incidents (MS10) | `8090` |
 | Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
+| | | | **Paramètres (MS13)** | `8092` |
 | PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
 | **Front** : web-admin `5173` · app parent Flutter `5174` · **app chauffeur Flutter `5175`** | | | | |
 
@@ -426,15 +435,44 @@ Exchange **`transport.exchange`** (topic, durable). Communication asynchrone dé
 
 ## 🧪 Tests
 
-| Outil | Couverture | Statut |
+> **Chiffres mesurés contre la stack réelle le 27/08/2026, après correction** — voir
+> [`docs/RECETTE_FINALE.md`](docs/RECETTE_FINALE.md) (l'audit),
+> [`docs/PLAN_CORRECTIONS.md`](docs/PLAN_CORRECTIONS.md) (le plan) et
+> [`docs/JOURNAL_CORRECTIONS.md`](docs/JOURNAL_CORRECTIONS.md) (ce qui a été fait et vérifié).
+
+| Outil | Couverture | Mesuré le 27/08 |
 |-------|-----------|:------:|
-| **`e2e_integration_test.py`** | Chaîne complète (clustering→busId→GPS→ETA→notif→présence→anomalie) | **8/8** ✅ |
-| **Newman (Postman)** | API cœur métier | **88/88 assertions** ✅ |
-| **Console web** | Parcours de bout en bout + cartes | ✅ |
-| **`flutter test`** (chauffeur) | Écrans à actions, file hors ligne, primitive ETA sur **tournée réelle** | **84/84** ✅ |
-| **`flutter test`** (parent) | Login, primitive ETA (mêmes tests de parité + fixture réelle) | **25/25** ✅ |
+| **`scripts/recette/scenarios.py`** | 39 scénarios **acteur ↔ acteur** : 6 comptes réels, chaque interaction testée sur ses deux faces | **39/39** ✅ |
+| **`scripts/recette/contrats.py`** | 67 assertions de contrat HTTP et RBAC contre la passerelle vivante | **67/67** ✅ |
+| **Newman (Postman)** | API cœur métier + passerelle | **88/88** ✅ |
+| **`scripts/recette/balayage_front.mjs`** | 27 routes web-admin × 3 rôles dans un vrai Chrome | **42/42** ✅ |
+| **`scripts/recette/config_et_push.py`** | MS13 config à chaud + MS4 canal push | **13/13** ✅ |
+| **`scripts/recette/migration_k7.py`** | Retour à 7 bus, mesuré des deux côtés | k=7, verdict **OK** ✅ |
+| **`scripts/recette/temps_reel.py`** | Cycle de trajet, déviation, vitesse, incident→notification | **10/12** ⚠️ |
+| **`e2e_integration_test.py`** | Chaîne complète (clustering→busId→GPS→ETA→notif→présence→anomalie) | **11/12** ⚠️ |
+| **`pytest`** (MS6 · MS9) | Stabilité de `k`, garde-fou qualité, garde SQL NL2SQL | **75/75** · **36/36** ✅ |
+| **`flutter test`** (chauffeur) | Écrans à actions, file hors ligne, primitive ETA sur **tournée réelle** | **93/93** ✅ |
+| **`flutter test`** (parent) | Login, primitive ETA, service push | **38/38** ✅ |
+| **`mvn test`** | MS4 **17/17** ✅ · MS10 1/1 ✅ · **5 modules à `skipTests=true`** | **18** ⚠️ |
 | **Notebooks Jupyter** | Validation des modèles IA (CRISP-DM) | ✅ |
 | `verify_sens.py` | Preuve d'équité des tournées (OSRM réel) | ✅ |
+
+✅ **Les deux défauts critiques de l'audit sont corrigés.** `POST /api/auth/register`
+n'accorde plus le rôle demandé dans le corps (une inscription publique crée toujours un
+`PARENT`), et `GET /api/eleves` exige un jeton — les services qui n'en ont pas passent par
+`GET /internal/eleves`, une route que la passerelle ne route pas. **15 failles de portée**
+(un acteur agissant sur les données d'un autre) ont été fermées dans la foulée, avec un
+harnais de scénarios qui les empêche de revenir.
+
+⚠️ **Dette assumée et documentée** : le **WebSocket GPS reste sans authentification**
+(différé — il touche les trois frontends d'un coup), 5 modules Maven ont leurs tests
+désactivés, 7 files RabbitMQ sans consommateur accumulent 28 944 messages, et la règle de
+déviation reste structurellement faible. Détail et hiérarchie dans le plan et le journal.
+
+```bash
+scripts\recette\tout.cmd offline   # suites qui ne demandent pas la stack
+scripts\recette\tout.cmd live      # tout ce qui interroge la stack en fonctionnement
+```
 
 > **Données de démo** : `generer_comptes.py` (idempotent, `--reset`) crée des familles réalistes (parents/fratries),
 > des chauffeurs et une flotte de bus, et exporte les identifiants (`comptes_utilisateurs.csv/json`, gitignorés).
@@ -449,7 +487,7 @@ transport-scolaire/
 ├── docker-compose.yml       # PostgreSQL · Redis · RabbitMQ · pgAdmin
 ├── start-all-ms.bat         # lancement de tous les services
 ├── ms-common/               # module Java partagé (JWT, rôles)
-├── ms1-bus/ … ms12-prediction/   # 12 microservices
+├── ms1-bus/ … ms13-parametres/   # 13 microservices
 ├── frontend/web-admin/      # console web React + Vite + TS (Bun) — admin · chauffeur · parent
 ├── frontend/parent-mobile/     # app mobile PARENT Flutter (Chrome :5174 / Android)
 ├── frontend/chauffeur-mobile/  # app mobile CHAUFFEUR Flutter (Chrome :5175 / Android) — source GPS
@@ -474,10 +512,13 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S10 | **MS5 VRP** (TSP OR-Tools, tournées) | ✅ |
 | S11 | **Console d'administration web (UC-13)** — React/Vite : dashboard, carte live, clustering (cartes clusters + prévisualisation), CRUD élèves/bus/utilisateurs & liaisons, incidents, anomalies, ETA par arrêt | ✅ |
 | S12 | **MS11 Détection d'anomalies** (Isolation Forest curé) + **monitor GPS live** · KPIs | ✅ |
-| S9 | **Assistant LLM (MS9)** — **Phase A** agent tool-calling parent (cascade Groq/Gemini, FR/AR/darija) · **Phase B** NL2SQL admin (SQL read-only, page `AdminAssistant`) | ✅ |
+| S9 | **Assistant LLM (MS9)** — **Phase A** agent tool-calling parent (cascade `gpt-oss`→Gemini, FR/AR/darija) · **Phase B** NL2SQL admin (SQL read-only, page `AdminAssistant`) | ✅ |
 | S13+ | **App mobile PARENT Flutter** (`frontend/parent-mobile/`, Chrome :5174 / Android) — 5 écrans miroir de l'espace parent web, Material 3 clair+sombre, carte live glisse GPS, aucun delta backend | ✅ |
-| S15 | **App mobile CHAUFFEUR Flutter** (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) — 7 écrans, le téléphone devient la **source GPS**, **file d'écritures hors ligne** persistée, 84 tests | ✅ |
+| S15 | **App mobile CHAUFFEUR Flutter** (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) — 7 écrans, le téléphone devient la **source GPS**, **file d'écritures hors ligne** persistée, 93 tests | ✅ |
 | S15 | **Campagne de correction** issue de l'exécution contre le backend réel : ETA « cycle fermé », MS5 `continue_straight`, 2 crashs d'interface (cf. [CLAUDE.md](CLAUDE.md), pièges 13-15) | ✅ |
+| S15 | **MS13 ParametreService** — 60 réglages pilotables depuis `/settings`, catalogue en code / valeurs en base, propagation à chaud (RabbitMQ). Corrige au passage la divergence de 900 m sur les coordonnées de l'école ([`GUIDE_PARAMETRES.md`](docs/GUIDE_PARAMETRES.md)) | ✅ |
+| S15 | **Notifications poussées (FCM)** — canal jamais raccordé : 10 157 échecs sur 10 157. Diagnostic puis correction de **4 bugs qu'il masquait** (rafale de 150 notifs/parent, historisation par appareil, enregistrement non idempotent, journal non paginé) ; `parent-mobile` équipée web + Android ([`MS4_NOTIFICATIONS_FCM.md`](docs/MS4_NOTIFICATIONS_FCM.md)) | ✅ |
+| — | Push sur `web-admin` et `chauffeur-mobile` · vérification sur téléphone physique | 🔄 |
 | — | Réaffectation dynamique (UC-9) · déploiement Railway/Render | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 

@@ -170,7 +170,7 @@ def main():
     print(f"  → {len(out['bus'])} bus")
 
     # 3) Familles + parents
-    eleves = requests.get(f"{MS2}/api/eleves", timeout=30).json()
+    eleves = requests.get(f"{MS2}/internal/eleves", timeout=30).json()  # route interne : /api/eleves exige un JWT
     familles = construire_familles(eleves)
     multi = sum(1 for f in familles if len(f) > 1)
     print(f"\n{len(eleves)} élèves → {len(familles)} familles ({multi} avec ≥2 enfants). Création des parents…")

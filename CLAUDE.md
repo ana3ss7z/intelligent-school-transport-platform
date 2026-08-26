@@ -506,6 +506,93 @@ JWT**, l'appel étant authentifié.
 > **Non vérifié** : bout en bout réel (MS4 doit être redémarré), push sur téléphone physique,
 > `web-admin` et `chauffeur-mobile` (lots 3 et 4, non faits).
 
+**NOUVEAU (26/08) — Recette finale : la vérification de bout en bout avant le mémoire.**
+📄 **Document autonome : [`docs/RECETTE_FINALE.md`](docs/RECETTE_FINALE.md) · scripts : `scripts/recette/`.**
+📄 **Suite : [`docs/PLAN_CORRECTIONS.md`](docs/PLAN_CORRECTIONS.md)** — planning de correction en 7 lots.
+> ⚠️ Une revue de code postérieure, ciblée sur les **interactions entre acteurs**, a trouvé
+> **13 défauts de portée de plus** (IDOR) que la recette ne couvrait pas — dont `PATCH /presence`
+> ouvert à tout chauffeur sur tout élève, la **polyligne de tournée** lisible par tout parent, et le
+> **WebSocket GPS sans aucune authentification**. Registre consolidé : **33 défauts**.
+
+Objet : non pas montrer que tout marche, mais **confronter chaque chiffre publié ici et dans le
+`README.md` à ce que la stack fait réellement**. Huit phases, toutes rejouables
+(`scripts
+ecette	out.cmd offline|live`).
+
+**Ce qui est confirmé, mesuré ce jour** : MS5 convergence `distance_m` ↔ géométrie à
+**0,05 / 0,03 / 0,02 %** (piège 14) · **churn 0/301 élèves** au recalcul appliqué (piège 19) ·
+masque MS13 non écrit et secrets du `.env` préservés (piège 21a/b) · **propagation à chaud
+MS13→MS11 en 2,30 s** · verrou d'arrivée : bus garé, 30 pings → **26 notifications pour
+27 parents** (piège 23) · jeton FCM réenregistré 3× → 200/200/200 (piège 24) ·
+`models-check` **verdict OK**, les 3 modèles de la cascade réellement servis (piège 7) ·
+limiteur de la passerelle **36 × 429 sur 40 connexions parallèles** ·
+`GET :8080/api/parametres/internal` → **404** · **22 combinaisons rôle × route** correctes ·
+**27 routes web-admin rendues, 0 erreur console, 0 requête en échec** dans un Chrome réel.
+
+**Ce qui ne l'est pas — 20 défauts, dont 2 critiques (cf. pièges n° 28 à 31)** :
+- 🔴 **auto-promotion ADMIN** par `POST /api/auth/register` (`role` lu dans le corps),
+  **exploitable sur 6 surfaces d'administration sur 6**, NL2SQL compris ;
+- 🔴 **`GET /api/eleves` est `permitAll`** : **301 élèves, nom, prénom et domicile GPS** servis
+  sans authentification sur `:8082` — détecté par l'assertion Newman n° 13, jamais rejouée
+  (**87/88**, pas 88/88) ;
+- 🟠 aucun contrôle de propriété sur `/api/eleves/parent/{id}` et `/api/gps/eleve/{id}/historique` ;
+- 🟠 `/carte` sans garde de rôle : un parent y voit **14 bus en direct + la flotte** ;
+- 🟠 **un ADMIN ne peut pas clore un trajet** ⇒ bus bloqué sans recours (démarrage non idempotent) ;
+- 🟡 **`mvn test` = 18 tests, pas 22** : 5 modules à `skipTests=true` ;
+- 🟡 **28 944 messages** dans 7 files RabbitMQ **sans consommateur** (`gps.bus.updated.queue` : 28 918) ;
+- 🟡 MS7 renvoie **401 au lieu de 403** (pas d'`accessDeniedHandler`) ⇒ le front **déconnecte** ;
+- 🟡 déviation : couverture **re-mesurée sur 2 vraies tournées** — un détour de **300 m** n'est vu
+  que sur **29,1 %** (groupe 1) et **16,3 %** (groupe 3) du parcours ; **plus la tournée est longue,
+  plus la règle est aveugle** (constat nouveau vs piège 17) ;
+- 🟡 la production tourne à **k=9 bus** quand `production_config.json` annonce **k=7** — c'est
+  l'hystérésis qui fait son travail (churn 0 %), mais elle ancre le système sur une partition
+  antérieure au correctif. **À trancher avant la soutenance** ;
+- 🟡 MS12 `domaine_entrainement` **null** : la garde ne tient qu'au CSV présent au démarrage ;
+- 🟡 le test G1 du e2e échoue de **3,6 s** sur son seuil (ETA 10,06 min contre 10) — la chaîne,
+  elle, est prouvée : notification `BUS_EN_ROUTE` en **3 s** à 2 214 m.
+
+> **Aucun défaut n'a été corrigé** — même discipline que la campagne de benchmark du 23/08 :
+> rapportés, chiffrés, documentés ; la correction est une décision de production. Seuls les
+> n° 1 et 2 sont signalés comme **à corriger avant toute démonstration publique**.
+> **Nouveauté d'outillage** : `web-admin`, qui n'avait aucun test, dispose désormais d'un
+> balayage Chrome (`scripts/recette/balayage_front.mjs`, `puppeteer-core`) qui exerce ses
+> **27 routes × 3 rôles** avec captures d'écran ; et le « 88/88 » a enfin un lanceur.
+
+---
+
+**NOUVEAU (27/08) — Correction : les 15 failles de portée sont fermées, retour à 7 bus.**
+📄 **Journal d'exécution : [`docs/JOURNAL_CORRECTIONS.md`](docs/JOURNAL_CORRECTIONS.md).**
+
+Exécution des lots 0 à 4 du plan. **Tout est vérifié contre la stack vivante**, pas relu.
+
+**Les deux bloquants** : `POST /api/auth/register` force désormais `PARENT` (le champ `role`
+du corps est ignoré) ; `GET /api/eleves` exige un jeton, et les services sans jeton
+utilisateur (MS5, MS6, MS12) passent par **`GET /internal/eleves`** — un préfixe
+volontairement **hors** de `/api/eleves/**`, que la passerelle route en entier.
+
+**Les 15 failles de portée** sont fermées par un `PorteeService` par service, alimenté par
+deux nouvelles routes internes (`/internal/parents/{id}/bus` côté MS2,
+`/internal/bus/chauffeur/{id}` côté MS1), toutes **en échec fermé**. Plus C1 (un ADMIN peut
+enfin clore un trajet) et C2 (403 au lieu de 401 : le front ne déconnecte plus).
+
+**Retour à k=7 bus** — la partition en place était tombée à **un groupe de 9 élèves** sur un
+bus de 50 places pendant qu'un autre en portait 47. Après désarmement de l'hystérésis :
+**50 · 44 · 42 · 37 · 50 · 48 · 29**, remplissage **67 % → 86 %**, verdict qualité **OK**,
+silhouette 0,4256 (= l'ancre gelée). Deux bus et deux chauffeurs économisés.
+Rejouable : `python scripts/recette/migration_k7.py`.
+
+| Vérification | Avant | Après |
+|---|---|---|
+| `scenarios.py` (39 scénarios acteur↔acteur, **nouveau**) | 18/33 | **39/39** |
+| `contrats.py` | 60/66 | **67/67** |
+| Newman | 87/88 | **88/88** |
+| Balayage Chrome (27 routes × 3 rôles) | 40/42 | **42/42** |
+
+> ⚠️ **Reste ouvert, assumé** : le **WebSocket GPS sans authentification** (piège n° 32),
+> les lots 5 et 6 du plan, et la faiblesse structurelle de la règle de déviation.
+
+---
+
 ## 📁 Structure racine du projet
 
 ```
@@ -1203,6 +1290,7 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | **S15** | **20/08** | **✅** | **App mobile CHAUFFEUR Flutter (`frontend/chauffeur-mobile/`, Chrome :5175 / Android) : 7 écrans miroir de l'espace chauffeur web, le téléphone devient la **source GPS réelle** (foreground service, m/s→km/h), **file d'écritures hors ligne persistée** (FIFO, fusion des présences, réconciliation des démarrages non idempotents), démarrage refusé sans itinéraire (protège la détection de déviation MS11), `ApiClient` injectable → **55 tests** dont les écrans à actions. Aucun delta backend.** |
 | **S15** | **22/08** | **✅** | **Campagne de correction issue de l'exécution contre le backend réel : (1) ETA « cycle fermé » — le compte à rebours bondissait de 1,1 à 35,4 min pile à l'arrivée à l'école — corrigé dans les **3 implémentations** (`routeEta` Dart ×2 + TS) et les **6 écrans** ; (2) MS5 `continue_straight=false` — `geometrie` et `distance_m` décrivaient deux trajets (+10,92 %), convergence ramenée à 0,05 %, référence de déviation MS11 assainie ; (3) figeage de l'écran « Prévisions » (ListView imbriqué) ; (4) crash au `dispose` des cartes (`late final AnimationController`) ; (5) couverture chauffeur portée à 84 tests (shell + 3 écrans de consultation), parent à 25.** |
 | **S15** | **25/08** | **✅** | **MS4 — canal de notifications poussées branché (`docs/MS4_NOTIFICATIONS_FCM.md`). Diagnostic de 10 157 échecs → 4 bugs masqués corrigés : rafale `BUS_ARRIVE_ECOLE` (150 notifs/parent → 1), une ligne par événement, enregistrement idempotent (HTTP 500 à la 2ᵉ connexion), journal paginé côté serveur. `parent-mobile` équipée (web + Android), spike Gradle concluant. Reste : `web-admin`, `chauffeur-mobile`, téléphone physique.** |
+| **S15** | **26/08** | **✅** | **Recette finale de bout en bout (`docs/RECETTE_FINALE.md`, `scripts/recette/`) : 8 phases rejouables contre la stack vivante. Confirme 7 correctifs (MS5 0,05 % · churn 0 % · masque MS13 · propagation 2,30 s · verrou d'arrivée 30 pings→1/parent · jeton FCM idempotent · cascade MS9 servie) et **27 routes web-admin rendues sans erreur console dans un vrai Chrome**. Trouve **20 défauts**, dont **2 critiques** : auto-promotion ADMIN via `/register` (exploitable sur 6 surfaces/6) et **301 élèves + domiciles GPS servis sans authentification** — ce dernier était détecté par l'assertion Newman n° 13, jamais rejouée.** |
 | S14-S15 | 12-25/08 | ⏳ | Mémoire, Slides, Vidéo démo, Soutenance |
 
 ---
@@ -1521,6 +1609,103 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
     (vérifié dans `flutter_tools/lib/src/web/chrome.dart`), donc autorisation et jeton sont
     remis à zéro à chaque lancement et les jetons morts s'accumulent —
     `--web-browser-flag=--user-data-dir=…` est désormais dans les quatre lanceurs VS Code.
+
+28. **Un test désactivé est pire qu'un test absent : il rend le rapport vert.**
+    Trouvé le 26/08 par la recette finale. Cinq `pom.xml` portent
+    `<skipTests>true</skipTests>` — **ms1-bus, ms2-eleves, ms3-localisation, ms7-auth,
+    ms8-gateway**. `mvnw.cmd test` affiche `Tests are skipped.` puis **BUILD SUCCESS**, et
+    le total réel est **18 tests** (MS4 17 + MS10 1), pas les 22 annoncés. Les quatre
+    modules qui portent l'**authentification**, la **passerelle**, les **élèves** et les
+    **bus** n'exécutent donc aucun test — et rien ne le dit. Même famille que le n° 23 :
+    un signal toujours vert vaut absence de signal. **Compter les tests exécutés, jamais
+    se fier au code de sortie.**
+
+29. **Un test de sécurité qu'on ne rejoue plus finit par documenter une faille.**
+    La collection Newman contient depuis toujours l'assertion 13, *« Eleves endpoint
+    without token returns 401 »*. Rejouée le 26/08 : **87/88**, et l'assertion cassée est
+    **celle-là**. `GET /api/eleves` a été passée `permitAll` dans MS2 — vraisemblablement
+    pour que MS5, qui n'a pas de jeton utilisateur, puisse lire les élèves — et
+    **301 enfants avec nom, prénom et coordonnées GPS de leur domicile** sont depuis servis
+    sans authentification sur `:8082`. Le garde-fou existait, il avait fonctionné, personne
+    ne l'écoutait plus. Corollaire : **le 88/88 n'avait aucun lanceur** (`scripts/recette/newman.cmd`
+    y remédie) — un chiffre que personne ne peut rejouer cesse d'être une garantie.
+    ⚠️ Même famille, plus grave encore : `POST /api/auth/register` est `permitAll` **et**
+    lit `role` dans le corps. Une requête anonyme suffit à obtenir un jeton **ADMIN** ;
+    vérifié exploitable sur **6 surfaces d'administration sur 6**, NL2SQL compris.
+
+30. **Autoriser un rôle ne suffit pas s'il échoue au contrôle de propriété qui suit.**
+    `POST /api/trajets/{id}/terminer` est annoté `hasAnyRole('CHAUFFEUR','ADMIN')`, mais le
+    service exige ensuite `trajet.chauffeurId == principal.userId` : l'ADMIN reçoit
+    **400 « Ce trajet n'appartient pas à ce chauffeur »**. L'autorisation est **creuse**.
+    Conséquence opérationnelle, rencontrée pour de vrai pendant la recette : le démarrage
+    étant **non idempotent**, un trajet resté `EN_COURS` (téléphone HS, chauffeur parti)
+    **bloque le bus définitivement, sans aucun recours par l'API**. Le symétrique existe
+    côté front : `/carte` (`App.tsx:63`) n'a **aucun** garde de rôle — un parent d'un seul
+    enfant y voit **14 positions GPS et les 10 bus de la flotte**.
+    Règle : **RBAC et contrôle de portée sont deux couches ; vérifier les deux ensemble,
+    par rôle, contre le service en fonctionnement** — la lecture du code ne les croise pas.
+
+31. **Un test dont le résultat dépend de la météo n'est pas un test.**
+    `e2e_integration_test.py` (G1) pousse une position et attend `BUS_EN_ROUTE`, publiée si
+    l'ETA ≤ 10 min. Mesuré le 26/08 : **10,06 min** — échec de **3,6 secondes**. La position
+    est à 3 595 m, durée OSRM 6,47 min, mais le contexte du jour (nuageux · trafic dense ·
+    jour de souk) l'a portée au-dessus du seuil. Le « 8/8 » historique tenait au calendrier.
+    **La chaîne est intacte** — prouvé séparément : à 2 214 m (ETA 6,74 min) la notification
+    arrive en **3 secondes**. Corollaire de méthode : un test d'intégration doit **figer son
+    contexte** (`auto_context=false`) ou se placer loin du seuil ; sinon il mesure le temps
+    qu'il fait. Deux voisins de la même famille : `e2e_integration_test.py` **ne démarre pas**
+    sur une console Windows par défaut (emoji en cp1252 → `UnicodeEncodeError`), et
+    `pytest ms6-clustering/tests` **échoue depuis la racine** (le `.env` racine est absorbé
+    par pydantic-settings qui interdit les champs surnuméraires) — or c'est la commande que
+    prescrivent les docstrings. **Un script de vérification doit démarrer chez le lecteur.**
+
+32. **Un contrôle d'AUTORISATION n'est pas un contrôle de PORTÉE — et un harnais qui ne
+    teste que le premier laisse passer une faille par endpoint.**
+    La recette du 26/08 vérifiait 45 combinaisons rôle × route et les trouvait correctes. Une
+    revue de code ciblée sur les **interactions entre acteurs** a ensuite trouvé **13 failles
+    de plus**, toutes du même moule : la route était ouverte au bon *rôle*, et n'importe quel
+    compte de ce rôle agissait sur les données de n'importe quel autre. Un chauffeur pointait
+    l'élève d'un collègue — ce qui envoie une notification au parent d'une **autre** famille.
+    Un parent lisait la **polyligne** d'un autre bus, c'est-à-dire la rue de chaque famille
+    transportée : exactement ce que MS5 refuse délibérément de livrer via `/mes-enfants`, et
+    que MS1 donnait gratuitement.
+    **Trois enseignements** : (a) tester chaque interaction sur ses **deux faces** —
+    *l'acteur légitime peut*, *l'acteur voisin ne peut pas* ; (b) écrire le harnais **avant**
+    de corriger, pour qu'il parte rouge et que la non-régression soit acquise par
+    construction ; (c) le motif correct existait déjà dans le projet (`verify_parent` de MS5,
+    `_check_scope` de MS9) — il n'avait simplement pas été appliqué partout.
+    ⚠️ Le **WebSocket GPS** reste dans cet état : aucun jeton, origine `*`, filtre « tout »
+    par défaut. Il alimente les trois frontends, donc le corriger est un chantier transverse.
+
+33. **Un `@ExceptionHandler(RuntimeException.class)` avale les statuts HTTP explicites.**
+    Après déploiement des contrôles de portée, tous les refus sortaient en **400** au lieu de
+    **403**. `ResponseStatusException` hérite de `RuntimeException` : le gestionnaire global,
+    plus large, l'attrapait et écrasait le statut choisi par le code. Le refus fonctionnait —
+    seul le code de retour mentait, et le client ne pouvait plus distinguer un accès refusé
+    d'une requête mal formée. Un `@ExceptionHandler(ResponseStatusException.class)`, **plus
+    spécifique**, restaure le statut. À vérifier dans tout service qui attrape largement.
+
+34. **Une suite de tests peut dépendre de la faille qu'on vient de fermer.**
+    Le correctif d'auto-promotion ADMIN a fait tomber Newman de **87/88 à 57/88**. Motif :
+    la collection créait son propre administrateur par `POST /api/auth/register` avec
+    `role: "ADMIN"` — elle **exploitait l'escalade de privilège pour se dérouler**. Le
+    réflexe (« rafistoler pour que ça repasse ») aurait été le mauvais. La collection a été
+    réorientée : l'admin vient du compte seedé, le chauffeur est créé par
+    `POST /api/auth/users`, et les requêtes 01 et GW-02 deviennent des **garde-fous** qui
+    envoient `role: "ADMIN"` et vérifient qu'on obtient **PARENT** — en direct et à travers
+    la passerelle. Retour à **88/88**, en testant le correctif au lieu d'en dépendre.
+    **Quand un correctif casse des tests, se demander d'abord ce que ces tests supposaient.**
+
+35. **Le contexte d'une référence qualité doit porter TOUT ce qui la rend comparable.**
+    Le passage de 9 à 7 bus a fait rendre **DEGRADE** au garde-fou MS6 : *« compacité max
+    +68 % vs référence »*. Normal — moins de bus ⇒ groupes plus étalés ⇒ compacité max plus
+    grande, mécaniquement. Mais `reference_applicable` (`quality.py:75`) ne vérifie que
+    `n_eleves`, `capacity` et `rayon_max_m` : **`k` n'y est pas**. Une référence écrite à k=9
+    jugeait donc un run à k=7 sur une grandeur incomparable. Et comme la référence n'est
+    réécrite **que** sur un verdict OK, le cliquet du piège n° 20 se réarmait sur une autre
+    grandeur : le correctif de l'époque plafonne la **silhouette** à l'ancre, il n'y a pas
+    d'équivalent pour la **compacité**. Contourné en réamorçant depuis le point de conception ;
+    **le correctif de fond — inscrire `k` dans le contexte — reste à porter.**
 
 ## 💡 Décisions architecturales clés
 

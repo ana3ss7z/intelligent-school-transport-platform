@@ -46,8 +46,12 @@ public class NotificationController {
      */
     @DeleteMapping("/device-token/{token}")
     @PreAuthorize("hasAnyRole('PARENT','CHAUFFEUR')")
-    public ResponseEntity<Void> supprimerToken(@PathVariable String token) {
-        service.supprimerToken(token);
+    public ResponseEntity<Void> supprimerToken(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String token) {
+        // Le jeton etait desactive sur sa seule valeur : n'importe quel compte pouvait
+        // couper les notifications d'un autre en connaissant son jeton (defaut P13).
+        service.supprimerToken(token, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
 

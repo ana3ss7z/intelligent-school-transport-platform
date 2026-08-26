@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +19,8 @@ import ma.transport.ms3localisation.dto.PositionRequest;
 import ma.transport.ms3localisation.dto.PositionResponse;
 import ma.transport.ms3localisation.entity.PositionGPS.TypeCible;
 import ma.transport.ms3localisation.service.GpsService;
+import ma.transport.ms3localisation.service.PorteeService;
+import ma.transport.mscommon.security.UserPrincipal;
 
 @RestController
 @RequestMapping("/api/gps")
@@ -25,6 +28,7 @@ import ma.transport.ms3localisation.service.GpsService;
 public class GpsController {
 
     private final GpsService service;
+    private final PorteeService portee;
 
     /**
      * POST /api/gps/position
@@ -44,8 +48,11 @@ public class GpsController {
      * Dernière position connue d'un bus.
      */
     @GetMapping("/bus/{busId}/derniere")
+    @PreAuthorize("hasAnyRole('ADMIN','CHAUFFEUR','PARENT')")
     public ResponseEntity<PositionResponse> dernierePositionBus(
+            @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long busId) {
+        portee.exigerAccesAuBus(user, busId);
         return service.getDernierePosition(TypeCible.BUS, busId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -67,32 +74,28 @@ public class GpsController {
      * Dernières positions de tous les bus (vue carte admin).
      */
     @GetMapping("/bus/tous")
-    public ResponseEntity<List<PositionResponse>> tousLesBus() {
-        return ResponseEntity.ok(service.getDernieresPositionsBus());
+    @PreAuthorize("hasAnyRole('ADMIN','CHAUFFEUR','PARENT')")
+    public ResponseEntity<List<PositionResponse>> tousLesBus(
+            @AuthenticationPrincipal UserPrincipal user) {
+        // La vue « toute la flotte » est une vue d'exploitation. Un chauffeur ou un parent
+        // reçoit la même route, mais filtrée aux bus qui le concernent : sans ce filtre, un
+        // parent d'un seul enfant obtenait les 14 positions de la flotte (défaut P12).
+        List<PositionResponse> toutes = service.getDernieresPositionsBus();
+        return ResponseEntity.ok(portee.filtrerAuxBusAutorises(user, toutes));
     }
 
-    /**
-     * GET /api/gps/eleve/{eleveId}/derniere
-     * Dernière position connue d'un élève.
+    /*
+     * Les routes /api/gps/eleve/{id}/derniere et /historique ont été SUPPRIMÉES le 26/08.
+     *
+     * Elles servaient l'historique de géolocalisation d'un élève à tout PARENT, sans vérifier
+     * qu'il s'agissait du sien — n'importe quelle famille pouvait suivre l'enfant d'une autre
+     * (défaut P2 de la recette). Or aucun client ne les appelait : vérification faite sur les
+     * trois frontends (console web, applications parent et chauffeur) et sur les cinq services
+     * Python. Le seul appelant était le script de recette qui les a mises au jour.
+     *
+     * Supprimer valait mieux que garder : une route morte ne rend aucun service et se contente
+     * d'exposer une surface. Le suivi d'un élève passe par la position de SON bus, déjà scopée.
      */
-    @GetMapping("/eleve/{eleveId}/derniere")
-    public ResponseEntity<PositionResponse> dernierePositionEleve(
-            @PathVariable Long eleveId) {
-        return service.getDernierePosition(TypeCible.ELEVE, eleveId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
-     * GET /api/gps/eleve/{eleveId}/historique
-     * Historique des positions d'un élève.
-     */
-    @GetMapping("/eleve/{eleveId}/historique")
-    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT')")
-    public ResponseEntity<List<PositionResponse>> historiqueEleve(
-            @PathVariable Long eleveId) {
-        return ResponseEntity.ok(service.getHistorique(TypeCible.ELEVE, eleveId));
-    }
 
     /**
      * GET /api/gps/stats

@@ -14,7 +14,10 @@ MS2_BASE = settings.ms2_url
 
 async def get_all_eleves() -> list[dict]:
     async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(f"{MS2_BASE}/api/eleves")
+        # Route INTERNE : /internal/eleves, hors de /api/eleves/** donc non routee
+        # par la passerelle. GET /api/eleves exige desormais un JWT (defaut critique
+        # n.2 de la recette du 26/08 : 301 eleves + domiciles GPS servis sans jeton).
+        resp = await client.get(f"{MS2_BASE}/internal/eleves")
         resp.raise_for_status()
         return resp.json()
 

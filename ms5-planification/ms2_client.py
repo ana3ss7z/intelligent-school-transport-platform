@@ -14,13 +14,16 @@ logger = logging.getLogger(__name__)
        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)))
 async def get_all_eleves() -> list[dict]:
     async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(f"{settings.ms2_url}/api/eleves")
+        # Route INTERNE : /internal/eleves, hors de /api/eleves/** donc non routee
+        # par la passerelle. GET /api/eleves exige desormais un JWT (defaut critique
+        # n.2 de la recette du 26/08 : 301 eleves + domiciles GPS servis sans jeton).
+        r = await client.get(f"{settings.ms2_url}/internal/eleves")
         r.raise_for_status()
         return r.json()
 
 
 async def get_eleves_groupe(groupe_id: int) -> list[dict]:
-    """Élèves d'un groupe. Filtré depuis /api/eleves (route interne permitAll, comme MS6) —
+    """Élèves d'un groupe. Filtré depuis /internal/eleves (route interne, comme MS6) —
     évite l'endpoint /groupe/{id} qui exige un JWT utilisateur que MS5 n'a pas."""
     eleves = await get_all_eleves()
     return [e for e in eleves if e.get("groupeId") == groupe_id]

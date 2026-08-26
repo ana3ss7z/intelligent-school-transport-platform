@@ -11,21 +11,27 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "if (!pm.environment.get('adminEmail')) {",
+          "// Initialisation unique par execution.",
+          "// Depuis le correctif du 26/08, POST /api/auth/register force le role PARENT : la collection",
+          "// ne peut plus fabriquer son propre administrateur. Elle utilise donc le compte seede par",
+          "// generer_comptes.py, et /register n'est plus teste que comme GARDE-FOU contre l'escalade de",
+          "// privilege (requetes 01 et GW-02).",
+          "if (!pm.environment.get('runId')) {",
           "  const runId = Date.now().toString();",
           "  pm.environment.set('runId', runId);",
-          "  pm.environment.set('adminEmail', `admin.${runId}@transport.local`);",
+          "  pm.environment.set('adminEmail', 'admin@transport.ma');",
+          "  pm.environment.set('gwAdminEmail', 'admin@transport.ma');",
+          "  pm.environment.set('adminPassword', 'Admin123!');",
+          "  pm.environment.set('escaladeEmail', `escalade.${runId}@transport.local`);",
+          "  pm.environment.set('gwEscaladeEmail', `gwescalade.${runId}@transport.local`);",
           "  pm.environment.set('parentEmail', `parent.${runId}@transport.local`);",
           "  pm.environment.set('chauffeurEmail', `chauffeur.${runId}@transport.local`);",
-          "  pm.environment.set('adminPassword', 'Admin123!');",
           "  pm.environment.set('parentPassword', 'Parent123!');",
           "  pm.environment.set('chauffeurPassword', 'Chauffeur123!');",
           "  pm.environment.set('busMatricule', `BUS-${runId}`);",
           "  pm.environment.set('busMatriculeUpdated', `BUS-${runId}-UPD`);",
           "  pm.environment.set('eleveNom', `Eleve-${runId}`);",
           "  pm.environment.set('elevePrenom', 'Test');",
-          "  // MS8 Gateway specific",
-          "  pm.environment.set('gwAdminEmail', `gwadmin.${runId}@transport.local`);",
           "  pm.environment.set('gwBusMatricule', `GW-BUS-${runId}`);",
           "}",
           "pm.environment.set('invalidPassword', 'wrong-password');"
@@ -35,7 +41,7 @@
   ],
   "item": [
     {
-      "name": "01 - Auth - Register admin success",
+      "name": "01 - Auth - Register ignores client role (no privilege escalation)",
       "request": {
         "method": "POST",
         "header": [
@@ -57,7 +63,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"nom\": \"Admin Test\",\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000001\"\n}",
+          "raw": "{\n  \"nom\": \"Escalade Test\",\n  \"email\": \"{{escaladeEmail}}\",\n  \"motDePasse\": \"Escalade123!\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000001\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -71,17 +77,17 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Admin register returns 201', function () {",
+              "pm.test('Register returns 201', function () {",
               "  pm.response.to.have.status(201);",
               "});",
-              "pm.test('Admin register returns token and user profile', function () {",
+              "// GARDE-FOU. /api/auth/register est permitAll et lisait le champ `role` du corps :",
+              "// une requete anonyme suffisait a obtenir un jeton ADMIN, verifie exploitable sur",
+              "// 6 surfaces d'administration sur 6 (recette du 26/08). Le role est force a PARENT.",
+              "pm.test('Register NEVER grants the role asked for in the body', function () {",
               "  const body = pm.response.json();",
               "  pm.expect(body).to.have.property('token');",
-              "  pm.expect(body).to.have.property('userId');",
-              "  pm.expect(body.email).to.eql(pm.environment.get('adminEmail'));",
-              "  pm.expect(body.role).to.eql('ADMIN');",
-              "  pm.environment.set('adminUserId', body.userId);",
-              "  pm.environment.set('adminRegisterToken', body.token);",
+              "  pm.expect(body.role).to.eql('PARENT');",
+              "  pm.environment.set('escaladeUserId', body.userId);",
               "});"
             ]
           }
@@ -140,24 +146,28 @@
       ]
     },
     {
-      "name": "03 - Auth - Register chauffeur success",
+      "name": "03 - Auth - Admin creates chauffeur via /users",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
           }
         ],
         "url": {
-          "raw": "{{ms7Url}}/api/auth/register",
+          "raw": "{{ms7Url}}/api/auth/users",
           "host": [
             "{{ms7Url}}"
           ],
           "path": [
             "api",
             "auth",
-            "register"
+            "users"
           ]
         },
         "body": {
@@ -172,18 +182,41 @@
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// /register ne peut plus creer de CHAUFFEUR : seul POST /api/auth/users le peut, et il",
+              "// exige un jeton ADMIN. On se connecte au compte seede avant d'appeler la route.",
+              "pm.sendRequest({",
+              "  url: pm.environment.get('ms7Url') + '/api/auth/login',",
+              "  method: 'POST',",
+              "  header: {'Content-Type': 'application/json'},",
+              "  body: {mode: 'raw', raw: JSON.stringify({",
+              "    email: pm.environment.get('adminEmail'),",
+              "    motDePasse: pm.environment.get('adminPassword')})}",
+              "}, function (err, res) {",
+              "  if (!err && res.code === 200) {",
+              "    pm.environment.set('adminToken', res.json().token);",
+              "    pm.environment.set('adminUserId', res.json().userId);",
+              "  }",
+              "});"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Chauffeur register returns 201', function () {",
+              "pm.test('Admin creates chauffeur - 201', function () {",
               "  pm.response.to.have.status(201);",
               "});",
-              "pm.test('Chauffeur register stores id and token', function () {",
+              "pm.test('Created account really is a CHAUFFEUR', function () {",
               "  const body = pm.response.json();",
               "  pm.expect(body.role).to.eql('CHAUFFEUR');",
-              "  pm.environment.set('chauffeurRegisterId', body.userId);",
-              "  pm.environment.set('chauffeurRegisterToken', body.token);",
+              "  pm.expect(body).to.not.have.property('motDePasse');",
+              "  pm.environment.set('chauffeurRegisterId', body.id || body.userId);",
               "});"
             ]
           }
@@ -1754,7 +1787,7 @@
           ]
         },
         {
-          "name": "GW-02 - Gateway routes auth register (public, no token needed)",
+          "name": "GW-02 - Gateway routes register (public) - role still forced to PARENT",
           "request": {
             "method": "POST",
             "header": [
@@ -1776,7 +1809,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nom\": \"GW Test Admin\",\n  \"email\": \"{{gwAdminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000010\"\n}",
+              "raw": "{\n  \"nom\": \"GW Escalade\",\n  \"email\": \"{{gwEscaladeEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000010\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1790,15 +1823,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Gateway routes register — returns 201', function () {",
+                  "pm.test('Gateway routes register - returns 201', function () {",
                   "  pm.response.to.have.status(201);",
                   "});",
-                  "pm.test('Register via Gateway returns token', function () {",
+                  "// Le garde-fou doit tenir aussi a travers la passerelle : elle laisse /register en acces",
+                  "// public, c'est MS7 qui refuse d'attribuer le role demande.",
+                  "pm.test('Register via Gateway also refuses the requested role', function () {",
                   "  const body = pm.response.json();",
                   "  pm.expect(body).to.have.property('token');",
-                  "  pm.expect(body.role).to.eql('ADMIN');",
-                  "  pm.environment.set('gwAdminToken', body.token);",
-                  "  pm.environment.set('gwAdminUserId', body.userId);",
+                  "  pm.expect(body.role).to.eql('PARENT');",
                   "});"
                 ]
               }
@@ -1842,13 +1875,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Gateway routes login — returns 200', function () {",
+                  "pm.test('Gateway routes login - returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "pm.test('Login via Gateway returns token', function () {",
+                  "pm.test('Login via Gateway returns an ADMIN token', function () {",
                   "  const body = pm.response.json();",
                   "  pm.expect(body).to.have.property('token');",
+                  "  pm.expect(body.role).to.eql('ADMIN');",
                   "  pm.environment.set('gwAdminToken', body.token);",
+                  "  pm.environment.set('gwAdminUserId', body.userId);",
                   "});"
                 ]
               }

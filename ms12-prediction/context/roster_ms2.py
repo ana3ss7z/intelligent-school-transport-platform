@@ -19,7 +19,10 @@ async def get_effectif_bus(bus_id: int) -> int:
     """Nombre d'élèves affectés à un bus (via MS2). 0 si indisponible."""
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            r = await client.get(f"{settings.ms2_url}/api/eleves")
+            # Route INTERNE : /internal/eleves, hors de /api/eleves/** donc non routee
+            # par la passerelle. GET /api/eleves exige desormais un JWT (defaut critique
+            # n.2 de la recette du 26/08 : 301 eleves + domiciles GPS servis sans jeton).
+            r = await client.get(f"{settings.ms2_url}/internal/eleves")
             r.raise_for_status()
             eleves = r.json()
             return sum(1 for e in eleves if e.get("busId") == bus_id)

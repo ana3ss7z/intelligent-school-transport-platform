@@ -51,11 +51,18 @@ public class AuthController {
                     .body("Email déjà utilisé.");
         }
 
+        // Le rôle n'est JAMAIS pris dans le corps de la requête : cette route est `permitAll`,
+        // donc `req.getRole()` laissait n'importe quel inconnu s'inscrire en ADMIN et obtenir
+        // aussitôt un jeton d'administration (vérifié exploitable sur 6 surfaces sur 6, NL2SQL
+        // compris). Une inscription publique ne peut créer qu'un PARENT ; la création d'un
+        // CHAUFFEUR ou d'un ADMIN passe par POST /api/auth/users, protégé par hasRole('ADMIN').
+        // Le champ reste toléré dans le DTO — les scripts et le front l'envoient encore — mais
+        // il est ignoré.
         Utilisateur user = Utilisateur.builder()
                 .nom(req.getNom())
                 .email(req.getEmail())
                 .motDePasse(encoder.encode(req.getMotDePasse()))
-                .role(req.getRole())
+                .role(Role.PARENT)
                 .telephone(req.getTelephone())
                 .build();
 

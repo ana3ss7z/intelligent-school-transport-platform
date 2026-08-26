@@ -1,0 +1,2274 @@
+{
+  "info": {
+    "_postman_id": "b7b8f0f1-6f8f-4dfd-8f46-0f0f0f0f2026",
+    "name": "Transport Scolaire API Tests — MS7 + MS1 + MS2 + MS8 Gateway",
+    "description": "Postman collection for ms7-auth, ms1-bus, ms2-eleves, and ms8-gateway. Covers direct MS tests + full Gateway routing, JWT validation, rate limiting, and RBAC flow through Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('adminEmail')) {",
+          "  const runId = Date.now().toString();",
+          "  pm.environment.set('runId', runId);",
+          "  pm.environment.set('adminEmail', `admin.${runId}@transport.local`);",
+          "  pm.environment.set('parentEmail', `parent.${runId}@transport.local`);",
+          "  pm.environment.set('chauffeurEmail', `chauffeur.${runId}@transport.local`);",
+          "  pm.environment.set('adminPassword', 'Admin123!');",
+          "  pm.environment.set('parentPassword', 'Parent123!');",
+          "  pm.environment.set('chauffeurPassword', 'Chauffeur123!');",
+          "  pm.environment.set('busMatricule', `BUS-${runId}`);",
+          "  pm.environment.set('busMatriculeUpdated', `BUS-${runId}-UPD`);",
+          "  pm.environment.set('eleveNom', `Eleve-${runId}`);",
+          "  pm.environment.set('elevePrenom', 'Test');",
+          "  // MS8 Gateway specific",
+          "  pm.environment.set('gwAdminEmail', `gwadmin.${runId}@transport.local`);",
+          "  pm.environment.set('gwBusMatricule', `GW-BUS-${runId}`);",
+          "}",
+          "pm.environment.set('invalidPassword', 'wrong-password');"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Auth - Register admin success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/register",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Admin Test\",\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000001\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin register returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Admin register returns token and user profile', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('token');",
+              "  pm.expect(body).to.have.property('userId');",
+              "  pm.expect(body.email).to.eql(pm.environment.get('adminEmail'));",
+              "  pm.expect(body.role).to.eql('ADMIN');",
+              "  pm.environment.set('adminUserId', body.userId);",
+              "  pm.environment.set('adminRegisterToken', body.token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Auth - Register parent success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/register",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Parent Test\",\n  \"email\": \"{{parentEmail}}\",\n  \"motDePasse\": \"{{parentPassword}}\",\n  \"role\": \"PARENT\",\n  \"telephone\": \"0600000002\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Parent register returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Parent register stores id and token', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('PARENT');",
+              "  pm.environment.set('parentRegisterId', body.userId);",
+              "  pm.environment.set('parentRegisterToken', body.token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Auth - Register chauffeur success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/register",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Chauffeur Test\",\n  \"email\": \"{{chauffeurEmail}}\",\n  \"motDePasse\": \"{{chauffeurPassword}}\",\n  \"role\": \"CHAUFFEUR\",\n  \"telephone\": \"0600000003\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Chauffeur register returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Chauffeur register stores id and token', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('CHAUFFEUR');",
+              "  pm.environment.set('chauffeurRegisterId', body.userId);",
+              "  pm.environment.set('chauffeurRegisterToken', body.token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Auth - Register duplicate email fails",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/register",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Admin Duplicate\",\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000099\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Duplicate register returns 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Duplicate register explains the conflict', function () {",
+              "  pm.expect(pm.response.text()).to.include('Email');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Auth - Login admin success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/login",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin login returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Admin login stores token and id', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('token');",
+              "  pm.environment.set('adminToken', body.token);",
+              "  pm.environment.set('adminUserId', body.userId);",
+              "  pm.environment.set('adminRole', body.role);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Auth - Login parent success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/login",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{parentEmail}}\",\n  \"motDePasse\": \"{{parentPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Parent login returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Parent login stores token and id', function () {",
+              "  const body = pm.response.json();",
+              "  pm.environment.set('parentToken', body.token);",
+              "  pm.environment.set('parentUserId', body.userId);",
+              "  pm.environment.set('parentRole', body.role);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Auth - Login chauffeur success",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/login",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{chauffeurEmail}}\",\n  \"motDePasse\": \"{{chauffeurPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Chauffeur login returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Chauffeur login stores token and id', function () {",
+              "  const body = pm.response.json();",
+              "  pm.environment.set('chauffeurToken', body.token);",
+              "  pm.environment.set('chauffeurUserId', body.userId);",
+              "  pm.environment.set('chauffeurRole', body.role);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Auth - Login invalid password fails",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/login",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"motDePasse\": \"{{invalidPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid login returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Invalid login message is explicit', function () {",
+              "  pm.expect(pm.response.text()).to.include('incorrect');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Auth - Validate token success",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/validate",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "validate"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Validate token returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Validate token mentions admin email and role', function () {",
+              "  const text = pm.response.text();",
+              "  pm.expect(text).to.include(pm.environment.get('adminEmail'));",
+              "  pm.expect(text).to.include('ADMIN');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Auth - Validate invalid token fails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid.token.value"
+          }
+        ],
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/validate",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "validate"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid token returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Invalid token message is explicit', function () {",
+              "  pm.expect(pm.response.text()).to.include('Token invalide');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Auth - Validate missing token fails",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{ms7Url}}/api/auth/validate",
+          "host": [
+            "{{ms7Url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "validate"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Missing token returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Missing token message is explicit', function () {",
+              "  pm.expect(pm.response.text()).to.include('Token manquant');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Bus - Access without token fails",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Bus endpoint without token returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Eleves - Access without token fails",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Eleves endpoint without token returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Bus - Create bus success as admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matricule\": \"{{busMatricule}}\",\n  \"capacite\": 40,\n  \"statut\": \"ACTIF\",\n  \"chauffeurId\": {{chauffeurUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Create bus returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Create bus response stores id and important fields', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body.matricule).to.eql(pm.environment.get('busMatricule'));",
+              "  pm.expect(body.capacite).to.eql(40);",
+              "  pm.expect(body.statut).to.eql('ACTIF');",
+              "  pm.environment.set('busId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Bus - Create bus validation fails",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matricule\": \"\",\n  \"capacite\": 0,\n  \"statut\": \"ACTIF\",\n  \"chauffeurId\": {{chauffeurUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid bus payload returns 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Bus - List buses as admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('List buses returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('List buses returns an array', function () {",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Bus - List buses as parent",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Parent can read buses', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Bus - Get bus by id",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Get bus returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Get bus returns the created bus', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.id).to.eql(Number(pm.environment.get('busId')));",
+              "  pm.expect(body.matricule).to.eql(pm.environment.get('busMatricule'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 - Bus - List by statut ACTIF",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/statut/ACTIF",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "statut",
+            "ACTIF"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Filter by statut returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Filter by statut returns an array', function () {",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 - Bus - Update bus as admin",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matricule\": \"{{busMatriculeUpdated}}\",\n  \"capacite\": 55,\n  \"statut\": \"MAINTENANCE\",\n  \"chauffeurId\": {{chauffeurUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Update bus returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Update bus changes the payload', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.matricule).to.eql(pm.environment.get('busMatriculeUpdated'));",
+              "  pm.expect(body.capacite).to.eql(55);",
+              "  pm.expect(body.statut).to.eql('MAINTENANCE');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 - Bus - Patch status to EN_PANNE",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}/statut?statut=EN_PANNE",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}",
+            "statut"
+          ],
+          "query": [
+            {
+              "key": "statut",
+              "value": "EN_PANNE"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Patch status returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Patch status sets bus to EN_PANNE', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.statut).to.eql('EN_PANNE');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 - Bus - Patch position GPS",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}/position?lat=36.75&lng=3.05",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}",
+            "position"
+          ],
+          "query": [
+            {
+              "key": "lat",
+              "value": "36.75"
+            },
+            {
+              "key": "lng",
+              "value": "3.05"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Patch position returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Patch position has no body', function () {",
+              "  pm.expect(pm.response.text()).to.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 - Bus - Create forbidden for parent",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matricule\": \"{{busMatricule}}-PARENT\",\n  \"capacite\": 30,\n  \"statut\": \"ACTIF\",\n  \"chauffeurId\": {{chauffeurUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Parent cannot create bus — 403 forbidden', function () {",
+              "  pm.response.to.have.status(403);",
+              "});",
+              "pm.test('Response is not 401 (token was valid, RBAC blocked it)', function () {",
+              "  pm.expect(pm.response.code).to.not.eql(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 - Bus - Delete bus as admin",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Delete bus returns 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 - Bus - Get deleted bus fails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms1Url}}/api/bus/{{busId}}",
+          "host": [
+            "{{ms1Url}}"
+          ],
+          "path": [
+            "api",
+            "bus",
+            "{{busId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Deleted bus returns 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 - Eleves - Create eleve success as admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"{{eleveNom}}\",\n  \"prenom\": \"{{elevePrenom}}\",\n  \"latitude\": 36.80,\n  \"longitude\": 3.04,\n  \"parentId\": {{parentUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Create eleve returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Create eleve stores id and data', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body.nom).to.eql(pm.environment.get('eleveNom'));",
+              "  pm.expect(body.prenom).to.eql(pm.environment.get('elevePrenom'));",
+              "  pm.expect(body.parentId).to.eql(Number(pm.environment.get('parentUserId')));",
+              "  pm.environment.set('eleveId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 - Eleves - Create eleve validation fails",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"\",\n  \"prenom\": \"\",\n  \"latitude\": 91,\n  \"longitude\": 181,\n  \"parentId\": {{parentUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid eleve payload returns 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 - Eleves - List all as admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('List eleves returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('List eleves returns an array', function () {",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 - Eleves - List all as chauffeur",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{chauffeurToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Chauffeur can read eleves', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 - Eleves - Get eleve by id",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{eleveId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{eleveId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Get eleve returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Get eleve returns the created eleve', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.id).to.eql(Number(pm.environment.get('eleveId')));",
+              "  pm.expect(body.nom).to.eql(pm.environment.get('eleveNom'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 - Eleves - List by parent",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/parent/{{parentUserId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "parent",
+            "{{parentUserId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('List by parent returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 - Eleves - List without group",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/sans-groupe",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "sans-groupe"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('List without group returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "33 - Eleves - List by groupe empty result",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/groupe/999999",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "groupe",
+            "999999"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('List by unknown group returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Unknown group returns an array', function () {",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "34 - Eleves - Update eleve as admin",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{eleveId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{eleveId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"{{eleveNom}}-UPD\",\n  \"prenom\": \"{{elevePrenom}}-UPD\",\n  \"latitude\": 36.81,\n  \"longitude\": 3.06,\n  \"parentId\": {{parentUserId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Update eleve returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Update eleve changes the payload', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.nom).to.eql(pm.environment.get('eleveNom') + '-UPD');",
+              "  pm.expect(body.prenom).to.eql(pm.environment.get('elevePrenom') + '-UPD');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "35 - Eleves - Patch presence true",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{eleveId}}/presence?present=true",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{eleveId}}",
+            "presence"
+          ],
+          "query": [
+            {
+              "key": "present",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Patch presence returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Patch presence has no body', function () {",
+              "  pm.expect(pm.response.text()).to.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "36 - Eleves - Delete forbidden for chauffeur",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{chauffeurToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{rbacEleveId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{rbacEleveId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Chauffeur cannot delete eleve — 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Create a dedicated eleve for RBAC test via API",
+              "const baseUrl = pm.environment.get('ms2Url');",
+              "const token = pm.environment.get('adminToken');",
+              "const parentId = pm.environment.get('parentUserId');",
+              "pm.sendRequest({",
+              "  url: baseUrl + '/api/eleves',",
+              "  method: 'POST',",
+              "  header: {",
+              "    'Content-Type': 'application/json',",
+              "    'Authorization': 'Bearer ' + token",
+              "  },",
+              "  body: {",
+              "    mode: 'raw',",
+              "    raw: JSON.stringify({",
+              "      nom: 'RBACTest',",
+              "      prenom: 'Eleve',",
+              "      latitude: 33.99,",
+              "      longitude: -6.85,",
+              "      parentId: parseInt(parentId)",
+              "    })",
+              "  }",
+              "}, function(err, res) {",
+              "  if (!err && res.code === 201) {",
+              "    pm.environment.set('rbacEleveId', res.json().id);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "37 - Eleves - Delete eleve as admin",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{eleveId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{eleveId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Delete eleve returns 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "38 - Eleves - Get deleted eleve fails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{ms2Url}}/api/eleves/{{eleveId}}",
+          "host": [
+            "{{ms2Url}}"
+          ],
+          "path": [
+            "api",
+            "eleves",
+            "{{eleveId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Deleted eleve returns 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "=== MS8 GATEWAY TESTS ===",
+      "item": [
+        {
+          "name": "GW-01 - Gateway Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gatewayUrl}}/actuator/health",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway is UP', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Gateway status is UP', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('UP');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-02 - Gateway routes auth register (public, no token needed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/register",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"GW Test Admin\",\n  \"email\": \"{{gwAdminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\",\n  \"role\": \"ADMIN\",\n  \"telephone\": \"0600000010\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes register — returns 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Register via Gateway returns token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.expect(body.role).to.eql('ADMIN');",
+                  "  pm.environment.set('gwAdminToken', body.token);",
+                  "  pm.environment.set('gwAdminUserId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-03 - Gateway routes auth login (public, no token needed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/login",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{gwAdminEmail}}\",\n  \"motDePasse\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes login — returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Login via Gateway returns token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.environment.set('gwAdminToken', body.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-04 - Gateway blocks protected route without token (401)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No token blocked by Gateway — 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Gateway 401 response is JSON', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(401);",
+                  "  pm.expect(body).to.have.property('message');",
+                  "});",
+                  "pm.test('Gateway error message mentions missing token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.include('manquant');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-05 - Gateway blocks invalid token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer this.is.invalid"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid token blocked by Gateway — 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Gateway error message mentions invalid token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.include('invalide');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-06 - Gateway routes GET /api/bus with valid token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{gwAdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes to MS1 — 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response from MS1 is an array', function () {",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-07 - Gateway routes POST /api/bus (create bus via Gateway)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{gwAdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matricule\": \"{{gwBusMatricule}}\",\n  \"capacite\": 40,\n  \"statut\": \"ACTIF\",\n  \"chauffeurId\": {{gwAdminUserId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes create bus — 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Bus created via Gateway has id and matricule', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body.matricule).to.eql(pm.environment.get('gwBusMatricule'));",
+                  "  pm.environment.set('gwBusId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-08 - Gateway routes GET /api/eleves with valid token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{gwAdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/eleves",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "eleves"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes to MS2 — 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response from MS2 is an array', function () {",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-09 - Gateway blocks /api/eleves without token (401)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gatewayUrl}}/api/eleves",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "eleves"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway blocks /api/eleves without token — 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-10 - Gateway JWT validation: token signed with wrong secret (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlQHRlc3QuY29tIiwicm9sZSI6IkFETUlOIn0.wrongsignature"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tampered token blocked by Gateway — 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Response has error message', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-11 - Gateway passes X-User headers to downstream MS",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{gwAdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/validate",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "validate"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway passes request to MS7 validate — 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('MS7 sees the authenticated user via Gateway', function () {",
+                  "  const text = pm.response.text();",
+                  "  pm.expect(text).to.include(pm.environment.get('gwAdminEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-12 - Gateway: PATCH role-based — parent cannot create bus (403 from MS1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{parentToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matricule\": \"BUS-PARENT-GW\",\n  \"capacite\": 30,\n  \"statut\": \"ACTIF\",\n  \"chauffeurId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway lets valid token through, MS1 enforces RBAC — 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test('Gateway did NOT block this (401 = Gateway rejected, 403 = MS1 RBAC)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// No pre-setup needed — POST /api/bus with PARENT token",
+                  "// @PreAuthorize('hasRole(ADMIN)') fires BEFORE any DB lookup",
+                  "// So 403 is returned regardless of request body"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GW-13 - Gateway DELETE /api/bus cleanup",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{gwAdminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/bus/{{gwBusId}}",
+              "host": [
+                "{{gatewayUrl}}"
+              ],
+              "path": [
+                "api",
+                "bus",
+                "{{gwBusId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes delete bus — 204', function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

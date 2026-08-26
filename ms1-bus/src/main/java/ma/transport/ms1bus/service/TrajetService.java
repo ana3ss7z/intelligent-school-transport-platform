@@ -22,6 +22,7 @@ import ma.transport.ms1bus.entity.Trajet;
 import ma.transport.ms1bus.entity.Trajet.StatutTrajet;
 import ma.transport.ms1bus.repository.BusRepository;
 import ma.transport.ms1bus.repository.TrajetRepository;
+import ma.transport.mscommon.enums.Role;
 
 @Slf4j
 @Service
@@ -63,10 +64,19 @@ public class TrajetService {
         return toResponse(t);
     }
 
-    /** Termine un trajet (seul son chauffeur peut le terminer). */
-    public TrajetResponse terminer(Long id, Long chauffeurId) {
+    /**
+     * Termine un trajet.
+     *
+     * <p>Le chauffeur ne peut clore que le sien. <b>L'administration, elle, peut clore
+     * n'importe lequel</b> : le controleur l'autorisait deja par {@code @PreAuthorize}, mais ce
+     * controle de propriete la rejetait ensuite en 400 — une autorisation creuse. Comme le
+     * demarrage n'est pas idempotent, un trajet reste EN_COURS (telephone hors service,
+     * chauffeur parti) bloquait le bus <b>definitivement, sans aucun recours par l'API</b>.
+     * Rencontre pour de vrai pendant la recette du 26/08 (defaut C1).
+     */
+    public TrajetResponse terminer(Long id, Long userId, Role role) {
         Trajet t = repo.findById(id).orElseThrow(() -> new RuntimeException("Trajet introuvable : " + id));
-        if (!t.getChauffeurId().equals(chauffeurId)) {
+        if (role != Role.ADMIN && !t.getChauffeurId().equals(userId)) {
             throw new IllegalStateException("Ce trajet n'appartient pas à ce chauffeur.");
         }
         t.setStatut(StatutTrajet.TERMINE);

@@ -7,6 +7,7 @@ import ma.transport.ms10incidents.dto.IncidentResponse;
 import ma.transport.ms10incidents.dto.StatutRequest;
 import ma.transport.ms10incidents.entity.Incident.StatutIncident;
 import ma.transport.ms10incidents.service.IncidentService;
+import ma.transport.ms10incidents.service.PorteeService;
 import ma.transport.mscommon.security.UserPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class IncidentController {
 
     private final IncidentService service;
+    private final PorteeService portee;
 
     /**
      * POST /api/incidents
@@ -34,6 +36,9 @@ public class IncidentController {
             @Valid @RequestBody IncidentRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
 
+        // Le busId vient du corps : sans ce controle, un chauffeur signale un incident sur le
+        // bus d'un collegue, et ce sont les parents de CE bus qui recoivent l'alerte (P5).
+        portee.exigerAccesAuBus(principal, req.getBusId());
         IncidentResponse response = service.creer(req, principal.getUserId());
         return ResponseEntity
                 .created(URI.create("/api/incidents/" + response.getId()))
@@ -65,8 +70,12 @@ public class IncidentController {
      */
     @GetMapping("/bus/{busId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR', 'PARENT')")
-    public ResponseEntity<List<IncidentResponse>> getParBus(@PathVariable Long busId) {
-        // PARENT : la portée (bus de son enfant) est appliquée en amont par MS9 (assistant LLM).
+    public ResponseEntity<List<IncidentResponse>> getParBus(
+            @AuthenticationPrincipal UserPrincipal user,
+            @PathVariable Long busId) {
+        // La portée était réputée « appliquée en amont par MS9 » : vrai pour le chatbot,
+        // faux pour un appel HTTP direct — tout parent lisait toute la flotte (défaut P6).
+        portee.exigerAccesAuBus(user, busId);
         return ResponseEntity.ok(service.getParBus(busId));
     }
 

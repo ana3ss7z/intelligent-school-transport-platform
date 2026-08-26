@@ -93,8 +93,22 @@ public class NotificationService {
     }
 
     @Transactional
-    public void supprimerToken(String fcmToken) {
+    /**
+     * Desactive un jeton d'appareil — <b>uniquement s'il appartient au demandeur</b>.
+     *
+     * <p>Un jeton identifie un appareil, mais il est porte par un compte : le desactiver coupe
+     * les notifications de ce compte. La version precedente le desactivait sur sa seule valeur,
+     * sans verifier le proprietaire (defaut P13 de la recette du 26/08).
+     */
+    public void supprimerToken(String fcmToken, Long demandeurId) {
         deviceTokenRepo.findByFcmToken(fcmToken).ifPresent(device -> {
+            if (demandeurId != null && !demandeurId.equals(device.getParentId())) {
+                log.warn("[MS4] Desactivation refusee : le jeton appartient a {}, demandee par {}",
+                        device.getParentId(), demandeurId);
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN,
+                        "Ce jeton d'appareil ne vous appartient pas.");
+            }
             device.setActif(false);
             deviceTokenRepo.save(device);
             log.info("[MS4] Token FCM désactivé : {}...", fcmToken.substring(0, Math.min(20, fcmToken.length())));

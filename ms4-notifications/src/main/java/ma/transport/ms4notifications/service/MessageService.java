@@ -47,6 +47,14 @@ public class MessageService {
             if (req.getDestinataireId() == null) {
                 throw new IllegalArgumentException("destinataireId (chauffeur) requis pour un message admin.");
             }
+            // Le destinataire doit reellement etre un CHAUFFEUR. Sans ce controle, un identifiant
+            // de PARENT creait un message qui atterrissait dans sa boite (inboxParent filtre sur
+            // destinataireId seul), hors de tout fil et sans qu'aucun ecran ne permette d'y
+            // repondre — et un identifiant inexistant creait un fil fantome (defaut P15).
+            if (!busLookup.estUnChauffeur(req.getDestinataireId())) {
+                throw new IllegalArgumentException(
+                        "destinataireId doit designer un chauffeur (recu : " + req.getDestinataireId() + ").");
+            }
             convId = req.getDestinataireId();  // le fil du chauffeur visé
             destId = req.getDestinataireId();
             destRole = ROLE_CHAUFFEUR;

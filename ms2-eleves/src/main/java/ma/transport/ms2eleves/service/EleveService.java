@@ -84,6 +84,22 @@ public class EleveService {
      * Route INTERNE — appelée par MS4 (sans JWT) pour récupérer les parents
      * des élèves d'un bus, afin d'envoyer des notifications FCM.
      */
+    /**
+     * Bus fréquentés par les enfants d'un parent — brique de contrôle de propriété.
+     *
+     * <p>MS1, MS3 et MS10 doivent savoir si un parent a le droit de lire le trajet, la position
+     * ou les incidents d'un bus donné. Aucun ne connaît la table des élèves, et aucun ne dispose
+     * d'un jeton utilisateur. Ils interrogent donc cette route interne plutôt que de recevoir
+     * l'effectif complet — la réponse tient en quelques identifiants et se prête au sondage.
+     */
+    public List<Long> getBusIdsParParent(Long parentId) {
+        return repo.findByParentId(parentId).stream()
+                .map(Eleve::getBusId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
     public List<Long> getParentIdsParBus(Long busId) {
         return repo.findByBusId(busId).stream()
                 .map(Eleve::getParentId)

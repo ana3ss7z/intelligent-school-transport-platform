@@ -32,4 +32,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("{\"error\": \"Accès refusé\"}");
     }
+
+    /**
+     * Statut HTTP explicite → respecté tel quel.
+     *
+     * <p>{@code ResponseStatusException} hérite de {@code RuntimeException} : sans ce
+     * gestionnaire <b>plus spécifique</b>, elle tombait dans celui du dessus et tout statut
+     * choisi par le code — 403 d'un contrôle de propriété, 404 d'une ressource absente —
+     * ressortait en <b>400</b>. Le refus fonctionnait, mais le client ne pouvait pas le
+     * distinguer d'une requête mal formée. Constaté le 26/08 en vérifiant les correctifs de
+     * portée : tous répondaient 400 au lieu de 403.
+     */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<String> handleResponseStatus(
+            org.springframework.web.server.ResponseStatusException ex) {
+        String motif = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        return ResponseEntity.status(ex.getStatusCode())
+                .body("{\"error\": \"" + motif.replace("\"", "'") + "\"}");
+    }
 }

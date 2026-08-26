@@ -1,0 +1,112 @@
+{
+  "date": "2026-08-26 18:34:11",
+  "avant": {
+    "n_eleves": 300,
+    "k": 9,
+    "tailles": {
+      "1": 9,
+      "2": 47,
+      "3": 33,
+      "4": 42,
+      "5": 42,
+      "6": 29,
+      "7": 34,
+      "8": 33,
+      "9": 31
+    },
+    "min": 9,
+    "max": 47,
+    "sous_remplis_moins_20": [
+      1
+    ]
+  },
+  "apres": {
+    "n_eleves": 300,
+    "k": 7,
+    "tailles": {
+      "1": 50,
+      "2": 44,
+      "3": 42,
+      "4": 37,
+      "5": 50,
+      "6": 48,
+      "7": 29
+    },
+    "min": 29,
+    "max": 50,
+    "sous_remplis_moins_20": []
+  },
+  "etat_hysteresis_avant": {
+    "k": 9,
+    "n": 300,
+    "capacity": 50,
+    "rayon_max_m": 0.0,
+    "dateMAJ": "2026-08-26T01:28:55.184699+00:00"
+  },
+  "etat_hysteresis_apres": {
+    "k": 7,
+    "n": 300,
+    "capacity": 50,
+    "rayon_max_m": 0.0,
+    "dateMAJ": "2026-08-26T17:33:56.100452+00:00"
+  },
+  "churn_eleves": 300,
+  "churn_pct": 100.0,
+  "ordre_passage_renseigne": 300,
+  "verdict_qualite": {
+    "niveau": "DEGRADE",
+    "ok": false,
+    "raisons": [
+      "compacité max +68% vs référence (1669.1→2804.1 m)"
+    ],
+    "mesures": {
+      "silhouette": 0.4256,
+      "compacite_med_m": 734.2,
+      "compacite_max_m": 2804.1,
+      "taille_max": 50,
+      "faisable": true,
+      "n_disperses_total": 17,
+      "n_eleves": 300,
+      "capacity": 50,
+      "rayon_max_m": 0.0
+    },
+    "baseline": {
+      "silhouette": 0.5183,
+      "compacite_med_m": 302.7,
+      "compacite_max_m": 1669.1,
+      "taille_max": 49,
+      "faisable": true,
+      "n_disperses_total": 14,
+      "n_eleves": 300,
+      "capacity": 50,
+      "rayon_max_m": 0.0,
+      "source": "run-applique",
+      "dateMAJ": "2026-08-26T01:28:19.173555+00:00"
+    },
+    "deltas": {
+      "silhouette": {
+        "baseline": 0.4256,
+        "actuel": 0.4256,
+        "chute_abs": 0.0,
+        "chute_rel": 0.0
+      },
+      "compacite_max_m": {
+        "baseline": 1669.1,
+        "actuel": 2804.1,
+        "hausse_rel": 0.68
+      },
+      "disperses": {
+        "baseline": 14,
+        "actuel": 17,
+        "hausse": 3
+      }
+    },
+    "plancher_silhouette": 0.3192,
+    "seuils": {
+      "sil_drop_rel": 0.15,
+      "sil_drop_abs": 0.05,
+      "comp_inc_rel": 0.25,
+      "disperses_inc": 15
+    }
+  }
+}

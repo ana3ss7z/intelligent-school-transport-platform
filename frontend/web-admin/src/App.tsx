@@ -60,7 +60,11 @@ export default function App() {
         <Route path="parent/messages" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentMessagerie /></Suspense></RequireAuth>} />
         <Route path="parent/notifications" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ChauffeurNotifs /></Suspense></RequireAuth>} />
         <Route path="parent/assistant" element={<RequireAuth roles={["PARENT"]}><Suspense fallback={<Spinner />}><ParentAssistant /></Suspense></RequireAuth>} />
-        <Route path="carte" element={<Suspense fallback={<Spinner />}><CarteLive /></Suspense>} />
+        {/* Carte live de TOUTE la flotte : vue d'exploitation, donc ADMIN seulement.
+            Sans garde de rôle, un parent d'un seul enfant qui tapait l'URL obtenait
+            14 positions GPS en direct et les 10 bus de la flotte (défaut P3, recette du 26/08).
+            Le parent a sa propre carte, filtrée à ses enfants : /parent/carte. */}
+        <Route path="carte" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><CarteLive /></Suspense></RequireAuth>} />
         <Route path="clustering" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Clustering /></Suspense></RequireAuth>} />
         <Route path="notifications" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Notifications /></Suspense></RequireAuth>} />
         <Route path="eleves" element={<RequireAuth roles={["ADMIN"]}><Suspense fallback={<Spinner />}><Eleves /></Suspense></RequireAuth>} />

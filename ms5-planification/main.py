@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 
+import httpx
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -55,6 +56,34 @@ def verify_parent(credentials: HTTPAuthorizationCredentials = Depends(security))
     return payload
 
 
+async def exiger_groupe_du_chauffeur(payload: dict, eleves: list[dict]) -> None:
+    """
+    Un CHAUFFEUR ne planifie que le groupe de SON bus.
+
+    Une tournée contient l'ordre de passage **et le domicile de toutes les familles** du bus.
+    L'endpoint étant ouvert au rôle CHAUFFEUR sans autre contrôle, n'importe quel conducteur
+    obtenait la tournée de n'importe quel groupe — donc les adresses des familles d'un
+    collègue (défaut P11 de la recette du 26/08). L'ADMIN, lui, a une vue d'exploitation
+    légitime sur toute la flotte.
+
+    Échec fermé : MS1 injoignable ⇒ refus.
+    """
+    if payload.get("role") == "ADMIN":
+        return
+    bus_du_groupe = {e.get("busId") for e in eleves if e.get("busId") is not None}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(f"{settings.ms1_url}/internal/bus/chauffeur/{payload.get('userId')}")
+            r.raise_for_status()
+            miens = set(r.json() or [])
+    except Exception as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            f"Portée indéterminable, accès refusé ({e})")
+    if not bus_du_groupe & miens:
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "Ce groupe ne correspond pas à votre bus.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Paramètres métier (MS13) : coordonnées de l'école (dépôt) et budget OR-Tools."""
@@ -72,8 +101,9 @@ async def health():
             "solver": "OR-Tools TSP (dépôt=école, distances OSRM)"}
 
 
-@app.post("/api/planification/tournee", dependencies=[Depends(verify_token)])
-async def tournee(groupeId: int, sens: str = "matin", persister: bool = True):
+@app.post("/api/planification/tournee")
+async def tournee(groupeId: int, sens: str = "matin", persister: bool = True,
+                  payload: dict = Depends(verify_token)):
     """Tournée optimale d'un groupe (bus). `persister` → écrit l'ordre de passage dans MS2."""
     try:
         eleves = await get_eleves_groupe(groupeId)
@@ -81,6 +111,7 @@ async def tournee(groupeId: int, sens: str = "matin", persister: bool = True):
         raise HTTPException(502, f"MS2 inaccessible : {e}")
     if not eleves:
         raise HTTPException(404, f"Aucun élève pour le groupe {groupeId}")
+    await exiger_groupe_du_chauffeur(payload, eleves)
     res = await planifier(eleves, sens=sens)
     if persister and res.get("ordre"):
         res["persiste"] = await assigner_ordre_bulk({int(eid): i + 1 for i, eid in enumerate(res["ordre"])})

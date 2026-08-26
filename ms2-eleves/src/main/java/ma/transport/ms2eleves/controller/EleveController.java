@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import ma.transport.ms2eleves.dto.EleveRequest;
 import ma.transport.ms2eleves.dto.EleveResponse;
 import ma.transport.ms2eleves.service.EleveService;
+import ma.transport.ms2eleves.service.PorteeService;
+import ma.transport.mscommon.security.UserPrincipal;
 
 @RestController
 @RequestMapping("/api/eleves")
@@ -29,6 +32,7 @@ import ma.transport.ms2eleves.service.EleveService;
 public class EleveController {
 
     private final EleveService service;
+    private final PorteeService portee;
 
     // ── POST /api/eleves ─────────────────────────────────────────────
     @PostMapping
@@ -53,6 +57,7 @@ public class EleveController {
 
     // ── GET /api/eleves/parent/{parentId} ────────────────────────────
     @GetMapping("/parent/{parentId}")
+    @PreAuthorize("hasRole('ADMIN') or #parentId == principal.userId")
     public ResponseEntity<List<EleveResponse>> parParent(
             @PathVariable Long parentId) {
         return ResponseEntity.ok(service.parParent(parentId));
@@ -61,7 +66,10 @@ public class EleveController {
     // ── GET /api/eleves/bus/{busId} : élèves du bus dans l'ordre de passage (vue chauffeur) ──
     @GetMapping("/bus/{busId}")
     @PreAuthorize("hasAnyRole('ADMIN','CHAUFFEUR')")
-    public ResponseEntity<List<EleveResponse>> parBusOrdonne(@PathVariable Long busId) {
+    public ResponseEntity<List<EleveResponse>> parBusOrdonne(
+            @AuthenticationPrincipal UserPrincipal user,
+            @PathVariable Long busId) {
+        portee.exigerAccesAuBus(user, busId);
         return ResponseEntity.ok(service.parBusOrdonne(busId));
     }
 
@@ -125,8 +133,12 @@ public class EleveController {
     @PatchMapping("/{id}/presence")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHAUFFEUR')")
     public ResponseEntity<Void> presence(
+            @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long id,
             @RequestParam Boolean present) {
+        // Sans ce controle, tout chauffeur pointait tout eleve — et le parent d'une AUTRE
+        // famille recevait aussitot « votre enfant est bien monte » (defaut P4).
+        portee.exigerAccesAEleve(user, id);
         service.mettreAJourPresence(id, present);
         return ResponseEntity.ok().build();
     }
