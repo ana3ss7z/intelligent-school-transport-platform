@@ -1636,9 +1636,20 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Chauffeur cannot delete eleve — 403', function () {",
+              "pm.test('Chauffeur cannot delete eleve - 403', function () {",
               "  pm.response.to.have.status(403);",
-              "});"
+              "});",
+              "",
+              "// NETTOYAGE. Sans lui, chaque execution de la collection laisse un eleve de plus",
+              "// en base — et le regroupement le prend en compte comme un vrai enfant.",
+              "const rbacId = pm.environment.get('rbacEleveId');",
+              "if (rbacId) {",
+              "  pm.sendRequest({",
+              "    url: pm.environment.get('ms2Url') + '/api/eleves/' + rbacId,",
+              "    method: 'DELETE',",
+              "    header: {'Authorization': 'Bearer ' + pm.environment.get('adminToken')}",
+              "  }, function () { pm.environment.unset('rbacEleveId'); });",
+              "}"
             ]
           }
         },
@@ -1647,6 +1658,10 @@
           "script": {
             "type": "text/javascript",
             "exec": [
+              "// L'eleve cree ici sert a verifier qu'un CHAUFFEUR ne peut PAS le supprimer.",
+              "// Ses coordonnees sont dans Meknes, a 400 m de l'ecole : un point aberrant",
+              "// corromprait les metriques du regroupement (mesure le 27/08 : compacite max",
+              "// 2 804 m -> 145 893 m, silhouette 0,4256 -> 0,298, verdict CRITIQUE).",
               "// Create a dedicated eleve for RBAC test via API",
               "const baseUrl = pm.environment.get('ms2Url');",
               "const token = pm.environment.get('adminToken');",
@@ -1663,8 +1678,8 @@
               "    raw: JSON.stringify({",
               "      nom: 'RBACTest',",
               "      prenom: 'Eleve',",
-              "      latitude: 33.99,",
-              "      longitude: -6.85,",
+              "      latitude: 33.8962,",
+              "      longitude: -5.5498,",
               "      parentId: parseInt(parentId)",
               "    })",
               "  }",

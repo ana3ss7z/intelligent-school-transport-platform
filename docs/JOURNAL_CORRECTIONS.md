@@ -396,6 +396,87 @@ Ils échouaient sans qu'aucun défaut n'existe — et chacun apprend quelque cho
 
 ---
 
+## Lot 7 — Les deux derniers écarts ✅ **27/08**
+
+### Files RabbitMQ orphelines — supprimées
+
+MS2, MS3 et MS10 **déclaraient** des files durables liées à leurs propres clés de routage,
+sans jamais les consommer : aucun `@RabbitListener`. Les vrais destinataires (MS4, MS6, MS11,
+MS12) déclarent chacun la leur. Chaque message publié atterrissait donc **aussi** dans une
+file que personne ne lit.
+
+Mesure avant correction : **29 142 messages** dans 7 files, dont 29 046 pour la seule
+`gps.bus.updated.queue` — une pile qui ne redescend jamais.
+
+Déclarations retirées des trois `RabbitMQConfig` (le bean `transportExchange` est conservé :
+les publieurs en dépendent), services redémarrés, files supprimées du broker.
+
+**Vérifié après correction** : les trois publieurs exercés (GPS, création d'élève, incident)
+→ **0 file orpheline, 0 message en attente**, 18 files consommées, et la chaîne intacte
+(MS11 en surveillance, MS4 produisant `BUS_EN_ROUTE` et `INCIDENT_SIGNALE`).
+
+> Le risque n'était pas imminent — 5 Mo contre une alarme mémoire à 3,3 Go. Mais déclarer une
+> file que personne ne lit est un défaut de conception, pas une dette d'exploitation.
+
+### Test G1 — rendu déterministe
+
+Il échouait au hasard. Chaque maillon a été vérifié individuellement et **fonctionne** :
+une position GPS produit une publication `eta.bus.arriving`, consommée par MS4, qui crée
+31 notifications. Quatre garde-fous légitimes de MS12 se superposaient, et **une erreur de ma
+part** :
+
+1. **Le contexte** — la même position donnait 9,73 min par temps nuageux et trafic dense,
+   6,95 min par beau temps, pour un seuil d'alerte à 10 min. Figé par le mode « manuel » de
+   MS13, restauré ensuite.
+2. **Le cooldown de 30 min par bus** — abaissé au minimum autorisé (60 s) pendant le test.
+3. **Le choix du bus** — le test pingeait le bus de l'élève de test, que le recalcul
+   automatique déplace (créé sur le 16, retrouvé sur le 18) et qui avait déjà été annoncé.
+   Il ping désormais le bus sélectionné pour son cooldown vide ; le rattachement au bon
+   parent reste couvert par G5, qui emprunte le même chemin MS4.
+4. **La lecture** — une lecture unique après un `sleep` fixe, dans un journal paginé de
+   25 lignes que le système remplit en quelques secondes. Remplacée par une **attente
+   active** bornée, et une comparaison **par identifiant** plutôt que par compte (le journal
+   est une fenêtre glissante : un compte stable ne prouve rien).
+
+Le e2e passe désormais **12/12**, de façon reproductible.
+
+### ⚠️ Découvert au passage — un élève fictif corrompait les métriques du modèle
+
+En vérifiant la justesse des briques IA : la compacité maximale du regroupement affichait
+**145 893 m** (145 km), la silhouette tombait de 0,4256 à **0,298**, et le garde-fou qualité
+rendait **CRITIQUE**.
+
+Le partitionnement, lui, était intact — churn 0, mêmes tailles. Ce sont les **métriques** qui
+étaient tirées par un point aberrant : l'élève **#316 « RBACTest », à 120,8 km de l'école**,
+en région de Rabat, alors que les 300 vrais élèves sont tous à moins de **3,4 km**.
+
+Origine : la requête 36 de la collection Newman crée cet élève pour vérifier qu'un CHAUFFEUR
+ne peut **pas** le supprimer — et le laisse donc en base, définitivement. À chaque exécution.
+
+**Corrigé des deux côtés** : ses coordonnées passent dans Meknès (400 m de l'école), et la
+requête le supprime elle-même après son assertion. Vérifié : Newman reste à **88/88** et
+laisse **300 élèves, le plus éloigné à 3,4 km**. Métriques rétablies — silhouette **0,4256**,
+compacité max **2 804 m**, verdict **OK**.
+
+---
+
+## Bilan final — 27/08
+
+| Harnais | Assertions | Résultat |
+|---|--:|---|
+| `scenarios.py` — acteur ↔ acteur | 39 | **39/39** ✅ |
+| `contrats.py` — contrats HTTP & RBAC | 67 | **67/67** ✅ |
+| `ia.py` — justesse des 5 briques IA | 35 | **35/35** ✅ |
+| `donnees_front.mjs` — valeurs affichées | 17 | **17/17** ✅ |
+| `balayage_front.mjs` — 27 routes × 3 rôles | 42 | **42/42** ✅ |
+| Newman — API + passerelle | 88 | **88/88** ✅ |
+| `config_et_push.py` — MS13 & MS4 | 13 | **13/13** ✅ |
+| `temps_reel.py` — chaîne temps réel | 12 | **12/12** ✅ |
+| `e2e_integration_test.py` | 12 | **12/12** ✅ |
+| **Total** | **325** | **325 / 0 écart** |
+
+---
+
 ## Reste ouvert — dette assumée et documentée
 
 | # | Défaut | Décision |

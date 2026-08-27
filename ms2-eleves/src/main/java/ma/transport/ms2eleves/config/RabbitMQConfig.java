@@ -1,8 +1,5 @@
 package ma.transport.ms2eleves.config;
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,39 +12,16 @@ public class RabbitMQConfig {
         return new TopicExchange("transport.exchange");
     }
 
-    @Bean
-    public Queue eleveCreatedQueue() {
-        return new Queue("eleve.created.queue", true);
-    }
-
-    @Bean
-    public Queue eleveGpsUpdatedQueue() {
-        return new Queue("eleve.gps.updated.queue", true);
-    }
-
-    @Bean
-    public Queue eleveDeletedQueue() {
-        return new Queue("eleve.deleted.queue", true);
-    }
-
-    @Bean
-    public Binding bindingCreated(Queue eleveCreatedQueue,
-                                   TopicExchange transportExchange) {
-        return BindingBuilder.bind(eleveCreatedQueue)
-                .to(transportExchange).with("eleve.created");
-    }
-
-    @Bean
-    public Binding bindingGpsUpdated(Queue eleveGpsUpdatedQueue,
-                                      TopicExchange transportExchange) {
-        return BindingBuilder.bind(eleveGpsUpdatedQueue)
-                .to(transportExchange).with("eleve.gps.updated");
-    }
-
-    @Bean
-    public Binding bindingDeleted(Queue eleveDeletedQueue,
-                                   TopicExchange transportExchange) {
-        return BindingBuilder.bind(eleveDeletedQueue)
-                .to(transportExchange).with("eleve.deleted");
-    }
+    /*
+     * Les files `eleve.created.queue, eleve.gps.updated.queue, eleve.deleted.queue` ont ete SUPPRIMEES le 27/08.
+     *
+     * Ce service les DECLARAIT — durables, liees a ses propres cles de routage — sans jamais
+     * les consommer : il n'a aucun @RabbitListener. Les vrais destinataires de ces evenements
+     * (MS4, MS6, MS11, MS12) declarent chacun leur propre file. Chaque message publie
+     * atterrissait donc AUSSI dans une file que personne ne lit : 29 000 messages accumules,
+     * et une pile qui ne redescend jamais.
+     *
+     * L'echange reste declare ci-dessus : c'est lui que les publieurs utilisent. Declarer une
+     * file n'a de sens que pour qui la consomme.
+     */
 }

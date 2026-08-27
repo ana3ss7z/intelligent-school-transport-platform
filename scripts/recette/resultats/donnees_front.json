@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-27T00:34:43.376Z",
+  "date": "2026-08-27T01:55:15.284Z",
   "total": 17,
   "ecarts": 0,
   "resultats": [
@@ -54,8 +54,8 @@
     {
       "ecran": "/notifications",
       "nom": "le total des notifications vient bien de /stats",
-      "attendu": "10973",
-      "obtenu": "10973 présent",
+      "attendu": "12065",
+      "obtenu": "12065 présent",
       "ok": true,
       "commentaire": "la page ne voit qu'une tranche : le total doit venir de /stats, pas d'un comptage local"
     },
@@ -94,7 +94,7 @@
     {
       "ecran": "/chauffeur/historique",
       "nom": "l'historique montre ses trajets, pas ceux des autres",
-      "attendu": "19 trajet(s)",
+      "attendu": "22 trajet(s)",
       "obtenu": "cohérent",
       "ok": true,
       "commentaire": ""
@@ -134,7 +134,7 @@
     {
       "ecran": "/parent/notifications",
       "nom": "ses notifications, et rien d'autre",
-      "attendu": "168 notification(s)",
+      "attendu": "174 notification(s)",
       "obtenu": "liste rendue",
       "ok": true,
       "commentaire": ""

@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-27 01:36:39",
+  "date": "2026-08-27 02:47:56",
   "total": 67,
   "ecarts": 0,
   "assertions": [
@@ -535,7 +535,7 @@
       "section": "A",
       "nom": "A4bis · 80 requêtes PARALLÈLES sur /api/bus (défaut 20/s, burst 40)",
       "attendu": "des 429",
-      "obtenu": "20 × 429 et 60 × 200 sur 80",
+      "obtenu": "40 × 429 et 40 × 200 sur 80",
       "ok": true,
       "commentaire": "le filtre par défaut s'applique à toutes les routes"
     }

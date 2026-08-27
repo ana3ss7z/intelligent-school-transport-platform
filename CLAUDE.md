@@ -1761,6 +1761,24 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
     consumer — et un health check qui n'en observe qu'une ment par omission. La règle
     générale : **tout ce qui écoute doit publier qu'il écoute.**
 
+38. **Un élève fictif de test peut corrompre toutes les métriques d'un modèle.**
+    Trouvé le 27/08. Le garde-fou qualité de MS6 rendait **CRITIQUE** : compacité maximale
+    **145 893 m** (145 km) et silhouette tombée de 0,4256 à **0,298**. Le partitionnement
+    était pourtant intact — churn 0, mêmes tailles. Seules les **métriques** étaient faussées,
+    par un unique point aberrant : l'élève **« RBACTest », à 120,8 km de l'école**, quand les
+    300 vrais élèves tiennent dans un rayon de **3,4 km**.
+    Origine : la requête 36 de la collection Newman le crée pour vérifier qu'un CHAUFFEUR ne
+    peut **pas** le supprimer — et le laisse donc en base **à chaque exécution**, avec des
+    coordonnées choisies au hasard hors de la région.
+    **Deux enseignements** : (a) une donnée de test qui survit à son test devient une donnée
+    de production, et le clustering ne fait pas la différence ; (b) la silhouette et la
+    compacité maximale sont des statistiques **sensibles aux extrêmes** — un point sur 301
+    suffit à faire basculer un verdict. Corrigé des deux côtés : coordonnées ramenées dans
+    Meknès, et suppression par la requête elle-même.
+    ⚠️ Corollaire : toute suite de tests qui écrit en base doit **nettoyer ce qu'elle crée**,
+    y compris — et surtout — les objets créés pour vérifier qu'ils ne peuvent PAS être
+    supprimés. Ce sont précisément ceux que le scénario laisse derrière lui.
+
 ## 💡 Décisions architecturales clés
 
 | Décision | Raison |

@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-27 01:27:42",
+  "date": "2026-08-27 02:46:14",
   "total": 35,
   "ecarts": 0,
   "assertions": [
@@ -7,7 +7,7 @@
       "brique": "MS6",
       "nom": "Contrainte DURE : aucun groupe ne dépasse la capacité du bus",
       "attendu": "toutes les tailles ≤ 50",
-      "obtenu": "max = 50 (groupe 5)",
+      "obtenu": "max = 50 (groupe 1)",
       "ok": true,
       "commentaire": "c'est la seule contrainte que l'algorithme garantit par construction"
     },
@@ -87,7 +87,7 @@
       "brique": "MS5",
       "nom": "Groupe 1 — la distance annoncée décrit bien le trajet dessiné",
       "attendu": "écart < 0,5 %",
-      "obtenu": "0.05 % (16494 m annoncés, 16502 m mesurés)",
+      "obtenu": "0.05 % (16517 m annoncés, 16525 m mesurés)",
       "ok": true,
       "commentaire": "avant le correctif du 22/08 l'écart était de 10,9 % : deux trajets différents"
     },
@@ -95,7 +95,7 @@
       "brique": "MS5",
       "nom": "Groupe 1 — vitesse moyenne plausible en ville",
       "attendu": "entre 10 et 60 km/h",
-      "obtenu": "29.0 km/h",
+      "obtenu": "29.1 km/h",
       "ok": true,
       "commentaire": ""
     },
@@ -183,7 +183,7 @@
       "brique": "MS12",
       "nom": "Monotonie : une distance plus grande donne une durée plus grande",
       "attendu": "durées croissantes",
-      "obtenu": "2214 m → 6.53 min · 5890 m → 15.62 min · 11348 m → 27.43 min",
+      "obtenu": "2214 m → 6.28 min · 5890 m → 15.00 min · 11348 m → 27.43 min",
       "ok": true,
       "commentaire": ""
     },
@@ -191,7 +191,7 @@
       "brique": "MS12",
       "nom": "L'intervalle de confiance encadre bien la prédiction",
       "attendu": "borne basse ≤ ETA ≤ borne haute",
-      "obtenu": "[5.2, 7.85] autour de 6.53",
+      "obtenu": "[4.95, 7.6] autour de 6.28",
       "ok": true,
       "commentaire": ""
     },
@@ -247,7 +247,7 @@
       "brique": "MS11",
       "nom": "Une vitesse injectée au-dessus du seuil est réellement détectée",
       "attendu": "une nouvelle alerte",
-      "obtenu": "1 nouvelle(s) sur le bus 15",
+      "obtenu": "1 nouvelle(s) sur le bus 16",
       "ok": true,
       "commentaire": "vitesse envoyée : 120.0 km/h (seuil 90.0)"
     },
@@ -271,7 +271,7 @@
       "brique": "MS9",
       "nom": "NL2SQL — le chiffre renvoyé est le VRAI chiffre de la base",
       "attendu": "300 élèves",
-      "obtenu": "300 (SQL : SELECT COUNT(id) AS total_eleves FROM eleves LIMIT 1)",
+      "obtenu": "300 (SQL : SELECT COUNT(id) AS total_eleves FROM eleves LIMIT 200)",
       "ok": true,
       "commentaire": "générer du SQL valide ne suffit pas : il doit répondre à la question posée"
     },
