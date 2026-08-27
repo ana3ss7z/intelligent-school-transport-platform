@@ -101,8 +101,37 @@ async def _on_message(message: aio_pika.IncomingMessage):
         asyncio.create_task(_recalculer_et_ecrire())
 
 
-async def start_consumer():
-    try:
+# État du consumer, exposé par /health. Sans lui, un pipeline mort est indiscernable d'un
+# pipeline qui n'a rien à traiter. Constaté sur MS11 le 27/08 : le service répondait « UP »
+# et n'observait plus rien depuis un redémarrage où RabbitMQ n'était pas encore prêt.
+etat_consumer: dict = {"connecte": False, "tentatives": 0, "derniere_erreur": None,
+                       "depuis": None}
+
+
+async def start_consumer() -> None:
+    """Démarre le consumer, en RÉESSAYANT jusqu'à y parvenir.
+
+    `connect_robust` reconnecte tout seul une connexion **déjà établie**, mais ne fait rien si
+    la toute première tentative échoue — et les 13 services démarrent ensemble.
+    """
+    import asyncio as _asyncio
+    attente = 2.0
+    while True:
+        try:
+            await _demarrer_une_fois()
+            return
+        except Exception as exc:
+            etat_consumer["tentatives"] += 1
+            etat_consumer["derniere_erreur"] = str(exc)
+            etat_consumer["connecte"] = False
+            logger.error("[%s] RabbitMQ inaccessible (essai %d) : %s — nouvelle tentative dans %.0f s",
+                         "MS6", etat_consumer["tentatives"], exc, attente)
+            await _asyncio.sleep(attente)
+            attente = min(attente * 2, 30.0)
+
+
+async def _demarrer_une_fois():
+    if True:
         connection = await aio_pika.connect_robust(settings.rabbitmq_url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=1)
@@ -115,6 +144,7 @@ async def start_consumer():
             await queue.bind(exchange, routing_key=key)
         await queue.consume(_on_message)
 
+        from datetime import datetime, timezone
+        etat_consumer.update({"connecte": True, "derniere_erreur": None,
+                              "depuis": datetime.now(timezone.utc).isoformat()})
         logger.info("[MS6] Consumer RabbitMQ démarré")
-    except Exception as exc:
-        logger.error("[MS6] RabbitMQ inaccessible : %s — mode dégradé", exc)

@@ -100,9 +100,13 @@ def main():
     check("PATCH présence", requests.patch(f"{GW}/api/eleves/{test_eid}/presence?present=true", headers=H, timeout=10).status_code == 200)
     time.sleep(4)
 
-    notifs = requests.get(f"{GW}/api/notifications", headers=H, timeout=15).json()
-    lst = notifs if isinstance(notifs, list) else notifs.get("content", [])
-    types = {n.get("type") for n in lst if n.get("parentId") == pid}
+    # On lit avec le jeton du PARENT, pas le journal d'administration. Ce dernier est paginé
+    # (25 lignes par défaut, les plus récentes) et le système produit assez de notifications
+    # — alertes d'anomalie, ETA de toute la flotte — pour enterrer celle du parent de test en
+    # quelques secondes. `/mes-notifications` est déjà scopé au demandeur : c'est la lecture
+    # que fait la vraie application parent, et elle ne dépend pas du volume global.
+    lst = requests.get(f"{GW}/api/notifications/mes-notifications", headers=PH, timeout=15).json()
+    types = {n.get("type") for n in lst}
     check("notif BUS_EN_ROUTE (G1)", "BUS_EN_ROUTE" in types, "reçue" if "BUS_EN_ROUTE" in types else f"types={types}")
     check("notif ENFANT_A_BORD (G5)", "ENFANT_A_BORD" in types, "reçue" if "ENFANT_A_BORD" in types else f"types={types}")
     print("     (FCM dégradé/refus token = ECHEC en DB est normal ; la notif est bien enregistrée)")

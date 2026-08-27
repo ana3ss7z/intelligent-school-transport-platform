@@ -1707,6 +1707,60 @@ canal de **notification admin** (MS4 ne pousse que par parent/bus).
     d'équivalent pour la **compacité**. Contourné en réamorçant depuis le point de conception ;
     **le correctif de fond — inscrire `k` dans le contexte — reste à porter.**
 
+36. **Deux chemins de calcul pour la même décision métier, avec deux algorithmes différents —
+    et c'est le mauvais qui gagnait.**
+    Trouvé le 27/08 **par l'usage**, pas par les tests : après une migration à k=7 bus,
+    l'écran de clustering réaffichait 9 groupes dont un à **9 élèves sur 50 places**.
+    `MS6` calcule l'affectation par deux voies : `POST /api/clustering/production`
+    (déclenchée par l'administrateur) utilise la **distance routière OSRM**, celle du mémoire
+    et du benchmark ; le **consumer RabbitMQ** — déclenché par `eleve.created`,
+    `eleve.deleted`, `eleve.gps.updated`, `bus.created`, `bus.deleted` — utilisait la
+    **distance euclidienne** (`use_road_for_auto = false`, « plus rapide »).
+    Conséquence : **toute inscription, tout déménagement, toute suppression d'un élève de test
+    repartitionnait les 300 élèves avec l'algorithme dégradé**, en écrasant la partition
+    routière, la mémoire d'hystérésis (`last_selection.json`) **et** la référence qualité
+    (`quality_baseline.json`). Une exécution de Newman suffisait — elle crée puis supprime un
+    élève. C'est ce qui expliquait que `production_config.json` annonce k=7 pendant que la
+    production restait obstinément à k=9 : **le piège n° 16 dans sa version la plus profonde**,
+    les deux algorithmes coexistant et le moins bon l'emportant en silence.
+    **Correctif** : aligner le drapeau aux **trois** endroits qui peuvent s'annuler —
+    `config.py` (défaut du code), `.env` (amorçage), MS13 (`ms6.use_road_for_auto`, priorité,
+    propagé à chaud).
+    ⚠️ **Le réflexe de couper le recalcul automatique aurait été une erreur** : c'est une
+    capacité annoncée du projet (déclencheur « ajout d'élève », S8), et la couper aurait
+    retiré une démonstration. Une fois l'algorithme aligné, la vérification montre que le
+    recalcul **se déclenche toujours et ne déplace plus personne** (churn 0 %, partition
+    identique après création puis suppression d'un élève, Newman rejoué en entier à 88/88).
+    On n'a pas eu à choisir entre la fonctionnalité et la stabilité — il fallait d'abord
+    comprendre pourquoi elles semblaient s'opposer.
+    **Leçon de méthode** : l'audit avait exercé le chemin manuel et l'avait trouvé correct.
+    Aucun test ne créait puis supprimait un élève **en observant la partition**. Quand une
+    même décision métier a deux points d'entrée, il faut les exercer **tous les deux** et
+    comparer leurs sorties — sinon on valide celui qu'on regarde et on ignore celui qui écrit.
+
+37. **Un consumer d'événements peut mourir en silence — et rien dans le service ne le dit.**
+    Trouvé le 27/08 en vérifiant la justesse des briques IA. `ms11.gps.queue` avait
+    **0 consommateur** : MS11 répondait « UP », `/live` renvoyait `200 {"n": 0}`, et **plus
+    aucune anomalie n'était détectée** depuis un redémarrage — ni vitesse, ni arrêt prolongé,
+    ni déviation. Un tampon vide est indiscernable d'une surveillance morte.
+    **Deux causes, cumulées, présentes aussi dans MS12 et MS6** :
+    (a) `asyncio.create_task(start_consumer())` **sans conserver la référence** — la
+    documentation Python demande explicitement de stocker le résultat « pour éviter qu'une
+    tâche disparaisse en cours d'exécution » ; le ramasse-miettes collectait le consumer avant
+    son premier pas, symptôme caractéristique : `tentatives: 0`, la boucle n'avait pas même
+    essayé ;
+    (b) **aucune reprise** — `connect_robust` reconnecte une connexion *déjà établie* mais ne
+    fait rien si la première tentative échoue, et les 13 services démarrent ensemble : MS11
+    peut se présenter avant que RabbitMQ n'accepte les connexions. L'ancienne version
+    attrapait l'exception, écrivait une ligne de journal, et laissait le service tourner sans
+    consumer **définitivement**.
+    **Correctif** : boucle de reprise à attente croissante + référence conservée + **état
+    publié** (`surveillance_live` dans `/health`, `surveillance_active` dans `/live`).
+    **Leçon de méthode** : `/health` répondait « UP » parce qu'il ne mesurait que ce que le
+    service sait faire *sur demande*. Un service événementiel a deux moitiés — l'API et le
+    consumer — et un health check qui n'en observe qu'une ment par omission. La règle
+    générale : **tout ce qui écoute doit publier qu'il écoute.**
+
 ## 💡 Décisions architecturales clés
 
 | Décision | Raison |

@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-27 00:01:55",
+  "date": "2026-08-27 01:36:39",
   "total": 67,
   "ecarts": 0,
   "assertions": [
@@ -527,7 +527,7 @@
       "section": "A",
       "nom": "A4 · 40 connexions PARALLÈLES → limiteur /auth (5/s, burst 10)",
       "attendu": "des 429",
-      "obtenu": "34 × 429 et 6 × 200 sur 40",
+      "obtenu": "36 × 429 et 4 × 200 sur 40",
       "ok": true,
       "commentaire": "deux seaux empilés ; en SÉQUENTIEL rien ne se déclenche (test faussement rassurant)"
     },

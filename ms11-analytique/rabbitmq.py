@@ -88,9 +88,42 @@ async def _on_trajet(message: aio_pika.IncomingMessage) -> None:
             logger.info("[MS11] Route purgée pour bus %s → surveillance déviation arrêtée", bus_id)
 
 
+# État du consumer, exposé par /health et /live. Sans lui, une surveillance morte est
+# indiscernable d'une surveillance qui n'a rien à signaler : /live répond 200 {"n": 0}
+# dans les deux cas. C'est ce qui s'est produit le 27/08 — MS11 tournait, répondait, et
+# n'observait plus rien depuis un redémarrage où RabbitMQ n'était pas encore prêt.
+etat_consumer: dict = {"connecte": False, "tentatives": 0, "derniere_erreur": None,
+                       "depuis": None}
+
+
 async def start_consumer() -> None:
+    """Démarre le monitor live, en RÉESSAYANT jusqu'à y parvenir.
+
+    `connect_robust` reconnecte tout seul une connexion **déjà établie**, mais ne fait rien
+    si la toute première tentative échoue. Or les 13 services démarrent ensemble : MS11 peut
+    très bien se présenter avant que RabbitMQ n'accepte les connexions. La version précédente
+    attrapait l'exception, écrivait une ligne de journal, et laissait le service tourner
+    **sans aucune surveillance** — définitivement, jusqu'au prochain redémarrage manuel.
+    """
+    import asyncio as _asyncio
+    attente = 2.0
+    while True:
+        try:
+            await _demarrer_une_fois()
+            return
+        except Exception as exc:
+            etat_consumer["tentatives"] += 1
+            etat_consumer["derniere_erreur"] = str(exc)
+            etat_consumer["connecte"] = False
+            logger.error("[MS11] RabbitMQ inaccessible (essai %d) : %s — nouvelle tentative dans %.0f s",
+                         etat_consumer["tentatives"], exc, attente)
+            await _asyncio.sleep(attente)
+            attente = min(attente * 2, 30.0)
+
+
+async def _demarrer_une_fois() -> None:
     global _exchange
-    try:
+    if True:
         connection = await aio_pika.connect_robust(settings.rabbitmq_url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=1)
@@ -107,6 +140,7 @@ async def start_consumer() -> None:
         await tq.bind(exchange, routing_key="trajet.termine")
         await tq.consume(_on_trajet)
 
+        from datetime import datetime, timezone
+        etat_consumer.update({"connecte": True, "derniere_erreur": None,
+                              "depuis": datetime.now(timezone.utc).isoformat()})
         logger.info("[MS11] Consumer RabbitMQ démarré (gps.bus.updated + trajet.* → monitor anomalies live)")
-    except Exception as exc:
-        logger.error("[MS11] RabbitMQ inaccessible : %s — monitor GPS live désactivé", exc)

@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-26 23:46:43",
+  "date": "2026-08-27 01:35:59",
   "total": 39,
   "ecarts": 0,
   "assertions": [
@@ -268,7 +268,7 @@
       "famille": "planification",
       "nom": "Le parent ne reçoit QUE ses enfants, sans coordonnées",
       "attendu": "0 élève étranger, 0 coordonnée",
-      "obtenu": "2 enfant(s), 0 étranger(s), coords=[]",
+      "obtenu": "1 enfant(s), 0 étranger(s), coords=[]",
       "ok": true,
       "defaut": "",
       "commentaire": ""
@@ -286,7 +286,7 @@
       "famille": "notifications",
       "nom": "Un parent ne voit que SES notifications",
       "attendu": "0 étrangère",
-      "obtenu": "186 notification(s), 0 étrangère(s)",
+      "obtenu": "169 notification(s), 0 étrangère(s)",
       "ok": true,
       "defaut": "",
       "commentaire": ""
@@ -304,7 +304,7 @@
       "famille": "assistant",
       "nom": "Question opérationnelle en français",
       "attendu": "réponse utile",
-      "obtenu": "HTTP 200, 195 caractères",
+      "obtenu": "HTTP 200, 88 caractères",
       "ok": true,
       "defaut": "",
       "commentaire": ""
@@ -313,7 +313,7 @@
       "famille": "assistant",
       "nom": "Même question en darija",
       "attendu": "réponse utile",
-      "obtenu": "HTTP 200, 73 caractères",
+      "obtenu": "HTTP 200, 132 caractères",
       "ok": true,
       "defaut": "",
       "commentaire": "gpt-oss-20b se dégradait spécifiquement ici"
@@ -349,7 +349,7 @@
       "famille": "assistant",
       "nom": "NL2SQL admin : SQL généré et exécuté",
       "attendu": "SELECT + résultat",
-      "obtenu": "HTTP 200, sql=oui, lignes=0",
+      "obtenu": "HTTP 200, sql=oui, lignes=1",
       "ok": true,
       "defaut": "",
       "commentaire": ""

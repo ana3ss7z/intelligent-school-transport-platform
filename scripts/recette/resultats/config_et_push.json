@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-26 01:49:46",
+  "date": "2026-08-27 01:46:41",
   "total": 13,
   "ecarts": 0,
   "assertions": [
@@ -48,7 +48,7 @@
     {
       "nom": "MS13-7 · Propagation à chaud MS13 → MS11, SANS redémarrage",
       "attendu": "< 10 s",
-      "obtenu": "2.30 s",
+      "obtenu": "2.34 s",
       "ok": true,
       "commentaire": "ms11.seuil_vitesse_kmh : 90 → 85"
     },
@@ -68,8 +68,8 @@
     },
     {
       "nom": "MS4-2 · Bus GARÉ à l'école, 30 pings → verrou d'entrée de zone (piège 23)",
-      "attendu": "≤ 27 (1 par parent)",
-      "obtenu": "26 notification(s) pour 27 parents",
+      "attendu": "≤ 39 (1 par parent)",
+      "obtenu": "39 notification(s) pour 39 parents",
       "ok": true,
       "commentaire": "avant correctif : 150 par parent en 3 min ; 30 pings envoyés ici"
     },
@@ -90,7 +90,7 @@
     {
       "nom": "MS4-5 · /stats fournit les totaux (la page n'en voit plus qu'une tranche)",
       "attendu": "clés total/envoyes/echecs",
-      "obtenu": "{\"echecs\": 10267, \"envoyes\": 0, \"alertesAdmin\": 19, \"total\": 10267, \"attente\": 0}",
+      "obtenu": "{\"attente\": 0, \"echecs\": 11286, \"envoyes\": 9, \"alertesAdmin\": 70, \"total\": 11295}",
       "ok": true,
       "commentaire": ""
     }

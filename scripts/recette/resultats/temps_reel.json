@@ -1,12 +1,12 @@
 {
-  "date": "2026-08-26 02:10:16",
+  "date": "2026-08-27 01:45:55",
   "total": 12,
-  "ecarts": 2,
+  "ecarts": 1,
   "assertions": [
     {
       "nom": "TR-1 · MS5 fournit une géométrie exploitable",
       "attendu": "> 100 points",
-      "obtenu": "338 points, 9410.0 m, 18.43 min",
+      "obtenu": "245 points, 6458.7 m, 14.96 min",
       "ok": true,
       "commentaire": ""
     },
@@ -27,7 +27,7 @@
     {
       "nom": "TR-4 · GET /trajets/bus/{id}/route — polyligne ET totaux figés",
       "attendu": "polyligne + distance + durée",
-      "obtenu": "HTTP 200, 338 pts, 9410.0 m, 18.43 min",
+      "obtenu": "HTTP 200, 245 pts, 6458.7 m, 14.96 min",
       "ok": true,
       "commentaire": "séparé de /actif : la géométrie pèse des dizaines de Ko, /actif est sondé toutes les 15 s"
     },
@@ -41,8 +41,8 @@
     {
       "nom": "TR-6 · DEVIATION_ITINERAIRE détectée (surveillance MS11 armée)",
       "attendu": "écart > 250.0 m",
-      "obtenu": "0 anomalie(s), écart max 0 m (anti-rebond 2 pings)",
-      "ok": false,
+      "obtenu": "1 anomalie(s), écart max 6202.2 m (anti-rebond 2 pings)",
+      "ok": true,
       "commentaire": "prouve que MS1 a bien transmis la géométrie à MS11 au démarrage"
     },
     {
@@ -76,9 +76,9 @@
     {
       "nom": "TR-11 · Files déclarées SANS consommateur (croissance non bornée)",
       "attendu": "0 message accumulé",
-      "obtenu": "7 files, 28955 messages",
+      "obtenu": "7 files, 29036 messages",
       "ok": false,
-      "commentaire": "gps.bus.updated.queue=28927 · incident.signale.queue=11 · incident.resolu.queue=9 · eleve.created.queue=4"
+      "commentaire": "gps.bus.updated.queue=28970 · incident.signale.queue=21 · eleve.created.queue=14 · eleve.deleted.queue=13"
     },
     {
       "nom": "TR-12 · Toutes les files fonctionnelles ont un consommateur",

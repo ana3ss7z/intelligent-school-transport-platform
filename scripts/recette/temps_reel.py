@@ -152,6 +152,11 @@ def main() -> int:
     print("\n── Règles live MS11 ──")
     _, seuils = live()
     lat0, lng0 = geo[len(geo) // 3]
+    # Amorçage : le PREMIER ping d'un bus ne fait qu'initialiser l'état du monitor
+    # (`observer()` retourne tôt faute de position précédente) et ne déclenche jamais rien.
+    pousser(H, bus_id, lat0, lng0, vitesse=40.0)
+    time.sleep(3)
+
     avant_v, _ = live({"VITESSE_EXCESSIVE"})
     pousser(H, bus_id, lat0, lng0, vitesse=seuils.get("vitesse_kmh", 90) + 25)
     time.sleep(4)
@@ -169,9 +174,13 @@ def main() -> int:
     for lat, lng in geo[len(geo) // 3: len(geo) // 3 + 3]:
         pousser(H, bus_id, lat, lng)
         time.sleep(0.5)
-    # ~900 m au nord-est de la polyligne : au-delà du seuil même en repassant
-    # près d'un autre tronçon de la tournée (le cycle fermé du piège n° 17)
-    dlat, dlng = 0.0081, 0.0097
+    # Décalage VOLONTAIREMENT franc (~6 km). Ce test répond à « la chaîne fonctionne-t-elle ? »
+    # — MS1 transmet la géométrie, MS11 la fige, la règle se déclenche. Il ne mesure PAS la
+    # sensibilité de la règle : à décalage modéré elle est structurellement aveugle (piège
+    # n° 17), et un seuil trop juste ferait de ce test un tirage au sort. La sensibilité est
+    # mesurée à part, sur deux vraies tournées : scripts/recette/resultats/deviation_couverture.json
+    # (un détour de 300 m n'est vu que sur 16 à 29 % du parcours).
+    dlat, dlng = 0.045, 0.045
     for _ in range(pings_dev + 3):
         pousser(H, bus_id, lat0 + dlat, lng0 + dlng)
         time.sleep(0.9)

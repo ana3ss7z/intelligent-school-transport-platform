@@ -1,0 +1,287 @@
+{
+  "date": "2026-08-27 01:27:42",
+  "total": 35,
+  "ecarts": 0,
+  "assertions": [
+    {
+      "brique": "MS6",
+      "nom": "Contrainte DURE : aucun groupe ne dépasse la capacité du bus",
+      "attendu": "toutes les tailles ≤ 50",
+      "obtenu": "max = 50 (groupe 5)",
+      "ok": true,
+      "commentaire": "c'est la seule contrainte que l'algorithme garantit par construction"
+    },
+    {
+      "brique": "MS6",
+      "nom": "Exhaustivité : chaque élève a un groupe",
+      "attendu": "0 élève sans groupe",
+      "obtenu": "0 orphelin(s)",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS6",
+      "nom": "Liaison groupe↔bus : chaque élève groupé a un bus",
+      "attendu": "0 élève sans bus",
+      "obtenu": "0 sans bus",
+      "ok": true,
+      "commentaire": "sans busId, MS4 ne trouve aucun parent à notifier"
+    },
+    {
+      "brique": "MS6",
+      "nom": "Nombre de bus conforme à la configuration gelée",
+      "attendu": "k = 7",
+      "obtenu": "k = 7",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS6",
+      "nom": "Le nombre de bus est réalisable pour l'effectif",
+      "attendu": "k ≥ ⌈300/50⌉ = 6",
+      "obtenu": "k = 7",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS6",
+      "nom": "Verdict du garde-fou qualité",
+      "attendu": "OK",
+      "obtenu": "OK · silhouette 0.4256",
+      "ok": true,
+      "commentaire": "aucune réserve"
+    },
+    {
+      "brique": "MS6",
+      "nom": "Silhouette au-dessus du plancher d'effondrement",
+      "attendu": "≥ 0.3192",
+      "obtenu": 0.4256,
+      "ok": true,
+      "commentaire": "le plancher vaut 0,75 × le point de conception, pas un seuil générique de 0,5"
+    },
+    {
+      "brique": "MS6",
+      "nom": "Déterminisme : relancer le calcul ne déplace personne",
+      "attendu": "0 élève déplacé",
+      "obtenu": "0 déplacé(s)",
+      "ok": true,
+      "commentaire": "un algorithme qui rebat les cartes à chaque exécution serait inexploitable"
+    },
+    {
+      "brique": "MS6",
+      "nom": "Diagnostics cohérents avec la base",
+      "attendu": "300 élèves",
+      "obtenu": "300 élèves",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 1 — la tournée est une PERMUTATION exacte des élèves",
+      "attendu": "50 élèves, chacun une fois",
+      "obtenu": "50 arrêts, 50 distincts",
+      "ok": true,
+      "commentaire": "un élève oublié ou compté deux fois passerait inaperçu sans ce contrôle"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 1 — la distance annoncée décrit bien le trajet dessiné",
+      "attendu": "écart < 0,5 %",
+      "obtenu": "0.05 % (16494 m annoncés, 16502 m mesurés)",
+      "ok": true,
+      "commentaire": "avant le correctif du 22/08 l'écart était de 10,9 % : deux trajets différents"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 1 — vitesse moyenne plausible en ville",
+      "attendu": "entre 10 et 60 km/h",
+      "obtenu": "29.0 km/h",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 2 — la tournée est une PERMUTATION exacte des élèves",
+      "attendu": "44 élèves, chacun une fois",
+      "obtenu": "44 arrêts, 44 distincts",
+      "ok": true,
+      "commentaire": "un élève oublié ou compté deux fois passerait inaperçu sans ce contrôle"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 2 — la distance annoncée décrit bien le trajet dessiné",
+      "attendu": "écart < 0,5 %",
+      "obtenu": "0.04 % (13485 m annoncés, 13491 m mesurés)",
+      "ok": true,
+      "commentaire": "avant le correctif du 22/08 l'écart était de 10,9 % : deux trajets différents"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 2 — vitesse moyenne plausible en ville",
+      "attendu": "entre 10 et 60 km/h",
+      "obtenu": "28.3 km/h",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 3 — la tournée est une PERMUTATION exacte des élèves",
+      "attendu": "42 élèves, chacun une fois",
+      "obtenu": "42 arrêts, 42 distincts",
+      "ok": true,
+      "commentaire": "un élève oublié ou compté deux fois passerait inaperçu sans ce contrôle"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 3 — la distance annoncée décrit bien le trajet dessiné",
+      "attendu": "écart < 0,5 %",
+      "obtenu": "0.03 % (13448 m annoncés, 13451 m mesurés)",
+      "ok": true,
+      "commentaire": "avant le correctif du 22/08 l'écart était de 10,9 % : deux trajets différents"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Groupe 3 — vitesse moyenne plausible en ville",
+      "attendu": "entre 10 et 60 km/h",
+      "obtenu": "28.1 km/h",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS5",
+      "nom": "Gain vs l'ordre naïf, sur les groupes testés",
+      "attendu": "≥ 0 % partout",
+      "obtenu": "[16.8, 11.0, 8.0] %",
+      "ok": true,
+      "commentaire": "moyenne 11.9 %"
+    },
+    {
+      "brique": "MS5",
+      "nom": "Le soir reprend le MÊME ordre que le matin (choix de conception)",
+      "attendu": "ordres identiques",
+      "obtenu": "identiques",
+      "ok": true,
+      "commentaire": "garder le même ordre équilibre le temps à bord sur la journée (verify_sens.py)"
+    },
+    {
+      "brique": "MS12",
+      "nom": "Le modèle servi est bien celui qui a été gelé",
+      "attendu": "elasticnet",
+      "obtenu": "elasticnet",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS12",
+      "nom": "Garde anti-extrapolation : le mode bascule hors du domaine appris",
+      "attendu": "modele_direct près / facteur_contexte loin",
+      "obtenu": "2214 m → modele_direct | 11348 m → facteur_contexte",
+      "ok": true,
+      "commentaire": "le modèle a appris sur des tronçons de 0,7 à 4 km ; au-delà il ne doit pas extrapoler"
+    },
+    {
+      "brique": "MS12",
+      "nom": "Monotonie : une distance plus grande donne une durée plus grande",
+      "attendu": "durées croissantes",
+      "obtenu": "2214 m → 6.53 min · 5890 m → 15.62 min · 11348 m → 27.43 min",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS12",
+      "nom": "L'intervalle de confiance encadre bien la prédiction",
+      "attendu": "borne basse ≤ ETA ≤ borne haute",
+      "obtenu": "[5.2, 7.85] autour de 6.53",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS12",
+      "nom": "Le contexte a un effet mesurable, à distance identique",
+      "attendu": "pluie+embouteillage nettement plus lent",
+      "obtenu": "beau/fluide 11.16 min → pluie/embouteillage 27.07 min (×2.43)",
+      "ok": true,
+      "commentaire": "même tronçon, seul le contexte change — c'est ce que le modèle est censé capter"
+    },
+    {
+      "brique": "MS12",
+      "nom": "La réponse déclare ses sources",
+      "attendu": "distance/durée = OSRM",
+      "obtenu": "OSRM",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS11",
+      "nom": "Le détecteur servi est celui qui a été gelé",
+      "attendu": "iforest_curated",
+      "obtenu": "iforest_curated",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS11",
+      "nom": "Les métriques publiées sont celles du benchmark",
+      "attendu": "PR-AUC 0.9127 · rappel 0.875",
+      "obtenu": "PR-AUC 0.9127 · rappel 0.875",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS11",
+      "nom": "Le scan retrouve les incidents réels du jeu de données",
+      "attendu": "précision et rappel ≥ 0,5",
+      "obtenu": "précision 0.696 · rappel 0.722",
+      "ok": true,
+      "commentaire": "évalué contre le label incident, jamais utilisé pour l'apprentissage"
+    },
+    {
+      "brique": "MS11",
+      "nom": "Les seuils de surveillance sont publiés et exploitables",
+      "attendu": "vitesse, arrêt, déviation présents",
+      "obtenu": "vitesse 90.0 km/h · arrêt 5.0 min · déviation 250.0 m",
+      "ok": true,
+      "commentaire": ""
+    },
+    {
+      "brique": "MS11",
+      "nom": "Une vitesse injectée au-dessus du seuil est réellement détectée",
+      "attendu": "une nouvelle alerte",
+      "obtenu": "1 nouvelle(s) sur le bus 15",
+      "ok": true,
+      "commentaire": "vitesse envoyée : 120.0 km/h (seuil 90.0)"
+    },
+    {
+      "brique": "MS11",
+      "nom": "Anti-spam : un second excès dans la minute ne réalerte pas",
+      "attendu": "aucune alerte supplémentaire",
+      "obtenu": "0 supplémentaire(s)",
+      "ok": true,
+      "commentaire": "une alerte par type et par bus toutes les 2 min — sinon un bus rapide noierait la console"
+    },
+    {
+      "brique": "MS9",
+      "nom": "Les modèles de la cascade sont réellement servis par les fournisseurs",
+      "attendu": "verdict OK, aucun absent",
+      "obtenu": "OK · absents : []",
+      "ok": true,
+      "commentaire": "deux pannes de modèle ont déjà été subies en silence (pièges n° 7 et 21c)"
+    },
+    {
+      "brique": "MS9",
+      "nom": "NL2SQL — le chiffre renvoyé est le VRAI chiffre de la base",
+      "attendu": "300 élèves",
+      "obtenu": "300 (SQL : SELECT COUNT(id) AS total_eleves FROM eleves LIMIT 1)",
+      "ok": true,
+      "commentaire": "générer du SQL valide ne suffit pas : il doit répondre à la question posée"
+    },
+    {
+      "brique": "MS9",
+      "nom": "NL2SQL — la requête générée est bien en lecture seule",
+      "attendu": "commence par SELECT ou WITH",
+      "obtenu": "SELECT COUNT(id) AS total_eleves FROM el",
+      "ok": true,
+      "commentaire": ""
+    }
+  ]
+}

@@ -43,6 +43,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token invalide")
 
 
+# Références aux tâches de fond : sans elles, le ramasse-miettes peut collecter
+# un consumer avant son premier pas (cf. lifespan).
+_taches_de_fond: set = set()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if os.path.exists(settings.model_path) and os.path.exists(settings.config_path):
@@ -60,7 +65,14 @@ async def lifespan(app: FastAPI):
 
     # Monitor GPS live (G3) : anomalies instantanées sur gps.bus.updated (MS3)
     from rabbitmq import start_consumer
-    asyncio.create_task(start_consumer())
+    # La référence à la tâche est CONSERVÉE : `asyncio.create_task()` ne garde qu'une
+    # référence faible, et la documentation Python demande explicitement de stocker le
+    # résultat « pour éviter qu'une tâche disparaisse en cours d'exécution ». Sans cela, le
+    # ramasse-miettes peut collecter le consumer avant son premier pas : le service tourne,
+    # répond « UP », et n'écoute plus rien. Constaté sur MS11 le 27/08 (0 tentative).
+    _tache = asyncio.create_task(start_consumer())
+    _taches_de_fond.add(_tache)
+    _tache.add_done_callback(_taches_de_fond.discard)
     yield
 
 
@@ -104,16 +116,24 @@ class AnomalyRequest(BaseModel):
 # ── Routes ───────────────────────────────────────────────────────────
 @app.get("/api/analytique/health")
 async def health():
+    # `surveillance_live` dit si le consumer RabbitMQ écoute réellement. Sans lui, un MS11
+    # qui répond « UP » peut n'observer plus rien depuis des heures (constaté le 27/08).
+    from rabbitmq import etat_consumer
     return {"status": "UP", "service": "ms11-analytique", "port": settings.port,
-            "model_loaded": _loaded(), "detecteur": _state["config"].get("detecteur")}
+            "model_loaded": _loaded(), "detecteur": _state["config"].get("detecteur"),
+            "surveillance_live": etat_consumer}
 
 
 @app.get("/api/analytique/live")
 async def anomalies_temps_reel(limit: int = 20):
     """Anomalies GPS instantanées détectées en temps réel (monitor live G3). Lecture seule (dashboard)."""
     items = list(anomalies_live)[:limit]
+    from rabbitmq import etat_consumer
     return {
         "n": len(items),
+        # Un tampon vide ne veut rien dire si le consumer est mort : on publie son état pour
+        # que « aucune anomalie » soit distinguable de « plus personne n'écoute » (27/08).
+        "surveillance_active": etat_consumer.get("connecte", False),
         # Lus à chaque requête : reflètent donc toujours l'état courant après un changement
         # depuis la console d'administration, sans redémarrage. C'est aussi ce qui permet de
         # vérifier de l'extérieur que la propagation MS13 → MS11 a bien eu lieu.

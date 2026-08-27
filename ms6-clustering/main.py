@@ -50,6 +50,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 
 # ── Lifespan ─────────────────────────────────────────────────────────
+# Références aux tâches de fond : sans elles, le ramasse-miettes peut collecter
+# un consumer avant son premier pas (cf. lifespan).
+_taches_de_fond: set = set()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("[MS6] Démarrage ClusteringService — port %d", settings.port)
@@ -58,7 +63,14 @@ async def lifespan(app: FastAPI):
     # valeurs de la console d'administration, pas de celles du `.env`.
     import params
     await params.demarrer()
-    asyncio.create_task(start_consumer())
+    # La référence à la tâche est CONSERVÉE : `asyncio.create_task()` ne garde qu'une
+    # référence faible, et la documentation Python demande explicitement de stocker le
+    # résultat « pour éviter qu'une tâche disparaisse en cours d'exécution ». Sans cela, le
+    # ramasse-miettes peut collecter le consumer avant son premier pas : le service tourne,
+    # répond « UP », et n'écoute plus rien. Constaté sur MS11 le 27/08 (0 tentative).
+    _tache = asyncio.create_task(start_consumer())
+    _taches_de_fond.add(_tache)
+    _tache.add_done_callback(_taches_de_fond.discard)
     yield
 
 

@@ -20,7 +20,15 @@ class Settings(BaseSettings):
     bus_capacity: int = 50          # capacité d'un bus (paramètre métier extensible)
     rayon_max_m: float = 0.0        # distance max élève→médoïde (m) ; 0 = désactivé (paramètre ajustable)
     use_road_distance: bool = True  # OSRM (vrai réseau) ; repli euclidien si indisponible
-    use_road_for_auto: bool = False # recalcul auto (RabbitMQ) : euclidien par défaut (rapide)
+    # Le recalcul automatique DOIT utiliser la même distance que le calcul manuel.
+    # Il valait `False` (euclidien, « rapide ») : les deux chemins produisaient alors deux
+    # partitions différentes, et comme l'automatique se déclenche sur eleve.created /
+    # eleve.deleted / eleve.gps.updated / bus.created / bus.deleted, la moindre inscription —
+    # ou la suppression d'un élève de test — **réécrivait toute l'affectation de l'école avec
+    # l'algorithme dégradé**, en écrasant la partition routière benchmarkée, la mémoire
+    # d'hystérésis et la référence qualité. Constaté le 27/08 : la production repassait
+    # systématiquement de k=7 routier à k=9 euclidien, avec un bus à 9 élèves sur 50 places.
+    use_road_for_auto: bool = True
     epsg_metric: int = 32630        # UTM 30N (Meknès) — projection planaire en mètres
     min_silhouette: float = 0.50    # garde-fou qualité (CDC) pour la piste exploratoire
     k_margin: int = 3               # marge de bus explorée au-delà de ⌈N/capacité⌉ (Pareto)

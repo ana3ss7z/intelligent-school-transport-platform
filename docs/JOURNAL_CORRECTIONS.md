@@ -233,6 +233,169 @@ pour les trois rôles, après une connexion réelle par le formulaire.
 
 ---
 
+## Lot 5 — Le défaut que l'audit n'avait pas vu ✅ **terminé le 27/08**
+
+**Trouvé par l'usage, pas par les tests.** Après la migration à k=7, l'écran de clustering
+affichait de nouveau **9 groupes, dont un à 9 élèves**. La partition avait été rétablie.
+
+### Deux chemins de calcul, deux algorithmes
+
+| Chemin | Déclenché par | Distance utilisée |
+|---|---|---|
+| **Manuel** — `POST /api/clustering/production` | l'administrateur, depuis l'écran | **routière OSRM** — celle du mémoire, celle qui a été benchmarkée |
+| **Automatique** — consumer RabbitMQ | `eleve.created` · `eleve.deleted` · `eleve.gps.updated` · `bus.created` · `bus.deleted` | **euclidienne** (`use_road_for_auto = false`) |
+
+Le recalcul automatique était **actif** et **repartitionnait les 300 élèves** à chaque
+événement, avec l'algorithme dégradé. Il réécrivait au passage `last_selection.json`
+(la mémoire d'hystérésis) et `quality_baseline.json` (la référence qualité).
+
+**Ce qui l'a déclenché** : Newman crée puis supprime un élève à chaque exécution — jouée
+trois fois ce jour-là. Plus le test e2e. Plus la suppression manuelle d'un élève de test par
+l'utilisateur. Chacune a effacé la partition routière.
+
+> **Cela explique une anomalie ancienne du projet** : `production_config.json` annonce
+> **k=7 routier**, et la production dérivait systématiquement vers **k=9**. C'est le piège
+> n° 16 — *« ce qui tourne en production n'est pas ce qui a été benchmarké »* — dans sa
+> version la plus profonde : les deux algorithmes coexistaient, et le moins bon écrasait
+> l'autre à la première inscription venue.
+
+### Correction
+
+Le drapeau est aligné à trois endroits, parce que chacun peut annuler les autres :
+`ms6-clustering/config.py` (le défaut du code), `ms6-clustering/.env` (l'amorçage), et
+**MS13** (`ms6.use_road_for_auto`, qui a la priorité) — propagé à chaud, sans redémarrage.
+
+### Vérification — le point important
+
+La question n'était pas seulement « la partition tient-elle ? », mais **« la fonctionnalité
+survit-elle ? »**. Le déclencheur « ajout d'élève → recalcul » est une capacité annoncée du
+projet (sprint S8) : la couper aurait retiré une démonstration.
+
+| Test | Résultat |
+|---|---|
+| Recalcul auto **coupé** · élève créé puis supprimé | k=7, churn **0 %** |
+| Recalcul auto **réactivé** avec le bon algorithme · élève créé puis supprimé | k=7, churn **0 %**, partition **identique au caractère près** |
+| **Newman rejoué en entier** (le coupable d'origine) | **88/88**, partition k=7 intacte, verdict **OK** |
+
+**Le recalcul automatique reste donc activé** : il se déclenche, il utilise désormais le même
+algorithme que le calcul manuel, et il ne déplace plus personne. La fonctionnalité est
+préservée *et* la partition est stable — on n'a pas eu à choisir.
+
+### Ce que cet épisode enseigne
+
+L'audit du 26/08 avait exercé le calcul manuel et l'avait trouvé correct. Il n'avait jamais
+exercé **le chemin automatique**, parce qu'aucun test ne créait puis supprimait un élève en
+observant la partition. C'est l'utilisateur qui l'a révélé, en cliquant simplement sur son
+propre écran.
+
+---
+
+## Lot 6 — Vérification complète : acteurs, interfaces, briques IA ✅ **27/08**
+
+Trois questions, trois harnais. Deux d'entre eux n'existaient pas.
+
+### Ce qui a été ajouté
+
+| Harnais | Question à laquelle il répond | Assertions |
+|---|---|---|
+| `scripts/recette/ia.py` **(nouveau)** | Les 5 briques IA donnent-elles des résultats **justes** ? | **35** |
+| `scripts/recette/donnees_front.mjs` **(nouveau)** | Les interfaces affichent-elles les **bonnes valeurs** ? | **17** |
+| `scripts/recette/scenarios.py` | Un acteur peut-il agir sur les données d'un autre ? | 39 |
+
+`ia.py` ne vérifie pas que les services répondent — `contrats.py` le fait déjà. Il vérifie
+que ce qu'ils répondent est **correct** : contraintes métier tenues, grandeurs cohérentes
+entre elles, propriétés que les modèles garantissent, déterminisme.
+
+`donnees_front.mjs` complète `balayage_front.mjs` de la même façon : celui-ci prouve que les
+27 routes se rendent sans erreur, celui-là lit la vérité dans l'API puis **compare au texte
+réellement affiché**. Une page peut se rendre parfaitement et montrer un chiffre faux.
+
+### Résultat d'ensemble
+
+| Harnais | Résultat |
+|---|---|
+| Scénarios acteur ↔ acteur | **39/39** ✅ |
+| Contrats HTTP & RBAC | **67/67** ✅ |
+| Justesse des briques IA | **35/35** ✅ |
+| Valeurs affichées dans les interfaces | **17/17** ✅ |
+| Rendu des 27 routes × 3 rôles | **42/42** ✅ |
+| Newman (API + passerelle) | **88/88** ✅ |
+| MS13 configuration à chaud & MS4 push | **13/13** ✅ |
+| Chaîne temps réel | **11/12** ⚠️ (files orphelines, dette du lot 5) |
+| Intégration e2e | **11/12** ⚠️ (G1, seuil non déterministe — piège n° 31) |
+
+**323 assertions, 2 écarts**, tous deux connus et documentés.
+
+### Ce que la vérification des briques IA établit
+
+- **MS6** — capacité jamais dépassée (max 50/50), aucun élève orphelin, aucun élève groupé
+  sans bus, k=7 conforme au gel, silhouette au-dessus du plancher, verdict **OK**, et
+  **déterminisme** : relancer le calcul ne déplace personne.
+- **MS5** — chaque tournée est une **permutation exacte** des élèves du groupe (aucun oublié,
+  aucun compté deux fois), convergence distance annoncée ↔ géométrie dessinée à
+  **0,03 – 0,08 %**, vitesses plausibles (28 km/h), gain moyen **13,3 %** sur l'ordre naïf, et
+  le soir reprend bien le **même ordre** que le matin.
+- **MS12** — la garde anti-extrapolation bascule au bon endroit (2 214 m → `modele_direct`,
+  11 348 m → `facteur_contexte`), les durées sont **monotones** avec la distance, l'intervalle
+  encadre la prédiction, et le contexte a un effet réel : **×2,43** entre beau/fluide et
+  pluie/embouteillage sur le **même** tronçon.
+- **MS11** — détecteur et métriques conformes au gel (PR-AUC 0,9127), scan à précision 0,696 /
+  rappel 0,722, seuils publiés, **détection réelle** d'une vitesse injectée, et l'**anti-spam**
+  fonctionne (un second excès dans la minute ne réalerte pas).
+- **MS9** — cascade réellement servie par les fournisseurs, et surtout : le NL2SQL renvoie
+  **le vrai chiffre** de la base (300 élèves), pas seulement du SQL bien formé.
+
+### Ce que la vérification des interfaces établit
+
+Chaque écran est confronté à la vérité de l'API : le nombre de groupes et **la taille de
+chacun** sur `/clustering`, l'effectif sur `/eleves`, les 10 matricules sur `/bus`, le total
+des notifications (qui doit venir de `/stats`, pas d'un comptage de la page). Côté chauffeur,
+son bus, ses 50 élèves, et **aucun élève d'un autre bus**. Côté parent, ses enfants nommés,
+**aucun enfant d'une autre famille parmi les 300**, et seul le bus de son enfant.
+
+---
+
+## ⚠️ Le défaut trouvé pendant cette vérification — la surveillance était morte
+
+**`ms11.gps.queue` : 0 consommateur.** MS11 répondait « UP », `/live` renvoyait
+`200 {"n": 0}` — indiscernable de « rien à signaler ». En réalité **plus aucune anomalie
+n'était détectée** : ni vitesse, ni arrêt prolongé, ni déviation. Depuis un redémarrage.
+
+Deux causes, toutes deux corrigées dans **MS11, MS12 et MS6** :
+
+1. **`asyncio.create_task()` sans conserver de référence.** La documentation Python demande
+   explicitement de stocker le résultat « pour éviter qu'une tâche disparaisse en cours
+   d'exécution » : le ramasse-miettes collectait le consumer avant son premier pas. Symptôme
+   caractéristique : `tentatives: 0` — la boucle n'avait même pas essayé.
+2. **Aucune reprise sur échec de connexion.** `connect_robust` reconnecte une connexion
+   **déjà établie**, mais ne fait rien si la première tentative échoue — et les 13 services
+   démarrent ensemble. L'ancienne version attrapait l'exception, écrivait une ligne de
+   journal, et laissait le service tourner sans consumer, définitivement.
+
+**Rendu observable** : `GET /api/analytique/health` publie désormais `surveillance_live`
+(connecté, tentatives, dernière erreur, depuis quand) et `/live` publie
+`surveillance_active`. Un tampon vide ne peut plus se confondre avec un service qui n'écoute
+plus.
+
+**Vérifié après correctif** : les deux files de MS11 ont leur consommateur, une vitesse
+injectée est détectée, et une déviation de 6 074 m est levée contre un seuil de 250 m.
+
+### Trois artefacts de test corrigés au passage
+
+Ils échouaient sans qu'aucun défaut n'existe — et chacun apprend quelque chose sur le système :
+
+- **Le premier ping d'un bus n'est jamais analysé.** `observer()` retourne tôt faute de
+  position précédente : on ne dérive pas une vitesse d'un seul point. Les tests amorcent
+  désormais avant de mesurer.
+- **Une alerte par type et par bus toutes les 2 minutes** (`_ALERT_COOLDOWN_S`). Réutiliser
+  un bus déjà alerté ne prouve rien. Le test choisit maintenant un bus « frais » — et vérifie
+  l'anti-spam comme une fonctionnalité à part entière.
+- **Le e2e lisait le journal d'administration paginé** (25 lignes) pour y chercher la
+  notification d'un parent. Le système en produit assez pour l'enterrer en quelques secondes.
+  Il lit désormais avec le jeton du parent — la lecture que fait la vraie application.
+
+---
+
 ## Reste ouvert — dette assumée et documentée
 
 | # | Défaut | Décision |

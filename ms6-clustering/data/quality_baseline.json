@@ -1,13 +1,13 @@
 {
-  "silhouette": 0.5183,
-  "compacite_med_m": 302.7,
-  "compacite_max_m": 1669.1,
-  "taille_max": 49,
+  "silhouette": 0.4256,
+  "compacite_med_m": 734.2,
+  "compacite_max_m": 2804.1,
+  "taille_max": 50,
   "faisable": true,
-  "n_disperses_total": 14,
+  "n_disperses_total": 17,
   "n_eleves": 300,
   "capacity": 50,
   "rayon_max_m": 0.0,
   "source": "run-applique",
-  "dateMAJ": "2026-08-26T22:56:57.547344+00:00"
+  "dateMAJ": "2026-08-27T00:40:25.474304+00:00"
 }

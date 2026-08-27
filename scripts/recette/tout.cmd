@@ -69,6 +69,11 @@ echo     (ajoute --sans-llm pour sauter les 6 questions envoyees a MS9)
 "%PY%" "%~dp0scenarios.py"
 
 echo.
+echo --- Phase 2ter : justesse des 5 briques IA (attendu 35/35)
+echo     (contraintes metier, coherence des grandeurs, determinisme, NL2SQL exact)
+"%PY%" "%~dp0ia.py"
+
+echo.
 echo --- Phase 3 : Newman (attendu 88/88)
 call "%~dp0newman.cmd"
 
@@ -88,6 +93,11 @@ echo.
 echo --- Phase 8 : balayage des 27 routes web-admin dans Chrome (attendu 42/42)
 echo     (web-admin doit tourner sur :5173)
 pushd "%RACINE%" && node "scripts\recette\balayage_front.mjs" & popd
+
+echo.
+echo --- Phase 8bis : les interfaces affichent-elles les BONNES valeurs (attendu 17/17)
+echo     (compare le texte rendu a l'ecran avec la verite lue dans l'API)
+pushd "%RACINE%" && node "scripts\recette\donnees_front.mjs" & popd
 
 :fin
 echo.
