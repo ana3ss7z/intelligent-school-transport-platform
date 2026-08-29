@@ -1,0 +1,386 @@
+{
+  "_provenance": "Rejoué par rejouer_cvrp.py le 2026-08-29 sur la partition MS6 en vigueur, lue en direct depuis MS2. Remplace la campagne du 23/08, devenue non conforme après la migration vers k=7 du 27/08.",
+  "_protocole": "Une seule matrice OSRM assemblée par blocs de 50x50 (le /table plafonne à 100 coordonnées), même grandeur minimisée (durée en secondes), même arrondi entier, budget égalisé (A = k TSP x 5 s ; B = une résolution de k x 5 s), même flotte. Matrice NON symétrisée.",
+  "_note_ecarts": "Les pourcentages sont calculés sur les durées non arrondies, comme dans le notebook, et rapportés à l'approche A.",
+  "_avertissement_solveur": "GUIDED_LOCAL_SEARCH est borné en TEMPS, pas en itérations : une nouvelle exécution donnerait des minutes légèrement différentes (~3 % mesuré). Les conclusions, elles, sont stables.",
+  "_capacite_bus": 50,
+  "_budget_par_bus_s": 5,
+  "date_execution": "2026-08-29T22:04:38+00:00",
+  "groupes_ms6": {
+    "1": 50,
+    "2": 44,
+    "3": 42,
+    "4": 37,
+    "5": 50,
+    "6": 48,
+    "7": 29
+  },
+  "ecart_type_partition": 7.14,
+  "resultats": [
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 61.79,
+      "distance_km": 29.22,
+      "bus_utilises": 2,
+      "charge_min": 44,
+      "charge_max": 50,
+      "ecart_type_charge": 3.0,
+      "temps_resolution_s": 10.02,
+      "groupes": 2,
+      "eleves": 94
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 61.53,
+      "distance_km": 29.04,
+      "bus_utilises": 2,
+      "charge_min": 44,
+      "charge_max": 50,
+      "ecart_type_charge": 3.0,
+      "temps_resolution_s": 10.01,
+      "groupes": 2,
+      "eleves": 94
+    },
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 90.04,
+      "distance_km": 42.53,
+      "bus_utilises": 3,
+      "charge_min": 42,
+      "charge_max": 50,
+      "ecart_type_charge": 3.4,
+      "temps_resolution_s": 15.01,
+      "groupes": 3,
+      "eleves": 136
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 90.0,
+      "distance_km": 42.41,
+      "bus_utilises": 3,
+      "charge_min": 42,
+      "charge_max": 50,
+      "ecart_type_charge": 3.4,
+      "temps_resolution_s": 15.01,
+      "groupes": 3,
+      "eleves": 136
+    },
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 133.1,
+      "distance_km": 61.47,
+      "bus_utilises": 4,
+      "charge_min": 37,
+      "charge_max": 50,
+      "ecart_type_charge": 4.66,
+      "temps_resolution_s": 20.01,
+      "groupes": 4,
+      "eleves": 173
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 133.38,
+      "distance_km": 62.59,
+      "bus_utilises": 4,
+      "charge_min": 42,
+      "charge_max": 45,
+      "ecart_type_charge": 1.3,
+      "temps_resolution_s": 20.01,
+      "groupes": 4,
+      "eleves": 173
+    },
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 148.03,
+      "distance_km": 67.91,
+      "bus_utilises": 5,
+      "charge_min": 37,
+      "charge_max": 50,
+      "ecart_type_charge": 4.96,
+      "temps_resolution_s": 25.01,
+      "groupes": 5,
+      "eleves": 223
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 153.44,
+      "distance_km": 71.31,
+      "bus_utilises": 5,
+      "charge_min": 34,
+      "charge_max": 50,
+      "ecart_type_charge": 5.64,
+      "temps_resolution_s": 25.02,
+      "groupes": 5,
+      "eleves": 223
+    },
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 182.66,
+      "distance_km": 84.36,
+      "bus_utilises": 6,
+      "charge_min": 37,
+      "charge_max": 50,
+      "ecart_type_charge": 4.71,
+      "temps_resolution_s": 30.02,
+      "groupes": 6,
+      "eleves": 271
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 180.94,
+      "distance_km": 83.66,
+      "bus_utilises": 6,
+      "charge_min": 38,
+      "charge_max": 50,
+      "ecart_type_charge": 4.74,
+      "temps_resolution_s": 30.03,
+      "groupes": 6,
+      "eleves": 271
+    },
+    {
+      "approche": "MS6 + TSP",
+      "duree_min": 206.78,
+      "distance_km": 98.19,
+      "bus_utilises": 7,
+      "charge_min": 29,
+      "charge_max": 50,
+      "ecart_type_charge": 7.14,
+      "temps_resolution_s": 35.01,
+      "groupes": 7,
+      "eleves": 300
+    },
+    {
+      "approche": "CVRP global",
+      "duree_min": 207.98,
+      "distance_km": 99.6,
+      "bus_utilises": 6,
+      "charge_min": 50,
+      "charge_max": 50,
+      "ecart_type_charge": 0.0,
+      "temps_resolution_s": 35.03,
+      "groupes": 7,
+      "eleves": 300
+    }
+  ],
+  "ecarts_publies_%": {
+    "2": 0.4,
+    "3": 0.0,
+    "4": -0.2,
+    "5": -3.7,
+    "6": 0.9,
+    "7": -0.6
+  },
+  "reproductibilite_solveur": {
+    "_note": "La MÊME instance résolue N fois, pour les DEUX approches. Mesure directe de la variabilité de GUIDED_LOCAL_SEARCH, borné en temps et non en itérations. C'est ce chiffre qui dit à partir de quel écart un résultat cesse d'être du bruit — et il diffère beaucoup selon la taille de l'instance.",
+    "tsp_un_bus": {
+      "groupe": 1,
+      "n_arrets": 50,
+      "budget_s": 5,
+      "n_repetitions": 5,
+      "duree_min": [
+        33.74,
+        33.74,
+        33.74,
+        33.74,
+        33.74
+      ],
+      "distance_km": [
+        16.22,
+        16.22,
+        16.22,
+        16.22,
+        16.22
+      ],
+      "duree_moyenne_min": 33.74,
+      "etendue_duree_%": 0.0,
+      "etendue_distance_%": 0.0
+    },
+    "cvrp_flotte_entiere": {
+      "n_bus": 7,
+      "n_arrets": 300,
+      "budget_s": 35,
+      "n_repetitions": 3,
+      "duree_min": [
+        207.98,
+        207.98,
+        207.98
+      ],
+      "duree_moyenne_min": 207.98,
+      "etendue_duree_%": 0.0
+    }
+  },
+  "matrice_osrm": {
+    "n_points": 301,
+    "paires_testees": 361,
+    "paires_asymetriques": 326
+  },
+  "campagne_precedente": {
+    "_note": "Campagne du 23/08, conservée pour comparaison. Elle a tourné sur la partition d'AVANT la migration vers k=7 du 27/08. Elle n'est plus la référence : elle sert à vérifier que la conclusion résiste au changement de partition.",
+    "date": "2026-08-23",
+    "groupes_ms6": {
+      "1": 50,
+      "2": 29,
+      "3": 50,
+      "4": 36,
+      "5": 50,
+      "6": 42,
+      "7": 43
+    },
+    "ecart_type_partition": 7.49,
+    "resultats": [
+      {
+        "groupes": 2,
+        "eleves": 79,
+        "approche": "MS6 + TSP",
+        "duree_min": 59.38,
+        "distance_km": 30.53,
+        "bus_utilises": 2,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 10.5,
+        "temps_resolution_s": 10.01
+      },
+      {
+        "groupes": 2,
+        "eleves": 79,
+        "approche": "CVRP global",
+        "duree_min": 59.24,
+        "distance_km": 30.29,
+        "bus_utilises": 2,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 10.5,
+        "temps_resolution_s": 10.0
+      },
+      {
+        "groupes": 3,
+        "eleves": 129,
+        "approche": "MS6 + TSP",
+        "duree_min": 74.34,
+        "distance_km": 36.99,
+        "bus_utilises": 3,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 9.9,
+        "temps_resolution_s": 15.0
+      },
+      {
+        "groupes": 3,
+        "eleves": 129,
+        "approche": "CVRP global",
+        "duree_min": 76.03,
+        "distance_km": 38.36,
+        "bus_utilises": 3,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 9.9,
+        "temps_resolution_s": 15.0
+      },
+      {
+        "groupes": 4,
+        "eleves": 165,
+        "approche": "MS6 + TSP",
+        "duree_min": 100.24,
+        "distance_km": 49.65,
+        "bus_utilises": 4,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 9.09,
+        "temps_resolution_s": 20.0
+      },
+      {
+        "groupes": 4,
+        "eleves": 165,
+        "approche": "CVRP global",
+        "duree_min": 100.89,
+        "distance_km": 50.42,
+        "bus_utilises": 4,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 9.09,
+        "temps_resolution_s": 20.01
+      },
+      {
+        "groupes": 5,
+        "eleves": 215,
+        "approche": "MS6 + TSP",
+        "duree_min": 135.84,
+        "distance_km": 66.47,
+        "bus_utilises": 5,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 8.85,
+        "temps_resolution_s": 25.01
+      },
+      {
+        "groupes": 5,
+        "eleves": 215,
+        "approche": "CVRP global",
+        "duree_min": 137.7,
+        "distance_km": 67.71,
+        "bus_utilises": 5,
+        "charge_min": 32,
+        "charge_max": 49,
+        "ecart_type_charge": 5.83,
+        "temps_resolution_s": 25.03
+      },
+      {
+        "groupes": 6,
+        "eleves": 257,
+        "approche": "MS6 + TSP",
+        "duree_min": 164.09,
+        "distance_km": 79.78,
+        "bus_utilises": 6,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 8.09,
+        "temps_resolution_s": 30.02
+      },
+      {
+        "groupes": 6,
+        "eleves": 257,
+        "approche": "CVRP global",
+        "duree_min": 163.86,
+        "distance_km": 79.55,
+        "bus_utilises": 6,
+        "charge_min": 28,
+        "charge_max": 50,
+        "ecart_type_charge": 7.56,
+        "temps_resolution_s": 30.02
+      },
+      {
+        "groupes": 7,
+        "eleves": 300,
+        "approche": "MS6 + TSP",
+        "duree_min": 207.15,
+        "distance_km": 98.72,
+        "bus_utilises": 7,
+        "charge_min": 29,
+        "charge_max": 50,
+        "ecart_type_charge": 7.49,
+        "temps_resolution_s": 35.01
+      },
+      {
+        "groupes": 7,
+        "eleves": 300,
+        "approche": "CVRP global",
+        "duree_min": 207.98,
+        "distance_km": 99.6,
+        "bus_utilises": 6,
+        "charge_min": 50,
+        "charge_max": 50,
+        "ecart_type_charge": 0.0,
+        "temps_resolution_s": 35.02
+      }
+    ],
+    "ecarts_publies_%": {
+      "2": 0.2,
+      "3": -2.3,
+      "4": -0.7,
+      "5": -1.4,
+      "6": 0.1,
+      "7": -0.4
+    }
+  },
+  "_note_variabilite_inter_processus": "Dans un même processus, les deux solveurs sont reproductibles (étendue 0,00 % sur 5 exécutions du TSP et 3 du CVRP). La variation apparaît ENTRE exécutions séparées du banc : le CVRP à 6 groupes a donné 180,94 puis 179,94 min lors de deux lancements successifs, soit 0,55 %. C'est l'ordre de grandeur du bruit à retenir."
+}

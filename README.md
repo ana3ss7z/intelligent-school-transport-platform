@@ -274,7 +274,7 @@ Chaque service IA suit la même exigence : **comparer plusieurs approches, mesur
 <tr>
   <td><b>🗺️ MS5</b><br/>VRP / Tournées</td>
   <td>Ordre de ramassage optimal par bus</td>
-  <td>Gain moyen <b>~12.6 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel) · <b>benchmark CVRP global</b> sur les 300 élèves : à budget égal il ne bat jamais la décomposition MS6+TSP de plus de 0,2 % — mais il économise <b>1 bus sur 7</b> (6 bus pleins) pour +0,4 % de conduite</td>
+  <td>Gain moyen <b>13,3 %</b> vs ordre naïf · <b>soir = même ordre que le matin</b> (équité du temps à bord prouvée sur OSRM réel) · <b>benchmark CVRP global</b> sur les 300 élèves : à budget égal il ne gagne au mieux que 0,9 % et perd jusqu'à 3,7 % — mais il économise <b>1 bus sur 7</b> (6 bus pleins) pour +0,6 % de conduite</td>
 </tr>
 <tr>
   <td><b>⏱️ MS12</b><br/>Prédiction ETA</td>

@@ -106,21 +106,71 @@ routier réel, pas un repli déguisé.
 
 ## 5. Les résultats
 
+> ⚠️ **Chiffres remis à jour le 29/08.** La campagne d'origine (23/08) avait tourné sur la
+> partition d'alors, `50·50·50·43·42·36·29`. La **migration vers k = 7 du 27/08** en a produit une
+> autre — `50·50·48·44·42·37·29`, mêmes sept bus et trois cents élèves, mais pas les mêmes élèves
+> dans les mêmes bus. Le benchmark décrivait donc un système qui n'existait plus.
+> Il a été **rejoué sur la partition en vigueur** ([`rejouer_cvrp.py`](../ms5-planification/rejouer_cvrp.py),
+> élèves lus en direct depuis MS2). C'est la **règle 7** du protocole appliquée à un benchmark qui
+> avait vieilli. Les chiffres ci-dessous sont ceux du rejeu ; la comparaison des deux campagnes
+> est au §5 bis.
+
 Sur les **300 élèves** et les **7 groupes réels** produits par MS6, en faisant grandir l'instance :
 
 | Groupes | Élèves | MS6 + TSP | CVRP global | Écart |
 |--:|--:|--:|--:|:--|
-| 2 | 79 | 59,4 min | 59,2 min | +0,2 % CVRP |
-| 3 | 129 | 74,3 min | 76,0 min | **−2,3 % MS6** |
-| 4 | 165 | 100,2 min | 100,9 min | −0,7 % MS6 |
-| 5 | 215 | 135,8 min | 137,7 min | −1,4 % MS6 |
-| 6 | 257 | 164,1 min | 163,9 min | +0,1 % CVRP |
-| 7 | **300** | **207,1 min** | **208,0 min** | **−0,4 % MS6** |
+| 2 | 94 | 61,8 min | 61,5 min | +0,4 % CVRP |
+| 3 | 136 | 90,0 min | 90,0 min | 0,0 % |
+| 4 | 173 | 133,1 min | 133,4 min | −0,2 % MS6 |
+| 5 | 223 | 148,0 min | 153,4 min | **−3,7 % MS6** |
+| 6 | 271 | 182,7 min | 180,9 min | +0,9 % CVRP |
+| 7 | **300** | **206,8 min** | **208,0 min** | **−0,6 % MS6** |
 
-![Comparaison](../ms5-planification/notebooks/figures/06_cvrp_vs_ms6_tsp.png)
+![Comparaison](../ms5-planification/notebooks/figures/05_1_ecart_vs_taille.png)
 
-**À budget égal, le CVRP ne bat jamais la décomposition de plus de 0,2 %** — et il lui est le plus
-souvent inférieur, jusqu'à −2,3 %.
+**À budget égal, le CVRP ne gagne au mieux que 0,9 %** — et il est le plus souvent inférieur,
+jusqu'à −3,7 %.
+
+### 5 bis. La réplication : la conclusion résiste au changement de partition
+
+| Groupes | Écart 23/08 *(ancienne partition)* | Écart 29/08 *(partition actuelle)* |
+|--:|--:|--:|
+| 2 | +0,2 % | +0,4 % |
+| 3 | −2,3 % | 0,0 % |
+| 4 | −0,7 % | −0,2 % |
+| 5 | −1,4 % | −3,7 % |
+| 6 | +0,1 % | +0,9 % |
+| 7 | −0,4 % | −0,6 % |
+
+![Réplication](../ms5-planification/notebooks/figures/05_4_replication.png)
+
+Les écarts point par point bougent — c'est attendu, ce sont d'autres instances. **Les deux
+résultats structurels, eux, sont identiques** : le CVRP se passe toujours du 7ᵉ bus, en remplissant
+à 50/50 exactement (écart-type 0,00). *Une conclusion qui survit à un changement de données est
+plus solide qu'une conclusion obtenue une seule fois.*
+
+### 5 ter. Correction : le TSP **est** déterministe
+
+La version initiale de ce document affirmait un bruit de solveur d'« environ 3 % », déduit d'un
+écart de −3,1 % entre le banc d'essai et la référence de production. **C'était une erreur
+d'interprétation** : cet écart ne venait pas du solveur, mais du fait que les deux tournées
+comparées portaient sur **deux groupes d'élèves différents** (celui d'avant migration contre celui
+d'après).
+
+Mesuré correctement — la **même** instance résolue plusieurs fois :
+
+| Instance | Budget | Répétitions | Étendue |
+|---|--:|--:|--:|
+| TSP, un bus, 50 arrêts | 5 s | 5 | **0,00 %** |
+| CVRP, 7 bus, 300 arrêts | 35 s | 3 | **0,00 %** |
+
+Dans un même processus, les deux solveurs sont **reproductibles**. La variation apparaît **entre
+exécutions séparées** : le CVRP à 6 groupes a donné 180,9 puis 179,9 min lors de deux lancements
+successifs, soit **0,55 %**. C'est l'ordre de grandeur du bruit à retenir — et il reste inférieur
+aux écarts de 3,7 % observés en faveur de la décomposition.
+
+*(Ce résultat rejoint celui déjà noté dans [MS6](MS6_BENCHMARK_DISTANCE.md) §8 : « le TSP aval s'est
+révélé parfaitement déterministe sur ces instances ».)*
 
 Ce n'est pas le résultat attendu. La théorie dit qu'un CVRP résolu **à l'optimum** est au moins aussi
 bon. Mais on ne résout pas à l'optimum : on donne 35 secondes à une heuristique. Et en 35 secondes,
@@ -150,14 +200,17 @@ mais il est ici *mesuré* sur les données du projet, pas récité.
 Le tableau des durées cache la découverte la plus intéressante. Avec **7 bus disponibles**, le CVRP
 n'en utilise que **6** — chargés à **50 / 50 exactement**.
 
-![Charges](../ms5-planification/notebooks/figures/06_equilibrage_charges.png)
+![Charges](../ms5-planification/notebooks/figures/05_2_equilibrage_flotte.png)
 
 | | Bus utilisés | Charge min | Charge max | Écart-type |
 |---|--:|--:|--:|--:|
-| MS6 + TSP | 7 | 29 | 50 | **7,49** |
+| MS6 + TSP | 7 | 29 | 50 | **7,14** |
 | CVRP global | **6** | 50 | 50 | **0,00** |
 
-> **Un bus — donc un chauffeur — économisé, pour +0,4 % de temps de conduite.**
+> **Un bus — donc un chauffeur — économisé, pour +0,6 % de temps de conduite.**
+
+*(Ce résultat est le plus robuste du benchmark : il est **identique** dans les deux campagnes, sur
+deux partitions différentes — voir §5 bis.)*
 
 ### Ce n'est pas une erreur de MS6, c'est un arbitrage différent
 
@@ -200,16 +253,22 @@ On pourrait, et il finirait par rattraper puis dépasser. Mais la comparaison po
 budget de calcul réaliste, la décomposition gagne. Et si l'on décide d'allouer plus de temps,
 l'approche A en profite aussi — ses sept TSP tournent en parallèle.
 
-**« +0,4 %, ce n'est pas dans le bruit de mesure ? »**
-Si, et c'est bien ce qu'on affirme : les deux approches sont **équivalentes en distance**. La
-conclusion ne repose pas sur ce 0,4 % — elle repose sur le fait que le CVRP **n'apporte rien** là où
-on l'attendait, tout en révélant un gain ailleurs (le nombre de bus).
+**« +0,6 %, ce n'est pas dans le bruit de mesure ? »**
+Si, et c'est bien ce qu'on affirme : sur ce point les deux approches sont **équivalentes**. La
+conclusion ne repose pas sur ce 0,6 % — elle repose sur le fait que le CVRP **n'apporte rien** là où
+on l'attendait, tout en révélant un gain ailleurs (le nombre de bus). Le bruit inter-exécutions a
+d'ailleurs été mesuré : **0,55 %** (§5 ter). L'écart de **3,7 %** en faveur de la décomposition à
+5 groupes, lui, le dépasse nettement.
 
 **« Votre TSP est-il déterministe ? »**
-Non, et le notebook le dit. `GUIDED_LOCAL_SEARCH` est borné **en temps**, pas en itérations : deux
-exécutions sur une machine plus ou moins chargée explorent différemment. Le contrôle de cohérence
-retrouve la référence de production à **−3,1 %** en distance — du bruit de solveur, pas une dérive.
-Un écart de 20 % aurait signalé un vrai problème.
+**Oui, et c'est mesuré** — 5 exécutions de la même instance, étendue **0,00 %** (§5 ter). Le CVRP
+l'est aussi dans un même processus. Une variation n'apparaît qu'**entre exécutions séparées**, et
+elle vaut **0,55 %**.
+
+> ⚠️ **Ce document affirmait le contraire avant le 29/08** — « environ 3 % de bruit de solveur ».
+> Ce chiffre venait d'un contrôle qui comparait deux tournées portant sur **deux groupes d'élèves
+> différents** : ce n'était pas du bruit, c'était une autre instance. Le corriger était nécessaire,
+> parce qu'un bruit surestimé aurait servi à écarter des écarts réels.
 
 **« Pourquoi ne pas avoir comparé sur toute la flotte d'un coup, sans faire varier la taille ? »**
 Parce que la question intéressante n'est pas « qui gagne sur 300 élèves », c'est « **l'écart
@@ -227,13 +286,20 @@ docker-compose up -d && docker start osrm_meknes
 cd ms2-eleves && mvn spring-boot:run          # dans son propre terminal
 
 cd ms5-planification
-python notebooks/build_notebooks.py           # (re)génère le notebook
-python -m jupyter nbconvert --execute --to notebook --inplace \
-    --ExecutePreprocessor.timeout=3600 notebooks/06_cvrp_benchmark.ipynb
+python rejouer_cvrp.py                        # ~6 min → data/cvrp_benchmark_resultats.json
+python notebooks/gen_figures_memoire.py       # figures, hors ligne
 ```
 
-Figures produites dans `ms5-planification/notebooks/figures/06_*.png`.
+Le calcul et le tracé sont **séparés** : `rejouer_cvrp.py` exige MS2 et OSRM, mais
+`gen_figures_memoire.py` ne lit que le JSON. Deux avantages — on retrace les figures sans rallumer
+la stack, et **toutes les figures d'un rapport décrivent la même exécution**, ce qui ne serait pas
+garanti si chacune relançait un solveur borné en temps.
 
-> Les chiffres exacts varieront de quelques pour cent d'une exécution à l'autre — heuristique bornée
-> en temps. Les **conclusions**, elles, sont stables : pas d'écart significatif en durée, et un bus
-> économisé par le CVRP.
+Figures produites dans `ms5-planification/notebooks/figures/05_*.png` (et `.pdf`).
+
+> **À refaire après toute migration de partition MS6.** C'est précisément ce qui a rendu la
+> campagne du 23/08 caduque, et le rejeu du 29/08 nécessaire.
+
+*(L'ancien chemin — `build_notebooks.py` puis `nbconvert --execute` — reste possible, mais il
+réexécute le notebook entier et **efface ses sorties stockées**, dont les figures du mémoire qui y
+sont embarquées.)*

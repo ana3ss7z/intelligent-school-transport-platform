@@ -1108,7 +1108,9 @@ Baseline « plus proche voisin » pour mesurer le **gain**. `sens=soir` → dép
 (écart-type ≈ 0 vs ~5.8 min si inversé) et, sur OSRM réel (asymétrique), l'inversé non ré-optimisé coûte ~2× plus.
 Preuve : `ms5-planification/verify_sens.py`.
 
-**Résultat mesuré (9 bus, données v2) :** distance totale ~108 km · durée ~224 min · **gain moyen ~12.6 %**
+**Résultat mesuré (7 bus, partition de production, rejoué le 29/08) :** durée totale de flotte **206,6 min**
+(contre 241,5 min en ordre naïf) · **gain moyen 13,3 %** (3,9 % à 23,2 % selon la géométrie du groupe)
+*(l'ancien « 9 bus · ~108 km · ~224 min · ~12,6 % » datait des données v2, avant la migration k=7 du 27/08)*
 vs l'ordre naïf (variable par bus : 0 % si le glouton est déjà optimal).
 
 **Perf `/tournees` ← NOUVEAU :** calcul **parallèle** des tournées (`asyncio.gather`) + solve OR-Tools exécuté
@@ -1281,7 +1283,7 @@ flutter run --dart-define-from-file=config/env.phone.json                       
 | **S8** | **01-07/07** | **✅** | **MS12 Prédiction ETA (dataset 180j ancré OSRM, benchmark → elasticnet, service :8088). Déclencheurs clustering : ajout élève / déménagement / nouveau bus (MS1→MS6) ✅ ; silhouette dégradée = garde-fou informatif (pas trigger)** |
 | **S8-S12** | **08-16/07** | **✅** | **Couche d'intégration temps réel (validée e2e 8/8) : G1 ETA→notif (MS3→MS12→MS4), G3 anomalies GPS live (MS11), G5 présence→notif, B1 liaison groupe↔bus, garde-fou qualité dynamique. Données comptes générées (parents/fratries/flotte)** |
 | S9 | 08-14/07 | ✅ | **MS9 chatbot LLM (Phases A et B)** — **Phase A** : agent tool-calling maison (sans LangChain), agnostique Groq/Gemini, FR/AR/darija, outils scopés parent, reverse geocoding OSM. **Phase B ✅** : NL2SQL admin (`/api/llm/admin/query`, rôle Postgres `ms9_readonly` + transaction READ ONLY, page `AdminAssistant.tsx`) |
-| S10 | 15-21/07 | ✅ | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain ~12.6 %, soir=même ordre que matin, service :8085 ; `/tournees` parallélisé ~9 s)** |
+| S10 | 15-21/07 | ✅ | **VRP OR-Tools ✅ (MS5 : TSP par bus, dépôt=école, gain **13,3 %** sur la partition k=7, soir=même ordre que matin, service :8085 ; `/tournees` parallélisé ~9 s)** |
 | **S11** | **22-28/07** | **✅** | **Console d'administration web (UC-13) — React 18 + Vite + TS + Bun + Tailwind v4 (`frontend/web-admin/`, :5173) : dashboard+graphiques, carte live (bus interpolés/ETA/anomalies/tournées), clustering (cartes clusters DB + prévisualisation), CRUD élèves/bus/utilisateurs + liaisons parent↔enfant & chauffeur↔bus, incidents, anomalies, prévisions ETA par arrêt, pagination/tri/CSV, ⌘K, nav mobile. Deltas back : MS7 users CRUD, MS3 fix WS, MS6 `assignments`** |
 | S12 | 29/07-04/08 | ✅ | **Anomalies ✅ (MS11 : Isolation Forest curé PR-AUC 0.91, service :8091) + monitor GPS live G3 ✅. KPIs dashboard ✅** |
 | S13 | 05-11/08 | 🔄 | **Tests e2e ✅ (`e2e_integration_test.py` 8/8). Reste : déploiement, documentation** |

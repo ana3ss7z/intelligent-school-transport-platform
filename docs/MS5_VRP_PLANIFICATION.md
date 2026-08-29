@@ -150,19 +150,28 @@ Pour chaque bus, le **gain** (temps économisé vs l'ordre naïf).
 
 ---
 
-## 5. Résultats (données v2, 9 bus)
+## 5. Résultats (partition de production, 7 bus — rejoué le 29/08)
 
 | Indicateur | Valeur |
 |---|---|
-| Nombre de bus | 9 |
-| Distance totale | ~107.9 km |
-| Durée totale | ~224 min |
-| **Gain moyen vs ordre naïf** | **~12.6 %** |
-| Meilleur bus | bus 3 : **21.4 %** (39.4 → 31.0 min) |
+| Nombre de bus | **7** |
+| Durée totale de la flotte | **206,6 min** (contre 241,5 min en ordre naïf) |
+| **Gain moyen vs ordre naïf** | **13,3 %** |
+| Meilleur bus | bus 6 : **23,2 %** (45,1 → 34,6 min) |
+| Moins bon bus | bus 5 : **3,9 %** (15,5 → 14,9 min) |
 
-> **Honnêteté :** le gain est **variable** (0 % à 21 %) selon la géométrie du groupe. C'est un résultat
-> **réaliste** : sur les petits groupes compacts, le simple bon sens suffit ; c'est sur les grands groupes
-> étalés que l'optimisation apporte le plus.
+> **Honnêteté :** le gain est **variable** (3,9 % à 23,2 %) selon la géométrie du groupe. C'est un
+> résultat **réaliste** : sur les petits groupes compacts, le simple bon sens suffit ; c'est sur les
+> grands groupes étalés que l'optimisation apporte le plus.
+
+> ⚠️ **Chiffres remis à jour le 29/08.** La version précédente annonçait *9 bus, ~107,9 km, ~224 min,
+> gain ~12,6 %* — elle datait des données v2 et d'avant la migration vers **k = 7** du 27/08. Les
+> figures de cette page ont été régénérées en même temps.
+> **À refaire après toute migration de partition MS6** :
+> ```bash
+> cd ms5-planification && python -m jupyter nbconvert --execute --to notebook --inplace \
+>     notebooks/05_vrp_study.ipynb
+> ```
 
 ---
 

@@ -337,7 +337,12 @@ Tout le service est figé à `random_state = 42`. Dix graines, k-médoïdes rout
 5. Réconcilier `production_config.json` (silhouette du **cœur**, 0,4334) avec ce que publie le
    service (silhouette **finale**, ≈ 0,405) et recalibrer la référence de `quality.py` : les deux
    grandeurs sont correctes, mais elles ne sont pas comparables entre elles.
-6. Supprimer ou archiver `model_metadata.json` et `benchmark_summary.json`, périmés et contradictoires.
+6. ~~Supprimer ou archiver `model_metadata.json` et `benchmark_summary.json`, périmés et
+   contradictoires.~~ ✅ **Fait le 29/08.** Renommés en `*.perime-v2-k6.bak`, selon la convention
+   déjà utilisée pour `quality_baseline.json.perimee-17-07.bak`. Vérifié au préalable : **aucun
+   code Python ne les lit**. Ils annonçaient `"choix_production": "K-Means capacitaire"` et
+   `k = 6`, là où le service tourne en **k-médoïdes capacitaire routier à k = 7** — un lecteur du
+   dépôt pouvait légitimement croire que le modèle de production était l'autre.
 
 ---
 
