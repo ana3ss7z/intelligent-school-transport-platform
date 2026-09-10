@@ -1,7 +1,7 @@
 # 📱 App mobile PARENT — Transport Scolaire Intelligent
 
 Application **Flutter 3.44 / Dart 3.12** de l'espace parent : 6 écrans miroir de la console web
-([`web-admin/src/pages/Parent*.tsx`](../web-admin/src/pages/)), consommant le **même backend**
+([`web-app/src/pages/Parent*.tsx`](../web-app/src/pages/)), consommant le **même backend**
 (Gateway `:8080` + WebSocket GPS `:8083`). **Aucun delta backend** — les endpoints étaient déjà ouverts au rôle
 `PARENT`.
 
@@ -51,7 +51,7 @@ Deux subtilités, mesurées sur une vraie tournée de 753 points :
 - **La vitesse vient de la polyligne mesurée**, pas du total annoncé par MS5.
 
 > Ce fichier est le **jumeau byte-identique** de `chauffeur-mobile/lib/services/route_eta.dart`, et l'équivalent
-> de `web-admin/src/lib/routeEta.ts`. Les tests de parité et la fixture d'une tournée réelle
+> de `web-app/src/lib/routeEta.ts`. Les tests de parité et la fixture d'une tournée réelle
 > (`test/fixtures/tournee_groupe1.json`) existent des deux côtés : une divergence casse les deux suites.
 
 ---

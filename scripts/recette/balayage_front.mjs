@@ -1,7 +1,7 @@
 /**
- * Recette finale — Phase 8 : balayage des 27 routes de web-admin dans un vrai Chrome.
+ * Recette finale — Phase 8 : balayage des 27 routes de web-app dans un vrai Chrome.
  *
- * web-admin n'a AUCUN test automatisé (ni vitest, ni playwright) : ses 27 routes et
+ * web-app n'a AUCUN test automatisé (ni vitest, ni playwright) : ses 27 routes et
  * tout son RBAC sont vérifiés à la main. Ce script remplace ce passage manuel.
  *
  * Pour chaque rôle (ADMIN, CHAUFFEUR, PARENT) :
@@ -18,10 +18,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-// puppeteer-core est installé dans frontend/web-admin ; ce script vit ailleurs,
+// puppeteer-core est installé dans frontend/web-app ; ce script vit ailleurs,
 // donc on résout explicitement plutôt que de dépendre du cwd d'invocation.
 const puppeteer = (await import(pathToFileURL(path.resolve(
-  import.meta.dirname, "..", "..", "frontend", "web-admin",
+  import.meta.dirname, "..", "..", "frontend", "web-app",
   "node_modules", "puppeteer-core", "lib", "puppeteer", "puppeteer-core.js",
 )).href)).default;
 
@@ -159,7 +159,7 @@ const nav = await puppeteer.launch({
   defaultViewport: { width: 1440, height: 900 },
 });
 
-console.log("\n=== Recette Phase 8 — balayage des 27 routes de web-admin (Chrome réel) ===\n");
+console.log("\n=== Recette Phase 8 — balayage des 27 routes de web-app (Chrome réel) ===\n");
 
 for (const role of ["ADMIN", "CHAUFFEUR", "PARENT"]) {
   const ctx = await nav.createBrowserContext(); // session isolée par rôle

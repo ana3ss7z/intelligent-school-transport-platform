@@ -49,8 +49,8 @@ echo --- flutter parent (attendu : 38 tests ; analyze remonte 3 infos)
 pushd "%RACINE%\frontend\parent-mobile" && call flutter analyze & call flutter test & popd
 
 echo.
-echo --- web-admin : typecheck + lint
-pushd "%RACINE%\frontend\web-admin" && call bun run build & call bun run lint & popd
+echo --- web-app : typecheck + lint
+pushd "%RACINE%\frontend\web-app" && call bun run build & call bun run lint & popd
 
 if /I "%MODE%"=="offline" goto :fin
 
@@ -90,8 +90,8 @@ echo --- Phase 7 : MS13 configuration a chaud et MS4 canal push (attendu 13/13)
 "%PY%" "%~dp0config_et_push.py"
 
 echo.
-echo --- Phase 8 : balayage des 27 routes web-admin dans Chrome (attendu 42/42)
-echo     (web-admin doit tourner sur :5173)
+echo --- Phase 8 : balayage des 27 routes web-app dans Chrome (attendu 42/42)
+echo     (web-app doit tourner sur :5173)
 pushd "%RACINE%" && node "scripts\recette\balayage_front.mjs" & popd
 
 echo.

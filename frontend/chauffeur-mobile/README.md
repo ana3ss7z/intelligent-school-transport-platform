@@ -1,7 +1,7 @@
 # 🚐 App mobile CHAUFFEUR — Transport Scolaire Intelligent
 
 Application **Flutter** de l'espace chauffeur : 7 écrans miroir de la console web
-([`web-admin/src/pages/Chauffeur*.tsx`](../web-admin/src/pages/)), consommant le **même backend**
+([`web-app/src/pages/Chauffeur*.tsx`](../web-app/src/pages/)), consommant le **même backend**
 (Gateway `:8080` + WebSocket GPS `:8083`). **Aucun delta backend.**
 
 Cible de développement **Chrome `:5175`**, code **Android-ready**.
@@ -99,7 +99,7 @@ Deux subtilités, mesurées sur une vraie tournée de 753 points :
   durée annoncée par MS5.
 
 > Ce fichier est le **jumeau** de `parent-mobile/lib/services/route_eta.dart` (byte-identique) et de
-> `web-admin/src/lib/routeEta.ts`. Les tests de parité et la fixture réelle sont copiés dans les deux apps Dart :
+> `web-app/src/lib/routeEta.ts`. Les tests de parité et la fixture réelle sont copiés dans les deux apps Dart :
 > une divergence casse les tests des deux côtés.
 
 ---

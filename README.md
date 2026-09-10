@@ -114,12 +114,12 @@ flowchart TB
 
 ---
 
-## 🖥️ Interfaces web — 3 rôles (web-admin)
+## 🖥️ Interfaces web — 3 rôles (web-app)
 
 Application **React 18 + Vite + TypeScript** (gestionnaire **Bun**, **Tailwind CSS v4**, react-leaflet, Recharts),
 consommant exclusivement la **Gateway** (JWT) et le **WebSocket GPS**. Design **« signalétique / plan de transport »**
 distinctif (thème clair/sombre), code-splitting par route, **RBAC par rôle : ADMIN · CHAUFFEUR · PARENT** (menu et
-routes filtrés). Dossier [`frontend/web-admin/`](frontend/web-admin/).
+routes filtrés). Dossier [`frontend/web-app/`](frontend/web-app/).
 
 **Espace ADMIN**
 
@@ -255,7 +255,7 @@ flutter run --dart-define-from-file=config/env.phone.json
 ```
 
 > ⚠️ `String.fromEnvironment` est une **constante de compilation** : éditer un JSON exige de **relancer** l'app,
-> un hot restart ne suffit pas. Et la console web (`web-admin`) suit le même principe avec un mécanisme
+> un hot restart ne suffit pas. Et la console web (`web-app`) suit le même principe avec un mécanisme
 > différent — Vite et `import.meta.env.VITE_GATEWAY`, dans un fichier `.env`.
 
 ---
@@ -370,10 +370,10 @@ cd ms11-analytique   && uvicorn main:app --port 8091 --reload
 ```
 </details>
 
-### 3. Console d'administration (web-admin)
+### 3. Console d'administration (web-app)
 
 ```bash
-cd frontend/web-admin
+cd frontend/web-app
 bun install
 bun run dev          # http://localhost:5173  (login admin@transport.ma / Admin123!)
 ```
@@ -402,7 +402,7 @@ Ou ouvrez la **console de test unifiée** : [`html_tests/test-console.html`](htm
 | Planification/VRP (MS5) | `8085` | | Anomalies (MS11) | `8091` |
 | | | | **Paramètres (MS13)** | `8092` |
 | PostgreSQL `5432` · Redis `6379` · RabbitMQ `5672`/`15672` · OSRM `5000` | | | | |
-| **Front** : web-admin `5173` · app parent Flutter `5174` · **app chauffeur Flutter `5175`** | | | | |
+| **Front** : web-app `5173` · app parent Flutter `5174` · **app chauffeur Flutter `5175`** | | | | |
 
 ---
 
@@ -445,7 +445,7 @@ Exchange **`transport.exchange`** (topic, durable). Communication asynchrone dé
 | **`scripts/recette/scenarios.py`** | 39 scénarios **acteur ↔ acteur** : 6 comptes réels, chaque interaction testée sur ses deux faces | **39/39** ✅ |
 | **`scripts/recette/contrats.py`** | 67 assertions de contrat HTTP et RBAC contre la passerelle vivante | **67/67** ✅ |
 | **Newman (Postman)** | API cœur métier + passerelle | **88/88** ✅ |
-| **`scripts/recette/balayage_front.mjs`** | 27 routes web-admin × 3 rôles dans un vrai Chrome | **42/42** ✅ |
+| **`scripts/recette/balayage_front.mjs`** | 27 routes web-app × 3 rôles dans un vrai Chrome | **42/42** ✅ |
 | **`scripts/recette/config_et_push.py`** | MS13 config à chaud + MS4 canal push | **13/13** ✅ |
 | **`scripts/recette/migration_k7.py`** | Retour à 7 bus, mesuré des deux côtés | k=7, verdict **OK** ✅ |
 | **`scripts/recette/temps_reel.py`** | Cycle de trajet, déviation, vitesse, incident→notification | **10/12** ⚠️ |
@@ -488,7 +488,7 @@ transport-scolaire/
 ├── start-all-ms.bat         # lancement de tous les services
 ├── ms-common/               # module Java partagé (JWT, rôles)
 ├── ms1-bus/ … ms13-parametres/   # 13 microservices
-├── frontend/web-admin/      # console web React + Vite + TS (Bun) — admin · chauffeur · parent
+├── frontend/web-app/      # console web React + Vite + TS (Bun) — admin · chauffeur · parent
 ├── frontend/parent-mobile/     # app mobile PARENT Flutter (Chrome :5174 / Android)
 ├── frontend/chauffeur-mobile/  # app mobile CHAUFFEUR Flutter (Chrome :5175 / Android) — source GPS
 ├── html_tests/              # console de test unifiée + cartes Leaflet
@@ -518,7 +518,7 @@ Chaque service Python contient : `main.py` · modules métier · `notebooks/` (C
 | S15 | **Campagne de correction** issue de l'exécution contre le backend réel : ETA « cycle fermé », MS5 `continue_straight`, 2 crashs d'interface (cf. [CLAUDE.md](CLAUDE.md), pièges 13-15) | ✅ |
 | S15 | **MS13 ParametreService** — 60 réglages pilotables depuis `/settings`, catalogue en code / valeurs en base, propagation à chaud (RabbitMQ). Corrige au passage la divergence de 900 m sur les coordonnées de l'école ([`GUIDE_PARAMETRES.md`](docs/GUIDE_PARAMETRES.md)) | ✅ |
 | S15 | **Notifications poussées (FCM)** — canal jamais raccordé : 10 157 échecs sur 10 157. Diagnostic puis correction de **4 bugs qu'il masquait** (rafale de 150 notifs/parent, historisation par appareil, enregistrement non idempotent, journal non paginé) ; `parent-mobile` équipée web + Android ([`MS4_NOTIFICATIONS_FCM.md`](docs/MS4_NOTIFICATIONS_FCM.md)) | ✅ |
-| — | Push sur `web-admin` et `chauffeur-mobile` · vérification sur téléphone physique | 🔄 |
+| — | Push sur `web-app` et `chauffeur-mobile` · vérification sur téléphone physique | 🔄 |
 | — | Réaffectation dynamique (UC-9) · déploiement Railway/Render | ⏳ |
 | S13–S15 | Tests e2e ✅ · déploiement · mémoire & soutenance | 🔄 |
 

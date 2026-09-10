@@ -7,7 +7,7 @@ import 'dart:math' as math;
 /// bus avance normalement. On projette la position GPS sur la polyligne figée du trajet et on
 /// mesure ce qui reste À PARCOURIR jusqu'à la cible — une quantité qui décroît.
 ///
-/// Jumeau Dart de `web-admin/src/lib/routeEta.ts` (même algorithme, mêmes constantes).
+/// Jumeau Dart de `web-app/src/lib/routeEta.ts` (même algorithme, mêmes constantes).
 
 const double _r = 6371000;
 double _toRad(double d) => d * math.pi / 180;

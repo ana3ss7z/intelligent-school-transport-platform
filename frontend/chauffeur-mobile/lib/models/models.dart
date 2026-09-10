@@ -1,4 +1,4 @@
-// Modèles de données — miroirs des DTO backend (cf. web-admin/src/api/types.ts).
+// Modèles de données — miroirs des DTO backend (cf. web-app/src/api/types.ts).
 //
 // Rappel de casse : les MS Java (MS1/MS2/MS4/MS10) répondent en camelCase,
 // les MS Python (MS5 planification, MS12 ETA) en snake_case.

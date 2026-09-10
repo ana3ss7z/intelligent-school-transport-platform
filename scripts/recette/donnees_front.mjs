@@ -17,7 +17,7 @@ import { pathToFileURL } from "node:url";
 
 const RACINE = path.resolve(import.meta.dirname, "..", "..");
 const puppeteer = (await import(pathToFileURL(path.resolve(
-  RACINE, "frontend", "web-admin", "node_modules", "puppeteer-core",
+  RACINE, "frontend", "web-app", "node_modules", "puppeteer-core",
   "lib", "puppeteer", "puppeteer-core.js")).href)).default;
 
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";

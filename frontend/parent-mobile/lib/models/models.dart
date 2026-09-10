@@ -1,4 +1,4 @@
-// Modèles de données — miroirs des DTO backend (cf. web-admin/src/api/types.ts).
+// Modèles de données — miroirs des DTO backend (cf. web-app/src/api/types.ts).
 
 double? _toD(dynamic v) => v == null ? null : (v as num).toDouble();
 int? _toI(dynamic v) => v == null ? null : (v as num).toInt();

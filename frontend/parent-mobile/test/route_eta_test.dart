@@ -152,7 +152,7 @@ void main() {
       'Given une tournée et une durée, '
       'Then la vitesse vient de la polyligne MESURÉE, pas du total annoncé',
       () {
-        // Divergence assumée avec `parent-mobile` et `web-admin/routeEta.ts`,
+        // Divergence assumée avec `parent-mobile` et `web-app/routeEta.ts`,
         // qui divisent par `distancePlanM`. Sur les données réelles du groupe 1,
         // MS5 annonce 17 241 m (matrice /table) alors que sa propre polyligne en
         // fait 19 132 m (/route sans `continue_straight=false`, qui insère des
