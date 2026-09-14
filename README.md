@@ -15,7 +15,7 @@
 [![Tests](https://img.shields.io/badge/Newman-88%2F88%20✓-brightgreen.svg)](#-tests)
 [![Flutter tests](https://img.shields.io/badge/Flutter%20tests-109%2F109%20✓-brightgreen.svg)](#-tests)
 
-*Projet de Fin d'Études — Master SDIA (Systèmes Distribués & Intelligence Artificielle)*
+*Projet de Fin d'Études — Master SDIA (Science des Données et Intelligence Artificielle)*
 *Faculté des Sciences Moulay Ismail, Meknès*
 
 </div>
