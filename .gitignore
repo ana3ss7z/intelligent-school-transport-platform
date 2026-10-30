@@ -133,3 +133,5 @@ ms11-analytique/data/live_rules_benchmark.json
 ms12-prediction/data/ablation/
 ms12-prediction/data/benchmark_summary.json
 ms5-planification/data/cvrp_benchmark_resultats.json
+
+CLAUDE.md
